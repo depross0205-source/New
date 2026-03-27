@@ -1,444 +1,955 @@
 <!DOCTYPE html>
+
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>矛與盾 V7.0 — 數據整合回測引擎</title>
+<title>台股動能選股 V1.2</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-/* ── 延續 V6.0 字型與色彩 ── */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700;900&display=swap');
-
-*{box-sizing:border-box;margin:0;padding:0;}
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Noto+Sans+TC:wght@400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
 :root{
---bg:#0a0c10; --surface:#12161f; --surface2:#1a2030; --border:#252d3d;
---border-hi:#3a4560; --text:#e2eaf8; --muted:#6b7a99; --dim:#3d4a66;
---green:#00e5a0; --green-dim:#003d2a; --red:#ff4d6d; --red-dim:#3d0012;
---yellow:#ffb830; --yellow-dim:#3d2900; --blue:#4d9fff; --blue-dim:#001a3d;
---accent:#7eb8ff; --gold:#ffd166; --white:#f8faff;
+  --bg:#0a0c10;--sf:#12161f;--sf2:#1a2030;--bd:#252d3d;--bhi:#3a4560;
+  --tx:#e2eaf8;--mu:#6b7a99;--dim:#3d4a66;
+  --gr:#00e5a0;--grd:#003d2a;--re:#ff4d6d;--red:#3d0012;
+  --ye:#ffb830;--yed:#3d2900;--bl:#4d9fff;--bld:#001a3d;
+  --ac:#7eb8ff;--tw:#ff6b9d;--twd:#3d0020;--te:#00d4aa;--ted:#003328;--wh:#f8faff;
 }
-
-body{
-font-family:'IBM Plex Sans',sans-serif; background:var(--bg); color:var(--text);
-min-height:100vh; padding:24px 20px; line-height:1.6;
-}
-.mono{font-family:'IBM Plex Mono',monospace;}
-.wrap{max-width:1100px;margin:0 auto;}
-
-/* ── Header ── */
-.hdr{
-display:flex;justify-content:space-between;align-items:center;
-border-bottom:2px solid var(--border-hi); padding-bottom:18px;margin-bottom:24px;
-}
-.hdr-title{font-size:22px;font-weight:900;color:var(--white);display:flex;align-items:center;gap:10px;}
-.hdr-title span.v{font-size:12px;font-weight:600;background:var(--green);color:#000;padding:2px 8px;border-radius:3px;}
-.hdr-sub{font-size:13px;color:var(--muted);margin-top:4px;}
-
-/* ── 手動更新列 ── */
-.data-bar{
-display:flex;align-items:center;gap:12px;flex-wrap:wrap;
-background:var(--surface);border:1px solid var(--border);
-padding:12px 16px;margin-bottom:20px; font-size:13px;
-}
-.data-bar .input-group{display:flex;align-items:center;gap:6px;background:var(--bg);padding:4px 10px;border:1px solid var(--border-hi);}
-.data-bar label{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;}
-.data-bar input{background:transparent;border:none;color:var(--white);font-family:'IBM Plex Mono';width:60px;font-weight:700;outline:none;}
-
-/* ── Tabs ── */
-.tabs{display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--border);}
-.tab{
-padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer;color:var(--muted);
-border:none;border-bottom:3px solid transparent;background:none;transition:0.15s;
-}
-.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
-.panel{display:none;}.panel.active{display:block;}
-
-/* ── Config ── */
-.cfg-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px;}
-@media(max-width:700px){.cfg-grid{grid-template-columns:1fr;}}
-.cfg-box{background:var(--surface);border:1px solid var(--border);padding:18px;}
-.cfg-box h5{font-size:11px;letter-spacing:2px;color:var(--muted);font-weight:700;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px;text-transform:uppercase;}
-
-.f{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;}
-.f label{color:var(--text);font-size:14px;}
-.f input, .f select{background:var(--bg);border:1px solid var(--border-hi);color:var(--white);font-family:'IBM Plex Mono';font-size:14px;padding:6px;text-align:right;}
-
-/* ── Upload Box ── */
-.upload-box{
-background:var(--surface2);border:2px dashed var(--border-hi);padding:20px;text-align:center;margin-bottom:18px;transition:0.2s;
-}
-.upload-box:hover{border-color:var(--accent);}
-.upload-box label{cursor:pointer;color:var(--accent);font-weight:700;}
-input[type="file"]{display:none;}
-
-.btn{padding:12px 28px;font-weight:700;cursor:pointer;border:2px solid;transition:0.15s;font-family:inherit;}
-.btn-primary{background:var(--green);color:#000;border-color:var(--green);}
-.btn-primary:hover{background:#00ffb3;}
-.btn-update{background:transparent;color:var(--yellow);border-color:var(--yellow);padding:8px 16px;font-size:13px;}
-
-/* ── 儀表板組件 ── */
-.live-bar{background:var(--surface);border:1px solid var(--border-hi);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
-.live-bar .item{display:flex;flex-direction:column;}
-.live-bar .item .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;}
-.live-bar .item .val{font-size:26px;font-weight:900;font-family:'IBM Plex Mono';}
-.live-bar .sep{width:1px;height:40px;background:var(--border);}
-
-.kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;}
-.kpi{background:var(--surface);border:1px solid var(--border);padding:16px;}
-.kpi-label{font-size:11px;color:var(--muted);margin-bottom:6px;}
-.kpi-val{font-size:24px;font-weight:900;font-family:'IBM Plex Mono';}
-
-.chart-wrap{background:var(--surface);border:1px solid var(--border);padding:18px;margin-bottom:16px;}
-.table-wrap{background:var(--surface);border:1px solid var(--border);overflow-x:auto;margin-bottom:16px;}
-table{width:100%;border-collapse:collapse;font-size:14px;}
-th{padding:10px;color:var(--muted);text-align:left;background:var(--surface2);}
-td{padding:10px;border-bottom:1px solid var(--border);}
-.tg{color:var(--green);font-weight:700;}.tr{color:var(--red);font-weight:700;}
-
-/* Loading */
-.loading-overlay{position:fixed;inset:0;background:rgba(10,12,16,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:16px;}
-.hidden{display:none;}
-.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;padding:16px;font-size:14px;line-height:1.6}
+.mono{font-family:'IBM Plex Mono',monospace}
+.wrap{max-width:1200px;margin:0 auto}
+h1{font-size:18px;font-weight:700;color:var(--wh);display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.tag{font-size:11px;padding:2px 8px;border-radius:3px;background:var(--tw);color:#000;font-weight:700}
+.sub{font-size:11px;color:var(--mu);margin-bottom:14px}
+.tabs{display:flex;border-bottom:2px solid var(--bd);margin-bottom:14px;overflow-x:auto}
+.tab{padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;color:var(--mu);border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;font-family:inherit;white-space:nowrap;transition:.15s}
+.tab.active{color:var(--tw);border-bottom-color:var(--tw)}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--sf);border:1px solid var(--bd);padding:13px;margin-bottom:10px}
+.ct{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--mu);margin-bottom:9px;display:flex;justify-content:space-between;align-items:center}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.fi{display:flex;flex-direction:column;gap:3px}
+.fi label{font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase}
+input[type=text],input[type=number],select{background:var(--bg);border:1px solid var(--bhi);color:var(--wh);padding:7px 9px;border-radius:3px;font-size:13px;font-family:'IBM Plex Mono',monospace;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--tw)}
+button{padding:9px 14px;border:none;border-radius:3px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;transition:.15s}
+.btw{background:var(--tw);color:#000;width:100%}.btw:hover{opacity:.85}
+.bo{background:transparent;border:1px solid var(--bhi);color:var(--mu)}.bo:hover{color:var(--tx);border-color:var(--tx)}
+.sm{padding:5px 11px;font-size:11px;width:auto}
+.log{font-size:11px;color:var(--mu);font-family:'IBM Plex Mono',monospace;margin-top:7px;min-height:14px;word-break:break-all;white-space:pre-wrap}
+.pw{background:var(--bd);border-radius:2px;height:4px;margin-top:6px;overflow:hidden}
+.pf{height:100%;background:var(--tw);border-radius:2px;transition:width .3s}
+.ig{border:1px solid var(--bd);margin-bottom:5px;border-radius:3px;overflow:hidden}
+.ih{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;cursor:pointer;background:var(--sf2);user-select:none}
+.ih:hover{background:var(--bhi)}
+.in{font-size:12px;font-weight:700;color:var(--ac)}
+.ic{font-size:10px;color:var(--mu)}
+.ib{padding:7px;display:flex;flex-wrap:wrap;gap:4px}
+.ib.col{display:none}
+.sc{display:inline-flex;align-items:center;padding:4px 8px;border-radius:3px;font-size:11px;font-family:'IBM Plex Mono',monospace;border:1px solid var(--bd);background:var(--bg);cursor:pointer;gap:4px;user-select:none;transition:.12s}
+.sc:hover{border-color:var(--tw);background:var(--twd)}
+.sc.act{background:var(--twd);border-color:var(--tw);color:var(--tw)}
+.cc{font-weight:700}.cn{font-size:9px;color:var(--mu)}.sc.act .cn{color:var(--tw);opacity:.7}
+.cd{font-size:12px;color:var(--re);opacity:0;padding:0 2px}.sc:hover .cd{opacity:1}
+.cust{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.cust input,.cust select{flex:1;min-width:75px}
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:8px;margin-bottom:10px}
+.scard{background:var(--sf);border:1px solid var(--bd);padding:11px;border-radius:3px}
+.shdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px}
+.scode{font-size:15px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--tw)}
+.sname{font-size:10px;color:var(--mu);margin-top:1px}
+.sscore{font-size:21px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.srank{font-size:11px;font-weight:700;padding:2px 8px;border-radius:3px;background:var(--twd);color:var(--tw);border:1px solid var(--tw)}
+.sbars{margin-top:7px}
+.sbrow{display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:10px;color:var(--mu)}
+.sbwrap{flex:1;height:3px;background:var(--bd);border-radius:2px;overflow:hidden}
+.sbfill{height:100%;border-radius:2px}
+.wk .scode{color:var(--re)}.wk .srank{background:var(--red);color:var(--re);border-color:var(--re)}
+.mr{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--bd)}
+.mr:last-child{border:none}.mv{font-family:'IBM Plex Mono',monospace;font-weight:700}
+.tg{color:var(--gr)}.tr{color:var(--re)}.ty{color:var(--ye)}
+.tw{overflow-x:auto;background:var(--sf);border:1px solid var(--bd);margin-bottom:10px;max-height:480px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:7px 8px;color:var(--mu);text-align:left;background:var(--sf2);position:sticky;top:0;z-index:2;font-size:10px;white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}
+tr:hover{background:var(--sf2)}
+.cw{background:var(--sf);border:1px solid var(--bd);padding:13px;margin-bottom:10px}
+.ct2{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--mu);margin-bottom:9px}
+.load{position:fixed;inset:0;background:rgba(10,12,16,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px}
+.spin{width:32px;height:32px;border:3px solid var(--bd);border-top-color:var(--tw);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hidden{display:none}
+.bdg{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:10px;font-family:'IBM Plex Mono',monospace;font-weight:700;margin:2px}
+.shbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--twd);border:1px solid var(--tw);border-radius:3px;margin-bottom:10px;flex-wrap:wrap}
+.shbar label{font-size:11px;color:var(--tw);font-weight:700;white-space:nowrap}
+.shbar input{width:70px}.shbar span{font-size:10px;color:var(--mu)}
+.ib2{background:var(--sf2);border:1px solid var(--bd);padding:9px 11px;border-radius:3px;font-size:11px;color:var(--mu);line-height:1.9;margin-top:8px}
+.ib2 b{color:var(--tw)}
+.eb{display:none;background:var(--red);border:1px solid var(--re);color:var(--re);padding:8px 12px;border-radius:3px;font-size:12px;margin-bottom:9px;font-family:'IBM Plex Mono',monospace}
+.cs{display:flex;align-items:center;padding:6px 10px;background:var(--sf2);border:1px solid var(--bd);border-radius:3px;margin-bottom:8px;gap:10px;flex-wrap:wrap}
+.cst{font-size:11px;font-weight:700}
+.dlrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 </style>
 </head>
 <body>
-
-<div class="loading-overlay hidden" id="loadingOverlay">
-  <div class="spinner"></div>
-  <div class="loading-text">計算中...</div>
+<div class="load hidden" id="loadEl">
+  <div class="spin"></div>
+  <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">載入中...</div>
 </div>
-
 <div class="wrap">
-
-  <div class="hdr">
-    <div class="hdr-left">
-      <div class="hdr-title">🛡️ 矛與盾 <span class="v">V7.0 PRO-C</span></div>
-      <div class="hdr-sub">資料整併回測引擎 ｜ 支援 CSV 上傳與即時手動更新</div>
-    </div>
-    <div id="dataSourceBadge" style="font-size:12px;padding:4px 12px;border:1px solid var(--border-hi);color:var(--muted);font-family:monospace;">● 初始數據模式</div>
-  </div>
-
-  <div class="data-bar">
-    <span class="mono" style="color:var(--yellow);font-weight:700;">今日觀測：</span>
-    <div class="input-group"><label>HY OAS %</label><input type="number" id="mHY" value="3.1" step="0.01"></div>
-    <div class="input-group"><label>TIPS 10Y %</label><input type="number" id="mTIPS" value="1.9" step="0.01"></div>
-    <div class="input-group"><label>VIX</label><input type="number" id="mVIX" value="18.0" step="0.1"></div>
-    <button class="btn btn-update mono" onclick="applyManualData()">⚡ 立即更新當前分數</button>
-    <div style="font-size:11px;color:var(--dim);margin-left:auto;">*更新將覆寫回測最後一日數據</div>
-  </div>
-
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab(event,'config')">⚙ 設定與上傳</button>
-    <button class="tab" onclick="switchTab(event,'result')">📊 回測報告</button>
-    <button class="tab" onclick="switchTab(event,'yearly')">📅 逐年績效</button>
-    <button class="tab" onclick="switchTab(event,'trades')">📋 換檔紀錄</button>
-  </div>
-
-  <div class="panel active" id="panel-config">
-    
-    <div class="upload-box">
-      <p style="margin-bottom:10px;">📤 <b>上傳整合資料庫</b></p>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:15px;">請選擇 Shield_Merged_Database.csv (欄位: Date, SP500, HY_Spread, TIPS_10Y, VIX, CAPE)</p>
-      <label for="csvUpload">點擊選擇檔案 或 拖曳至此</label>
-      <input type="file" id="csvUpload" accept=".csv" onchange="handleFileUpload(event)">
-      <div id="fileNameDisplay" style="margin-top:10px;font-size:12px;color:var(--green);"></div>
-    </div>
-
-    <div class="cfg-grid">
-      <div class="cfg-box">
-        <h5>策略參數 <span class="mono">STRATEGY</span></h5>
-        <div class="f"><label>加碼門檻 (≥)</label><input type="number" id="cfgS150" value="60"></div>
-        <div class="f"><label>標準門檻 (≥)</label><input type="number" id="cfgS100" value="40"></div>
-        <div class="f"><label>VIX 觸發</label><input type="number" id="cfgVix" value="35"></div>
-      </div>
-      <div class="cfg-box">
-        <h5>回測期間 <span class="mono">PERIOD</span></h5>
-        <div class="f"><label>起始年份</label>
-          <select id="cfgStart"><option value="2016">2016 (檔案起始)</option><option value="2020">2020</option></select>
-        </div>
-        <div class="f"><label>初始資金</label><input type="number" id="cfgCap" value="100000"></div>
-        <div class="f"><label>交易成本(bp)</label><input type="number" id="cfgCost" value="5"></div>
-      </div>
-      <div class="cfg-box">
-        <h5>方法 B 參數 <span class="mono">Z-SCORE</span></h5>
-        <div class="f"><label>Z-Score 閥值</label><input type="number" id="cfgHyZ" value="1.5" step="0.1"></div>
-        <div class="f"><label>窗口(月)</label><input type="number" value="24" disabled style="opacity:0.5"></div>
-      </div>
-    </div>
-
-    <button class="btn btn-primary" style="width:100%" onclick="runBacktest()">▶ 執行完整歷史回測</button>
-  </div>
-
-  <div class="panel" id="panel-result">
-    <div class="live-bar" id="liveShieldBox"></div>
-    <div class="kpi-strip" id="kpiStrip"></div>
-    <div class="chart-wrap"><canvas id="navChart" height="300"></canvas></div>
-    <div class="chart-wrap"><canvas id="ddChart" height="150"></canvas></div>
-  </div>
-
-  <div class="panel" id="panel-yearly">
-    <div class="table-wrap">
-      <table><thead><tr><th>年份</th><th>策略報酬</th><th>B&H</th><th>Alpha</th><th>MDD</th><th>換檔次</th></tr></thead>
-      <tbody id="yrBody"></tbody></table>
-    </div>
-  </div>
-
-  <div class="panel" id="panel-trades">
-    <div class="table-wrap" style="max-height:600px;overflow-y:auto;">
-      <table><thead><tr><th>日期</th><th>齒輪</th><th>倉位</th><th>盾牌</th><th>Z-Score</th><th>VIX</th><th>SP500</th></tr></thead>
-      <tbody id="trBody"></tbody></table>
-    </div>
-  </div>
-
+<h1>🇹🇼 台股動能選股 <span class="tag">V1.2</span></h1>
+<div class="sub">台灣50 + 中型100 ｜ 動能 z分(50%) + 技術面四維(50%) ｜ 月頻換倉 ｜ 最刨3支做多 vs TAIEX ｜ V1.2: 快取+存檔+權重即時生效</div>
+<div class="eb" id="errBanner"></div>
+<div class="tabs" id="tabBar">
+  <button class="tab active" data-tab="pool">📋 股池設定</button>
+  <button class="tab" data-tab="fetch">🌐 資料抓取</button>
+  <button class="tab" data-tab="signal">📡 即時信號</button>
+  <button class="tab" data-tab="backtest">📈 回測結果</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- POOL -->
+
+<div class="panel active" id="panel-pool">
+  <div class="shbar">
+    <label>🛡 盾牌分數（選填，Shield Gate）</label>
+    <input type="number" id="shieldScore" placeholder="0-100" min="0" max="100">
+    <span>留空=不過濾 ｜ 低於此分提體現金比例</span>
+  </div>
+  <div class="card">
+    <div class="ct">股池設定
+      <div style="display:flex;gap:6px">
+        <button class="bo sm" id="btnAll">全選</button>
+        <button class="bo sm" id="btnNone">全停</button>
+      </div>
+    </div>
+    <div id="poolCont">建構中...</div>
+    <div class="cust">
+      <input type="text" id="cusT" placeholder="2330 或 2330.TW" style="max-width:130px">
+      <input type="text" id="cusN" placeholder="名稱" style="max-width:90px">
+      <select id="cusI" style="max-width:110px">
+<option value='\u5149\u5b78\u7cbe\u5bc6'>\u5149\u5b78\u7cbe\u5bc6</option>
+<option value='\u534a\u5c0e\u9ad4'>\u534a\u5c0e\u9ad4</option>
+<option value='\u5de5\u696d\u6a5f\u68b0'>\u5de5\u696d\u6a5f\u68b0</option>
+<option value='\u5de5\u696d\u96fb\u8166'>\u5de5\u696d\u96fb\u8166</option>
+<option value='\u6c7d\u8eca'>\u6c7d\u8eca</option>
+<option value='\u751f\u6280\u91ab\u7642'>\u751f\u6280\u91ab\u7642</option>
+<option value='\u77f3\u5316'>\u77f3\u5316</option>
+<option value='\u822a\u904b'>\u822a\u904b</option>
+<option value='\u91d1\u878d'>\u91d1\u878d</option>
+<option value='\u92fc\u9435'>\u92fc\u9435</option>
+<option value='\u96fb\u4fe1'>\u96fb\u4fe1</option>
+<option value='\u96fb\u5b50\u88fd\u9020'>\u96fb\u5b50\u88fd\u9020</option>
+<option value='\u96fb\u5b50\u96f6\u7d44\u4ef6'>\u96fb\u5b50\u96f6\u7d44\u4ef6</option>
+<option value='\u96fb\u8166\u5468\u908a'>\u96fb\u8166\u5468\u908a</option>
+<option value='\u9762\u677f'>\u9762\u677f</option>
+<option value='\u98df\u54c1\u6d88\u8cbb'>\u98df\u54c1\u6d88\u8cbb</option>
+      </select>
+      <button class="bo sm" id="btnAdd">+ 新增</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">評分權重 <span style="font-size:10px;color:var(--gr)">改完權重直接重計信號/回測，不需重抓取</span></div>
+    <div class="g3">
+      <div class="fi"><label>動能 z分 (%)</label><input type="number" id="wMom" value="50" min="0" max="100"></div>
+      <div class="fi"><label>VWMA Bias (%)</label><input type="number" id="wBias" value="15" min="0" max="100"></div>
+      <div class="fi"><label>VWMA 斜率 (%)</label><input type="number" id="wSlope" value="15" min="0" max="100"></div>
+      <div class="fi"><label>量能確認 (%)</label><input type="number" id="wVol" value="10" min="0" max="100"></div>
+      <div class="fi"><label>K棒強弱 (%)</label><input type="number" id="wKbar" value="10" min="0" max="100"></div>
+      <div class="fi"><label>相關係數門法</label><input type="number" id="corrT" value="0.75" step="0.05" min="0.3" max="1"></div>
+    </div>
+    <div class="ib2">
+      <b>動能</b>：0.5×z₁₂+0.3×z₆+0.2×z₃（月頻，各期波動率標準化）<br>
+      <b>VWMA Bias</b>：(close−VWMA50)/VWMA50，週頻，跨截面z，z&gt;2截斷<br>
+      <b>VWMA斜率</b>：VWMA50近13週線性斜率，z標準化｜<b>量能</b>：價漲量增/價跌量縮z，z&gt;2截斷<br>
+      <b>K棒強弱</b>：13週滚動(close−low)/(high−low)均値，z標準化
+    </div>
+  </div>
+</div>
+
+<!-- FETCH -->
+
+<div class="panel" id="panel-fetch">
+  <div class="card">
+    <div class="ct">Proxy 設定</div>
+    <div class="fi"><label>Proxy URL</label>
+      <input type="text" id="proxyUrl" value="https://shield-proxy.depross0205.workers.dev?url=" autocorrect="off" spellcheck="false"></div>
+  </div>
+  <div class="card">
+    <div class="ct">資料抓取</div>
+    <div id="fetchStat" style="display:flex;flex-wrap:wrap;margin-bottom:8px"></div>
+    <button class="btw" id="btnFetch">🌐 抓取全部資料（週頻+月頻）→ 自動建快取</button>
+    <div class="log" id="fetchLog"></div>
+    <div class="pw hidden" id="fetchProg"><div class="pf" id="fetchFill" style="width:0%"></div></div>
+  </div>
+  <div class="card">
+    <div class="ct">資料存檔 / 載入
+      <div style="display:flex;gap:6px">
+        <button class="bo sm" id="btnDlJson">⬇ JSON（完整備份）</button>
+        <button class="bo sm" id="btnDlWeekly">⬇ 週頻 CSV</button>
+        <button class="bo sm" id="btnDlMonthly">⬇ 月頻 CSV</button>
+      </div>
+    </div>
+    <div class="cs" id="cacheStatus">
+      <span class="cst" id="cacheStatusTxt" style="color:var(--mu)">快取狀態：尚未建立</span>
+    </div>
+    <div style="margin-top:8px">
+      <input type="file" id="fileJson" accept=".json" style="display:none">
+      <button class="bo sm" id="btnUpJson">⬆ 上傳 JSON 還原資料</button>
+      <span style="font-size:10px;color:var(--mu);margin-left:8px">上傳後自動重建快取，可直接計算信號/回測</span>
+    </div>
+    <div class="log" id="dlLog"></div>
+  </div>
+</div>
+
+<!-- SIGNAL -->
+
+<div class="panel" id="panel-signal">
+  <div class="card">
+    <div class="ct">📡 即時信號（最新月份）</div>
+    <div id="sigContent" style="color:var(--mu);font-size:12px">請先完成資料抓取後點擊「計算信號」。</div>
+    <button class="btw" id="btnSig" style="margin-top:10px">▶ 計算即時信號</button>
+  </div>
+  <div class="card hidden" id="stCard">
+    <div class="ct">全股池評分排行</div>
+    <div class="tw"><table>
+      <thead><tr><th>排名</th><th>代號</th><th>名稱</th><th>產業</th>
+      <th>綜分</th><th>動能Z</th><th>BiasZ</th><th>SlopeZ</th><th>VolZ</th><th>KbarZ</th>
+      <th>R12</th><th>R6</th><th>R3</th><th>TS</th></tr></thead>
+      <tbody id="stBody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- BACKTEST -->
+
+<div class="panel" id="panel-backtest">
+  <div class="card">
+    <div class="ct">回測設定</div>
+    <div class="g3">
+      <div class="fi"><label>開始 (YYYY-MM)</label><input type="text" id="btS" placeholder="留空=最早可用"></div>
+      <div class="fi"><label>結束 (YYYY-MM)</label><input type="text" id="btE" placeholder="留空=最新"></div>
+      <div class="fi"><label>最多持股數</label><input type="number" id="btH" value="3" min="1" max="10"></div>
+      <div class="fi"><label>本金</label><input type="number" id="btCap" value="100000"></div>
+      <div class="fi"><label>交易成本 (%)</label><input type="number" id="btC" value="0.3" step="0.1"></div>
+      <div class="fi"><label>現金利率 (%/年)</label><input type="number" id="btR" value="1.5" step="0.1"></div>
+    </div>
+    <button class="btw" id="btnBT" style="margin-top:8px">▶ 執行回測</button>
+    <div class="log" id="btLog"></div>
+  </div>
+  <div id="btRes" class="hidden">
+    <div id="btMetrics" class="g3" style="gap:8px;margin-bottom:10px"></div>
+    <div class="cw"><div class="ct2">淨値曲線（對數刻度）vs TAIEX</div><canvas id="navC" height="260"></canvas></div>
+    <div class="cw"><div class="ct2">最大回撤</div><canvas id="ddC" height="140"></canvas></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+      <button class="bo sm" id="btnDlBt">⬇ 下載回測歷程 CSV</button>
+    </div>
+    <div class="tw"><table><thead><tr>
+      <th>換倉月</th><th>持倉</th><th>月報酬</th><th>淨値</th><th>TAIEX淨値</th><th>超額</th>
+    </tr></thead><tbody id="btBody"></tbody></table></div>
+  </div>
+</div>
+</div>
 <script>
-'use strict';
+var POOL = [
+{c:'2330',n:'\u53f0\u7a4d\u96fb',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
+{c:'2454',n:'\u806f\u767c\u79d1',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
+{c:'2303',n:'\u806f\u96fb',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
+{c:'3711',n:'\u65e5\u6708\u5149',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
+{c:'2344',n:'\u83ef\u90a6\u96fb',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
+{c:'2368',n:'\u91d1\u50cf\u96fb',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
+{c:'2449',n:'\u4eac\u5143\u96fb\u5b50',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
+{c:'2408',n:'\u5357\u4e9e\u79d1',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
+{c:'3037',n:'\u6b23\u8208',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'tw50',on:true},
+{c:'2383',n:'\u53f0\u5149\u96fb',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'tw50',on:true},
+{c:'3653',n:'\u5065\u7b56',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'tw50',on:true},
+{c:'2317',n:'\u9d3b\u6d77',ind:'\u96fb\u5b50\u88fd\u9020',type:'tw50',on:true},
+{c:'2382',n:'\u5ee3\u9054',ind:'\u96fb\u5b50\u88fd\u9020',type:'tw50',on:true},
+{c:'2308',n:'\u53f0\u9054\u96fb',ind:'\u96fb\u5b50\u88fd\u9020',type:'tw50',on:true},
+{c:'2301',n:'\u5149\u5bf6\u79d1',ind:'\u96fb\u5b50\u88fd\u9020',type:'tw50',on:true},
+{c:'2354',n:'\u9d3b\u6e96',ind:'\u96fb\u5b50\u88fd\u9020',type:'tw50',on:true},
+{c:'2360',n:'\u81f4\u8302',ind:'\u96fb\u5b50\u88fd\u9020',type:'tw50',on:true},
+{c:'2357',n:'\u83ef\u78a9',ind:'\u96fb\u8166\u5468\u908a',type:'tw50',on:true},
+{c:'2353',n:'\u5b8f\u7881',ind:'\u96fb\u8166\u5468\u908a',type:'tw50',on:true},
+{c:'2881',n:'\u5bcc\u90a6\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'2882',n:'\u570b\u6cf0\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'2884',n:'\u7389\u5c71\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'2885',n:'\u5143\u5927\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'2886',n:'\u5146\u8c50\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'2887',n:'\u53f0\u65b0\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'2888',n:'\u65b0\u5149\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'2891',n:'\u4e2d\u4fe1\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'2892',n:'\u7b2c\u4e00\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'2883',n:'\u958b\u767c\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'2880',n:'\u83ef\u5357\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'5880',n:'\u5408\u5eab\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'2890',n:'\u6c38\u8c50\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
+{c:'2412',n:'\u4e2d\u83ef\u96fb',ind:'\u96fb\u4fe1',type:'tw50',on:true},
+{c:'3045',n:'\u53f0\u7063\u5927',ind:'\u96fb\u4fe1',type:'tw50',on:true},
+{c:'1301',n:'\u53f0\u5851',ind:'\u77f3\u5316',type:'tw50',on:true},
+{c:'1303',n:'\u5357\u4e9e',ind:'\u77f3\u5316',type:'tw50',on:true},
+{c:'6505',n:'\u53f0\u5851\u5316',ind:'\u77f3\u5316',type:'tw50',on:true},
+{c:'2002',n:'\u4e2d\u92fc',ind:'\u92fc\u9435',type:'tw50',on:true},
+{c:'1216',n:'\u7d71\u4e00\u4f01\u696d',ind:'\u98df\u54c1\u6d88\u8cbb',type:'tw50',on:true},
+{c:'3008',n:'\u5927\u7acb\u5149',ind:'\u5149\u5b78\u7cbe\u5bc6',type:'tw50',on:true},
+{c:'2207',n:'\u548c\u6cf0\u8eca',ind:'\u6c7d\u8eca',type:'tw50',on:true},
+{c:'2059',n:'\u5ddd\u6e56',ind:'\u5de5\u696d\u6a5f\u68b0',type:'tw50',on:true},
+{c:'2409',n:'\u53cb\u9054',ind:'\u9762\u677f',type:'tw50',on:true},
+{c:'3034',n:'\u806f\u8a60',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
+{c:'2379',n:'\u745e\u6631',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
+{c:'2337',n:'\u65fa\u5b8f',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
+{c:'3035',n:'\u667a\u539f',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
+{c:'6770',n:'\u529b\u7a4d\u96fb',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
+{c:'3443',n:'\u5275\u610f',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
+{c:'5274',n:'\u4fe1\u9a4a',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
+{c:'3189',n:'\u666f\u78a9',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
+{c:'3533',n:'\u5609\u6fa4',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
+{c:'2327',n:'\u570b\u5de8',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
+{c:'3017',n:'\u5947\u92d0',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
+{c:'3044',n:'\u5065\u9f0e',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
+{c:'2492',n:'\u83ef\u65b0\u79d1',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
+{c:'3665',n:'\u8cbf\u806f-KY',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
+{c:'8996',n:'\u9ad8\u529b',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
+{c:'4938',n:'\u548c\u78a9',ind:'\u96fb\u5b50\u88fd\u9020',type:'mid',on:true},
+{c:'3231',n:'\u7def\u5275',ind:'\u96fb\u5b50\u88fd\u9020',type:'mid',on:true},
+{c:'2356',n:'\u82f1\u696d\u9054',ind:'\u96fb\u5b50\u88fd\u9020',type:'mid',on:true},
+{c:'2324',n:'\u4ec1\u5bf6',ind:'\u96fb\u8166\u5468\u908a',type:'mid',on:true},
+{c:'2377',n:'\u5fae\u661f',ind:'\u96fb\u8166\u5468\u908a',type:'mid',on:true},
+{c:'2395',n:'\u7814\u83ef',ind:'\u5de5\u696d\u96fb\u8166',type:'mid',on:true},
+{c:'2838',n:'\u806f\u90a6\u9280',ind:'\u91d1\u878d',type:'mid',on:true},
+{c:'5876',n:'\u4e0a\u5546\u9280',ind:'\u91d1\u878d',type:'mid',on:true},
+{c:'2823',n:'\u4e2d\u58fd',ind:'\u91d1\u878d',type:'mid',on:true},
+{c:'2912',n:'\u7d71\u4e00\u8d85',ind:'\u98df\u54c1\u6d88\u8cbb',type:'mid',on:true},
+{c:'1210',n:'\u5927\u6210',ind:'\u98df\u54c1\u6d88\u8cbb',type:'mid',on:true},
+{c:'2615',n:'\u842c\u6d77',ind:'\u822a\u904b',type:'mid',on:true},
+{c:'2603',n:'\u9577\u69ae',ind:'\u822a\u904b',type:'mid',on:true},
+{c:'2609',n:'\u967d\u660e',ind:'\u822a\u904b',type:'mid',on:true},
+{c:'2610',n:'\u83ef\u822a',ind:'\u822a\u904b',type:'mid',on:true},
+{c:'2618',n:'\u9577\u69ae\u822a',ind:'\u822a\u904b',type:'mid',on:true},
+{c:'2645',n:'\u9577\u69ae\u822a\u592a',ind:'\u822a\u904b',type:'mid',on:true},
+{c:'4904',n:'\u9060\u50b3',ind:'\u96fb\u4fe1',type:'mid',on:true},
+{c:'3406',n:'\u7389\u6676\u5149',ind:'\u5149\u5b78\u7cbe\u5bc6',type:'mid',on:true},
+{c:'2049',n:'\u4e0a\u9280',ind:'\u5de5\u696d\u6a5f\u68b0',type:'mid',on:true},
+{c:'6547',n:'\u7f8e\u6642',ind:'\u751f\u6280\u91ab\u7642',type:'mid',on:true}
+];
 
-// ═══════════════════════════════════════════
-// 1. 全域變數與預設數據 (V6版備份數據)
-// ═══════════════════════════════════════════
-let DATES = [], SP = [], HY = [], TIPS = [], VIX = [], CAPE = [];
-let BT_RESULT = null;
+// ─── State
+var WEEKLY={}, MONTHLY={}, BENCH_MONTHLY=[], RAW_SCORES={}, BT_RESULT=null, CHART={};
+var CACHE_BUILT=false, CACHE_TS=null;
 
-// 預設虛擬數據 (防止未上傳前報錯)
-function initEmptyData() {
-  const now = new Date();
-  for(let i=0; i<500; i++) {
-    const d = new Date(now); d.setDate(d.getDate()-i);
-    DATES.unshift(d.toISOString().slice(0,10));
-    SP.unshift(4000 + i*2); HY.unshift(3.5); TIPS.unshift(1.5); VIX.unshift(18); CAPE.unshift(30);
-  }
-}
-initEmptyData();
+// ─── Helpers
+function $(i){return document.getElementById(i);}
+function gv(i){var e=$(i);return e?parseFloat(e.value)||0:0;}
+function sl(i,msg,ok){var e=$(i);if(!e)return;e.textContent=msg;e.style.color=ok===true?‘var(–gr)’:ok===false?‘var(–re)’:‘var(–mu)’;}
+function showL(t){$(‘loadEl’).classList.remove(‘hidden’);$(‘loadTxt’).textContent=t||‘載入中…’;}
+function hideL(){$(‘loadEl’).classList.add(‘hidden’);}
+function showErr(m){var b=$(‘errBanner’);if(!b)return;b.style.display=‘block’;b.textContent=’⚠ ’+m;console.error(m);}
+function clearErr(){var b=$(‘errBanner’);if(b)b.style.display=‘none’;}
+function dlBlob(blob,name){var a=document.createElement(‘a’);a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);}
+function dlText(text,name,type){dlBlob(new Blob([text],{type:type||‘text/plain;charset=utf-8’}),name);}
 
-// ═══════════════════════════════════════════
-// 2. CSV 上傳處理 (以您提供的欄位抓取)
-// ═══════════════════════════════════════════
-function handleFileUpload(event) {
-  const file = event.target.files[0];
-  if(!file) return;
-  
-  document.getElementById('fileNameDisplay').textContent = "正在讀取: " + file.name;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const text = e.target.result;
-    const lines = text.split('\n').filter(l => l.trim().length > 0);
-    const headers = lines[0].split(',').map(h => h.trim());
-    
-    // 欄位索引對應
-    const idx = {
-      date: headers.indexOf('Date'),
-      sp: headers.indexOf('SP500'),
-      hy: headers.indexOf('HY_Spread'),
-      tips: headers.indexOf('TIPS_10Y'),
-      vix: headers.indexOf('VIX'),
-      cape: headers.indexOf('CAPE')
-    };
-
-    // 清空舊數據
-    DATES = []; SP = []; HY = []; TIPS = []; VIX = []; CAPE = [];
-    
-    for(let i=1; i<lines.length; i++) {
-      const col = lines[i].split(',');
-      if(col.length < 5) continue;
-      
-      DATES.push(col[idx.date]);
-      SP.push(parseFloat(col[idx.sp]));
-      HY.push(parseFloat(col[idx.hy]));
-      TIPS.push(parseFloat(col[idx.tips]));
-      VIX.push(parseFloat(col[idx.vix]));
-      CAPE.push(parseFloat(col[idx.cape]) || 30);
-    }
-    
-    // Forward Fill 處理 NaN
-    fillNaN(HY); fillNaN(TIPS); fillNaN(VIX); fillNaN(SP);
-    
-    document.getElementById('dataSourceBadge').textContent = '● 已載入自定義 CSV (' + DATES.length + ' 筆)';
-    document.getElementById('dataSourceBadge').style.color = 'var(--green)';
-    alert("上傳成功！已載入 " + DATES.length + " 天數據。");
-  };
-  reader.readAsText(file);
-}
-
-function fillNaN(arr) {
-  let last = arr.find(v => !isNaN(v)) || 0;
-  for(let i=0; i<arr.length; i++) {
-    if(isNaN(arr[i])) arr[i] = last;
-    else last = arr[i];
-  }
-}
-
-// ═══════════════════════════════════════════
-// 3. 手動更新機制
-// ═══════════════════════════════════════════
-function applyManualData() {
-  const lastIdx = DATES.length - 1;
-  HY[lastIdx] = parseFloat(document.getElementById('mHY').value);
-  TIPS[lastIdx] = parseFloat(document.getElementById('mTIPS').value);
-  VIX[lastIdx] = parseFloat(document.getElementById('mVIX').value);
-  
-  runBacktest();
-  alert("已更新最後一日觀測數據，盾牌分數已重新計算。");
-}
-
-// ═══════════════════════════════════════════
-// 4. 回測核心邏輯 (與 V6 完全一致)
-// ═══════════════════════════════════════════
-function runBacktest() {
-  const cfg = {
-    s150: parseInt(document.getElementById('cfgS150').value),
-    s100: parseInt(document.getElementById('cfgS100').value),
-    vix:  parseFloat(document.getElementById('cfgVix').value),
-    hyZ:  parseFloat(document.getElementById('cfgHyZ').value),
-    cap:  parseFloat(document.getElementById('cfgCap').value),
-    cost: parseFloat(document.getElementById('cfgCost').value) / 10000
-  };
-
-  showLoading(true);
-  
-  setTimeout(() => {
-    let eq = cfg.cap, bh = cfg.cap;
-    let mode = 'NORMAL', lastPos = 1.0, switches = 0;
-    const curve = [], tradeLog = [], yrData = {};
-
-    for(let i=1; i < DATES.length; i++) {
-      const spRet = (SP[i] - SP[i-1]) / SP[i-1];
-      
-      // 計算盾牌分數
-      const res = computeShield(i, cfg);
-      const next = nextMode(mode, res.shield, VIX[i], VIX[i-1], cfg);
-      
-      const pos = next.pos;
-      if(pos !== lastPos) {
-        switches++;
-        tradeLog.push({ d:DATES[i], mode:next.mode, pos, shield:res.shield, z:res.z, vix:VIX[i], sp:SP[i] });
-      }
-      
-      const cost = (pos !== lastPos) ? cfg.cost : 0;
-      eq *= (1 + pos * spRet * (1 - cost));
-      bh *= (1 + spRet);
-      lastPos = pos;
-      mode = next.mode;
-      
-      curve.push({ d:DATES[i], v:eq, b:bh });
-    }
-    
-    BT_RESULT = { curve, tradeLog, switches, final:eq, bhFinal:bh };
-    renderUI();
-    showLoading(false);
-  }, 100);
+// ─── Tabs
+function initTabs(){
+var bar=$(‘tabBar’);if(!bar)return;
+bar.addEventListener(‘click’,function(e){
+var btn=e.target.closest(’.tab’);if(!btn||!btn.dataset.tab)return;
+document.querySelectorAll(’.tab’).forEach(function(t){t.classList.remove(‘active’);});
+document.querySelectorAll(’.panel’).forEach(function(p){p.classList.remove(‘active’);});
+btn.classList.add(‘active’);var p=$(‘panel-’+btn.dataset.tab);if(p)p.classList.add(‘active’);
+});
 }
 
-function computeShield(i, cfg) {
-  // ERP 因子
-  const erp = (100 / CAPE[i]) - TIPS[i];
-  const f1 = lerp(erp, 0, 4, 10, 100);
-  
-  // HY OAS 與 Z-Score
-  const hyNow = HY[i] * 100;
-  const f5b = lerp(hyNow, 250, 600, 80, 20);
-  
-  // Z-Score (滾動 24 個月/500天)
-  const start = Math.max(0, i - 500);
-  const slice = HY.slice(start, i);
-  const mean = slice.reduce((a,b)=>a+b, 0) / slice.length;
-  const std = Math.sqrt(slice.reduce((a,b)=>a+(b-mean)**2, 0) / slice.length) || 1;
-  const z = (HY[i] - mean) / std;
-  
-  const f5 = Math.max(0, f5b - (z > cfg.hyZ ? 20 : 0));
-  return { shield: Math.round(f1*0.5 + f5*0.5), z: z.toFixed(2) };
+// ─── Pool
+function buildPool(){
+try{
+var cont=$(‘poolCont’);if(!cont)return;
+var grps={};
+POOL.forEach(function(s){if(!grps[s.ind])grps[s.ind]=[];grps[s.ind].push(s);});
+var html=’’;
+Object.keys(grps).sort().forEach(function(ind){
+var stocks=grps[ind];
+var ac=stocks.filter(function(s){return s.on;}).length;
+var key=ind.replace(/[^a-zA-Z0-9]/g,’*’);
+html+=’<div class="ig"><div class="ih" data-act="ti">’;
+html+=’<span class="in">’+ind+’</span><span class="ic" id="ic_'+key+'">’+ac+’/’+stocks.length+’</span></div>’;
+html+=’<div class="ib">’;
+stocks.forEach(function(s){
+html+=’<span class="sc'+(s.on?' act':'')+'" data-act="ts" data-code="'+s.c+'">’;
+html+=’<span class="cc">’+s.c+’</span><span class="cn">’+s.n+’</span>’;
+if(s.type!==‘tw50’)html+=’<span class="cd" data-act="ds" data-code="'+s.c+'">×</span>’;
+html+=’</span>’;
+});
+html+=’</div></div>’;
+});
+cont.innerHTML=html;clearErr();
+}catch(e){showErr(‘buildPool: ‘+e.message);}
+}
+function initPool(){
+var cont=$(‘poolCont’);if(!cont)return;
+cont.addEventListener(‘click’,function(e){
+var ds=e.target.closest(’[data-act=“ds”]’);if(ds){e.stopPropagation();delStock(ds.dataset.code);return;}
+var ts=e.target.closest(’[data-act=“ts”]’);if(ts){togStock(ts.dataset.code);return;}
+var ti=e.target.closest(’[data-act=“ti”]’);if(ti){var b=ti.nextElementSibling;if(b)b.classList.toggle(‘col’);}
+});
+var ba=$(‘btnAll’);if(ba)ba.addEventListener(‘click’,function(){POOL.forEach(function(s){s.on=true;});buildPool();});
+var bn=$(‘btnNone’);if(bn)bn.addEventListener(‘click’,function(){POOL.forEach(function(s){s.on=false;});buildPool();});
+var ba2=$(‘btnAdd’);if(ba2)ba2.addEventListener(‘click’,addCustom);
+}
+function togStock(code){
+var s=POOL.find(function(p){return p.c===code;});if(!s)return;
+s.on=!s.on;
+var chips=document.querySelectorAll(’[data-code=”’+code+’”][data-act=“ts”]’);
+chips.forEach(function(c){c.classList.toggle(‘act’,s.on);});
+updCounts();
+}
+function delStock(code){
+var idx=POOL.findIndex(function(p){return p.c===code;});if(idx<0)return;
+if(POOL[idx].type===‘tw50’){showErr(‘台灣50不可刪除’);return;}
+POOL.splice(idx,1);buildPool();
+}
+function updCounts(){
+var grps={};
+POOL.forEach(function(s){if(!grps[s.ind])grps[s.ind]={t:0,a:0};grps[s.ind].t++;if(s.on)grps[s.ind].a++;});
+Object.keys(grps).forEach(function(ind){
+var el=$(’ic*’+ind.replace(/[^a-zA-Z0-9]/g,’_’));
+if(el)el.textContent=grps[ind].a+’/’+grps[ind].t;
+});
+}
+function addCustom(){
+try{
+var raw=$(‘cusT’).value.trim().toUpperCase().replace(’.TW’,’’);
+if(!raw){showErr(‘請輸入股票代號’);return;}
+if(POOL.find(function(p){return p.c===raw;})){showErr(‘已存在: ‘+raw);return;}
+var name=$(‘cusN’).value.trim()||raw;
+var ind=$(‘cusI’).value||‘其他’;
+POOL.push({c:raw,n:name,ind:ind,type:‘custom’,on:true});
+$(‘cusT’).value=’’;$(‘cusN’).value=’’;
+buildPool();clearErr();
+}catch(e){showErr(’addCustom: ’+e.message);}
 }
 
-function nextMode(curMode, shield, vNow, vPrev, cfg) {
-  const vTrigger = vPrev >= cfg.vix && vNow < vPrev;
-  if(shield >= cfg.s100) return { mode:'NORMAL', pos: (shield >= cfg.s150 ? 1.5 : 1.0) };
-  if(curMode === 'NORMAL') return { mode:'OBS', pos: 1.0 };
-  if(vTrigger) return { mode:'STRIKE', pos: 0.3 };
-  return { mode:'RETREAT', pos: 0.0 };
+// ─── Network
+function buildProxies(){
+var p=$(‘proxyUrl’)?$(‘proxyUrl’).value.trim():’’;
+if(p&&!p.includes(‘url=’))p+=p.endsWith(’/’)?’?url=’:’/?url=’;
+return [p,‘https://api.allorigins.win/raw?url=’,‘https://api.codetabs.com/v1/proxy?quest=’].filter(Boolean);
+}
+async function fetchProxy(url,proxies){
+var lastErr;
+for(var i=0;i<proxies.length;i++){
+try{var r=await fetch(proxies[i]+encodeURIComponent(url));if(!r.ok)throw new Error(‘HTTP ‘+r.status);return r;}
+catch(e){lastErr=e;}
+}
+throw lastErr||new Error(‘所有Proxy失敗’);
+}
+async function fetchWeekly(code,proxies){
+var tk=(code.startsWith(’^’)||code.includes(’.’))?code:code+’.TW’;
+var r=await fetchProxy(‘https://query1.finance.yahoo.com/v8/finance/chart/’+tk+’?range=max&interval=1wk’,proxies);
+var j=await r.json();
+var ch=j&&j.chart&&j.chart.result&&j.chart.result[0];
+if(!ch||!ch.timestamp)throw new Error(‘無資料’);
+var out=[];
+ch.timestamp.forEach(function(ts,i){
+var q=ch.indicators.quote[0];
+var h=q.high[i],l=q.low[i],c=q.close[i],v=q.volume[i];
+if(c&&c>0&&h&&l&&v!=null)out.push({date:new Date(ts*1000).toISOString().slice(0,10),h:+h.toFixed(3),l:+l.toFixed(3),c:+c.toFixed(3),v:+v});
+});
+return out;
+}
+async function fetchMonthly(code,proxies){
+var tk=(code.startsWith(’^’)||code.includes(’.’))?code:code+’.TW’;
+var r=await fetchProxy(‘https://query1.finance.yahoo.com/v8/finance/chart/’+tk+’?range=max&interval=1mo’,proxies);
+var j=await r.json();
+var ch=j&&j.chart&&j.chart.result&&j.chart.result[0];
+if(!ch||!ch.timestamp)throw new Error(‘無資料’);
+var out=[];
+ch.timestamp.forEach(function(ts,i){
+var adj=ch.indicators.adjclose&&ch.indicators.adjclose[0]?ch.indicators.adjclose[0].adjclose[i]:null;
+var cl=ch.indicators.quote[0].close[i];
+var c=adj!=null?adj:cl;
+if(c&&c>0)out.push({date:new Date(ts*1000).toISOString().slice(0,7),c:+c.toFixed(4)});
+});
+var seen={};out.forEach(function(p){seen[p.date]=p;});
+return Object.values(seen).sort(function(a,b){return a.date.localeCompare(b.date);});
 }
 
-function lerp(x, x0, x1, y0, y1) {
-  const t = Math.max(0, Math.min(1, (x-x0)/(x1-x0)));
-  return y0 + (y1-y0)*t;
+// ─── Fetch all + auto-build cache
+function initFetch(){var b=$(‘btnFetch’);if(b)b.addEventListener(‘click’,fetchAll);}
+async function fetchAll(){
+var proxies=buildProxies();
+var enabled=POOL.filter(function(s){return s.on;});
+var all=enabled.map(function(s){return s.c;}).concat([’^TWII’]);
+showL(‘準備抓取…’);
+$(‘fetchProg’).classList.remove(‘hidden’);
+var failed=[];
+for(var i=0;i<all.length;i++){
+var code=all[i];var isB=code===’^TWII’;
+$(‘loadTxt’).textContent=‘抓取 ‘+(isB?’^TWII’:code+’.TW’)+’ (’+(i+1)+’/’+all.length+’)’;
+$(‘fetchFill’).style.width=((i/all.length)*100)+’%’;
+try{
+if(!isB){WEEKLY[code]=await fetchWeekly(code,proxies);MONTHLY[code]=await fetchMonthly(code,proxies);}
+else BENCH_MONTHLY=await fetchMonthly(’^TWII’,proxies);
+}catch(e){failed.push(code);}
+await new Promise(function(r){setTimeout(r,400);});
+}
+$(‘fetchFill’).style.width=‘100%’;
+$(‘fetchProg’).classList.add(‘hidden’);
+var ok=all.length-failed.length;
+sl(‘fetchLog’,‘✅ 完成 ‘+ok+’/’+all.length+(failed.length?’ | 失敗: ‘+failed.slice(0,6).join(’,’):’’),failed.length===0);
+updFetchStat();
+hideL();
+// Auto-build cache
+await buildCache();
+}
+function updFetchStat(){
+var bar=$(‘fetchStat’);if(!bar)return;
+bar.innerHTML=POOL.filter(function(s){return s.on;}).map(function(s){
+var ok=WEEKLY[s.c]&&WEEKLY[s.c].length>0&&MONTHLY[s.c]&&MONTHLY[s.c].length>0;
+var pa=WEEKLY[s.c]||MONTHLY[s.c];
+var bg=ok?‘var(–ted)’:pa?‘var(–yed)’:‘var(–sf2)’;
+var col=ok?‘var(–te)’:pa?‘var(–ye)’:‘var(–mu)’;
+var bd=ok?‘var(–te)’:pa?‘var(–ye)’:‘var(–bd)’;
+return ‘<span class="bdg" style="background:'+bg+';color:'+col+';border:1px solid '+bd+'">’+s.c+’</span>’;
+}).join(’’);
+}
+// ─── Technical indicators (weekly)
+function calcVWMA(wks,n){
+if(wks.length<n)return null;
+var sl=wks.slice(-n),sp=0,sv=0;
+sl.forEach(function(w){sp+=w.c*w.v;sv+=w.v;});
+return sv>0?sp/sv:null;
+}
+function rawBias(wks){
+if(wks.length<52)return null;
+var v=calcVWMA(wks,50);
+return v?( wks[wks.length-1].c-v)/v:null;
+}
+function rawSlope(wks){
+if(wks.length<63)return null;
+var va=[];
+for(var i=wks.length-13;i<wks.length;i++){
+var sl=wks.slice(Math.max(0,i-49),i+1);if(sl.length<10)continue;
+var sp=0,sv=0;sl.forEach(function(w){sp+=w.c*w.v;sv+=w.v;});if(sv>0)va.push(sp/sv);
+}
+if(va.length<6)return null;
+var n=va.length,sx=0,sy=0,sxy=0,sx2=0;
+for(var j=0;j<n;j++){sx+=j;sy+=va[j];sxy+=j*va[j];sx2+=j*j;}
+var den=n*sx2-sx*sx;if(!den)return 0;
+return (n*sxy-sx*sy)/den/(va[0]||1);
+}
+function rawVol(wks){
+if(wks.length<14)return null;
+var sl=wks.slice(-13),sc=[];
+for(var i=1;i<sl.length;i++){
+var pr=(sl[i].c-sl[i-1].c)/(sl[i-1].c||1);
+var vr=sl[i-1].v>0?sl[i].v/sl[i-1].v:1;
+sc.push((pr>=0?1:-1)*(pr>=0?(vr-1):(1-vr)));
+}
+return sc.length?sc.reduce(function(a,b){return a+b;},0)/sc.length:null;
+}
+function rawKbar(wks){
+if(wks.length<13)return null;
+var sl=wks.slice(-13);
+var v=sl.map(function(w){var r=w.h-w.l;return r>0?(w.c-w.l)/r:0.5;});
+return v.reduce(function(a,b){return a+b;},0)/v.length;
+}
+// Momentum z-score (monthly)
+function momZ(mo,idx,n){
+if(idx<n)return null;
+var pn=mo[idx-1].c,p0=mo[idx-n].c;if(!p0||p0<=0)return null;
+var ret=pn/p0-1,rets=[];
+for(var i=idx-n+1;i<idx;i++)if(mo[i-1].c>0)rets.push(mo[i].c/mo[i-1].c-1);
+if(rets.length<3)return null;
+var avg=rets.reduce(function(a,b){return a+b;},0)/rets.length;
+var std=Math.sqrt(rets.reduce(function(a,b){return a+(b-avg)*(b-avg);},0)/rets.length);
+return std>0?ret/std:null;
+}
+function rawMom(mo,idx){
+var z12=momZ(mo,idx,12),z6=momZ(mo,idx,6),z3=momZ(mo,idx,3);
+if(z12===null||z6===null||z3===null)return null;
+return 0.5*z12+0.3*z6+0.2*z3;
+}
+function getMonthIdx(mo,yyyymm){
+for(var i=0;i<mo.length;i++){if(mo[i].date>yyyymm)return i;}
+return mo.length;
 }
 
-// ═══════════════════════════════════════════
-// 5. UI 渲染 (圖表與數據)
-// ═══════════════════════════════════════════
-let charts = {};
-
-function renderUI() {
-  const r = BT_RESULT;
-  const last = r.curve[r.curve.length-1];
-  
-  // KPI
-  document.getElementById('kpiStrip').innerHTML = `
-    <div class="kpi"><div class="kpi-label">策略終值</div><div class="kpi-val">${Math.round(last.v).toLocaleString()}</div></div>
-    <div class="kpi"><div class="kpi-label">B&H 終值</div><div class="kpi-val" style="color:var(--muted)">${Math.round(last.b).toLocaleString()}</div></div>
-    <div class="kpi"><div class="kpi-label">總報酬率</div><div class="kpi-val" style="color:var(--green)">+${((last.v/r.curve[0].v-1)*100).toFixed(1)}%</div></div>
-    <div class="kpi"><div class="kpi-label">換檔次數</div><div class="kpi-val">${r.switches}</div></div>
-  `;
-
-  // 當前狀態 (Live Bar)
-  const lTrade = r.tradeLog[r.tradeLog.length-1] || {shield:50, mode:'NORMAL', pos:1.0, z:0};
-  document.getElementById('liveShieldBox').innerHTML = `
-    <div class="item"><div class="lbl">盾牌分</div><div class="val" style="color:var(--accent)">${lTrade.shield}</div></div>
-    <div class="sep"></div>
-    <div class="item"><div class="lbl">狀態</div><div class="val">${lTrade.mode}</div></div>
-    <div class="sep"></div>
-    <div class="item"><div class="lbl">持倉</div><div class="val" style="color:var(--gold)">${lTrade.pos*100}%</div></div>
-    <div class="sep"></div>
-    <div class="item"><div class="lbl">最新 Z-Score</div><div class="val">${lTrade.z}σ</div></div>
-  `;
-
-  drawNavChart(r.curve);
-  renderTradeList(r.tradeLog);
+// ─── BUILD CACHE (core of V1.2)
+async function buildCache(){
+var enabled=POOL.filter(function(s){return s.on&&WEEKLY[s.c]&&MONTHLY[s.c];});
+if(!enabled.length){updCacheStatus();return;}
+showL(’\u5efa\u7acb\u5feb\u53d6\u4e2d (0/’+enabled.length+’)…’);
+RAW_SCORES={};
+var done=0;
+for(var si=0;si<enabled.length;si++){
+var s=enabled[si];
+$(‘loadTxt’).textContent=’\u5efa\u5feb\u53d6: ‘+s.c+’ (’+(si+1)+’/’+enabled.length+’)’;
+var mo=MONTHLY[s.c],wk=WEEKLY[s.c];
+if(!mo||!wk){done++;continue;}
+RAW_SCORES[s.c]={};
+var allMonths=mo.map(function(p){return p.date;});
+for(var mi=13;mi<allMonths.length;mi++){
+var yyyymm=allMonths[mi];
+var mIdx=getMonthIdx(mo,yyyymm);
+var wkCut=wk.filter(function(w){return w.date<=yyyymm+’-28’;});
+var rm=rawMom(mo,mIdx);
+var rb=wkCut.length>=52?rawBias(wkCut):null;
+var rs=wkCut.length>=63?rawSlope(wkCut):null;
+var rv=wkCut.length>=14?rawVol(wkCut):null;
+var rk=wkCut.length>=13?rawKbar(wkCut):null;
+var p_now=mo[mIdx-1]?mo[mIdx-1].c:null;
+var r12=mIdx>=13&&mo[mIdx-13]?p_now/mo[mIdx-13].c-1:null;
+var r6 =mIdx>=7 &&mo[mIdx-7] ?p_now/mo[mIdx-7].c-1:null;
+var r3 =mIdx>=4 &&mo[mIdx-4] ?p_now/mo[mIdx-4].c-1:null;
+RAW_SCORES[s.c][yyyymm]={rm:rm,rb:rb,rs:rs,rv:rv,rk:rk,r12:r12,r6:r6,r3:r3};
+}
+done++;
+// Yield every 5 stocks so UI doesn’t freeze
+if(si%5===4)await new Promise(function(r){setTimeout(r,0);});
+}
+CACHE_BUILT=true;CACHE_TS=new Date().toISOString();
+hideL();updCacheStatus();
+sl(‘fetchLog’,’\u2705 \u8cc7\u6599+\u5feb\u53d6\u5b8c\u6210 (’+enabled.length+’\u652f\u80a1\u7968, ‘+Object.keys(RAW_SCORES).length+’\u652f\u5df2\u5efa\u5feb\u53d6)’,true);
+}
+function updCacheStatus(){
+var el=$(‘cacheStatusTxt’);if(!el)return;
+if(!CACHE_BUILT){el.textContent=’\u5feb\u53d6\u72c0\u614b\uff1a\u5c1a\u672a\u5efa\u7acb’;el.style.color=‘var(–mu)’;return;}
+var n=Object.keys(RAW_SCORES).length;
+var dt=CACHE_TS?new Date(CACHE_TS).toLocaleTimeString(‘zh-TW’,{hour:‘2-digit’,minute:‘2-digit’}):’’;
+el.textContent=’\u2705 \u5feb\u53d6\u5df2\u5efa\u7acb (’+n+’\u652f, ‘+dt+’) \u2014 \u6539\u6b0a\u91cd\u5373\u6642\u751f\u6548\uff0c\u4e0d\u9700\u91cd\u6293\u53d6’;
+el.style.color=‘var(–gr)’;
 }
 
-function drawNavChart(data) {
-  const ctx = document.getElementById('navChart').getContext('2d');
-  if(charts.nav) charts.nav.destroy();
-  charts.nav = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: data.map(d => d.d),
-      datasets: [
-        { label: '策略淨值', data: data.map(d => d.v), borderColor: '#00e5a0', borderWidth: 2, pointRadius: 0 },
-        { label: 'B&H', data: data.map(d => d.b), borderColor: '#3d4a66', borderWidth: 1, pointRadius: 0 }
-      ]
-    },
-    options: { responsive: true, maintainAspectRatio: false, scales: { y: { type: 'logarithmic' } } }
-  });
+// ─── Cross-sectional z with cap
+function crossZ(arr,cap){
+cap=cap||2;
+var vals=arr.filter(function(v){return v!==null&&!isNaN(v);});
+if(vals.length<3)return arr.map(function(v){return v===null?null:0;});
+var mean=vals.reduce(function(a,b){return a+b;},0)/vals.length;
+var std=Math.sqrt(vals.reduce(function(a,b){return a+(b-mean)*(b-mean);},0)/vals.length)||1;
+return arr.map(function(v){
+if(v===null)return null;
+return Math.max(-cap,Math.min(cap,(v-mean)/std));
+});
 }
 
-function renderTradeList(logs) {
-  const body = document.getElementById('trBody');
-  body.innerHTML = logs.reverse().slice(0, 50).map(l => `
-    <tr>
-      <td>${l.d}</td>
-      <td>${l.mode}</td>
-      <td>${l.pos*100}%</td>
-      <td>${l.shield}</td>
-      <td>${l.z}</td>
-      <td>${l.vix}</td>
-      <td class="mono">${l.sp.toFixed(1)}</td>
-    </tr>
-  `).join('');
+// ─── Score from cache (fast, weight-sensitive)
+function calcAllScores(yyyymm){
+var enabled=POOL.filter(function(s){return s.on&&RAW_SCORES[s.c]&&RAW_SCORES[s.c][yyyymm];});
+if(!enabled.length)return[];
+var wMom=gv(‘wMom’)/100,wBias=gv(‘wBias’)/100,wSlope=gv(‘wSlope’)/100;
+var wVol=gv(‘wVol’)/100,wKbar=gv(‘wKbar’)/100;
+var rawMs=[],rawBs=[],rawSs=[],rawVs=[],rawKs=[];
+var infos=enabled.map(function(s){
+var raw=RAW_SCORES[s.c][yyyymm];
+rawMs.push(raw.rm);rawBs.push(raw.rb);rawSs.push(raw.rs);rawVs.push(raw.rv);rawKs.push(raw.rk);
+return{s:s,raw:raw};
+});
+var zMs=crossZ(rawMs,99),zBs=crossZ(rawBs,2),zSs=crossZ(rawSs,99),zVs=crossZ(rawVs,2),zKs=crossZ(rawKs,99);
+return infos.map(function(d,i){
+var zm=zMs[i],zb=zBs[i],zs=zSs[i],zv=zVs[i],zk=zKs[i];
+var tw=0,tt=0;
+if(zm!==null){tw+=wMom*zm;tt+=wMom;}
+if(zb!==null){tw+=wBias*zb;tt+=wBias;}
+if(zs!==null){tw+=wSlope*zs;tt+=wSlope;}
+if(zv!==null){tw+=wVol*zv;tt+=wVol;}
+if(zk!==null){tw+=wKbar*zk;tt+=wKbar;}
+return{s:d.s,score:tt>0.1?tw/tt:null,zm:zm,zb:zb,zs:zs,zv:zv,zk:zk,
+r12:d.raw.r12,r6:d.raw.r6,r3:d.raw.r3};
+});
 }
 
-// UI 輔助
-function switchTab(e, name) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  e.target.classList.add('active');
-  document.getElementById('panel-'+name).classList.add('active');
+// ─── Correlation (from MONTHLY data)
+function calcCorr(c1,c2,yyyymm,n){
+n=n||12;
+var m1=MONTHLY[c1],m2=MONTHLY[c2];if(!m1||!m2)return 0;
+var i1=getMonthIdx(m1,yyyymm),i2=getMonthIdx(m2,yyyymm);
+var mi=Math.min(i1,i2);if(mi<n+1)return 0;
+var r1=[],r2=[];
+for(var i=mi-n;i<mi;i++){
+var a0=m1[i-1]?m1[i-1].c:null,a1=m1[i]?m1[i].c:null;
+var b0=m2[i-1]?m2[i-1].c:null,b1=m2[i]?m2[i].c:null;
+if(a0&&a1&&b0&&b1&&a0>0&&b0>0){r1.push(a1/a0-1);r2.push(b1/b0-1);}
+}
+if(r1.length<6)return 0;
+var m1a=r1.reduce(function(a,b){return a+b;},0)/r1.length;
+var m2a=r2.reduce(function(a,b){return a+b;},0)/r2.length;
+var num=0,d1=0,d2=0;
+r1.forEach(function(v,i){num+=(v-m1a)*(r2[i]-m2a);d1+=(v-m1a)*(v-m1a);d2+=(r2[i]-m2a)*(r2[i]-m2a);});
+return num/Math.sqrt((d1*d2)||1);
 }
 
-function showLoading(show) {
-  document.getElementById('loadingOverlay').classList.toggle('hidden', !show);
+// ─── Signal
+function initSig(){var b=$(‘btnSig’);if(b)b.addEventListener(‘click’,calcSignal);}
+function calcSignal(){
+try{
+if(!CACHE_BUILT){showErr(’\u8acb\u5148\u6293\u53d6\u8cc7\u6599\u5efa\u7acb\u5feb\u53d6’);return;}
+var enabled=POOL.filter(function(s){return s.on&&RAW_SCORES[s.c];});
+if(!enabled.length){showErr(’\u7121\u5df2\u5efa\u5feb\u53d6\u7684\u8cc7\u6599’);return;}
+var mo=MONTHLY[enabled[0].c];
+var yyyymm=mo[mo.length-1].date;
+var scores=calcAllScores(yyyymm);
+var valid=scores.filter(function(r){return r.score!==null;});
+valid.sort(function(a,b){return b.score-a.score;});
+var cr=(gv(‘btR’)||1.5)/100;
+var tsPass=valid.filter(function(r){return r.r12!==null&&r.r12>cr;});
+var ct=gv(‘corrT’)||0.75,mh=parseInt(($(‘btH’)||{value:‘3’}).value)||3;
+var sel=[];
+for(var i=0;i<tsPass.length&&sel.length<mh;i++){
+var cand=tsPass[i];
+if(sel.every(function(x){return Math.abs(calcCorr(cand.s.c,x.s.c,yyyymm))<ct;}))sel.push(cand);
 }
+var wk=valid.slice(-3).reverse();
+renderSig(sel,wk,valid,yyyymm,cr);clearErr();
+}catch(e){showErr(‘calcSignal: ‘+e.message);console.error(e);}
+}
+function renderSig(sel,wk,all,yyyymm,cr){
+var zf=function(v){return v!==null?(v>=0?’+’:’’)+v.toFixed(2):’-’;};
+var pf=function(v){return v!==null?(v>=0?’+’:’’)+(v*100).toFixed(1)+’%’:’-’;};
+var html=’<div style="font-size:11px;color:var(--mu);margin-bottom:9px">\u8a55\u5206\u6708\u4efd: <b style="color:var(--tw)">’+yyyymm+’</b> \uff5c \u73fe\u91d1\u5229\u7387: <b style="color:var(--gr)">’+(cr*100).toFixed(1)+’%</b></div>’;
+html+=’<div style="font-size:12px;font-weight:700;color:var(--tw);margin-bottom:6px">\u25b2 \u6700\u5f37’+sel.length+’\u652f</div><div class="sg">’;
+sel.forEach(function(r,rk){
+html+=’<div class="scard"><div class="shdr"><div><div class="scode">’+r.s.c+’</div><div class="sname">’+r.s.n+’</div></div><span class="srank">#’+(rk+1)+’</span></div>’;
+html+=’<div class="sscore">’+(r.score>=0?’+’:’’)+r.score.toFixed(2)+’</div><div class="sbars">’;
+[[’\u52d5\u80fd’,r.zm,‘var(–tw)’],[‘Bias’,r.zb,‘var(–bl)’],[’\u659c\u7387’,r.zs,‘var(–te)’],[’\u91cf\u80fd’,r.zv,‘var(–ye)’],[‘K\u68d2’,r.zk,‘var(–ac)’]].forEach(function(b){
+if(b[1]===null)return;
+var w=Math.round(Math.min(100,Math.abs(b[1])*25));
+html+=’<div class="sbrow"><span style="width:28px">’+b[0]+’</span><div class="sbwrap"><div class="sbfill" style="width:'+w+'%;background:'+b[2]+'"></div></div><span style="width:36px;text-align:right;font-family:monospace">’+zf(b[1])+’</span></div>’;
+});
+html+=’</div><div style="margin-top:5px;font-size:10px;color:var(--mu);font-family:monospace">R12:’+pf(r.r12)+’ R6:’+pf(r.r6)+’ R3:’+pf(r.r3)+’</div></div>’;
+});
+html+=’</div>’;
+if(!sel.length)html+=’<div style="color:var(--ye);font-size:12px;margin-bottom:9px">\u26a0 \u7121\u7b26\u5408\u689d\u4ef6\u6a19\u7684\uff0c\u5efa\u8b70\u6301\u73fe\u91d1</div>’;
+html+=’<div style="font-size:12px;font-weight:700;color:var(--re);margin:9px 0 6px">\u25bc \u6700\u5f313\u652f\uff08\u7d14\u89c0\u5bdf\uff09</div><div class="sg">’;
+wk.forEach(function(r,rk){
+html+=’<div class="scard wk"><div class="shdr"><div><div class="scode">’+r.s.c+’</div><div class="sname">’+r.s.n+’</div></div><span class="srank">\u5f31’+(rk+1)+’</span></div><div class="sscore" style="color:var(--re)">’+(r.score>=0?’+’:’’)+r.score.toFixed(2)+’</div></div>’;
+});
+html+=’</div>’;
+$(‘sigContent’).innerHTML=html;
+renderST(all,cr);
+}
+function renderST(all,cr){
+$(‘stCard’).classList.remove(‘hidden’);
+var sorted=all.filter(function(r){return r.score!==null;}).sort(function(a,b){return b.score-a.score;});
+var zf=function(v){return v!==null?(v>=0?’+’:’’)+v.toFixed(2):’-’;};
+var pf=function(v){return v!==null?(v>=0?’+’:’’)+(v*100).toFixed(1)+’%’:’-’;};
+$(‘stBody’).innerHTML=sorted.map(function(r,i){
+var ts=r.r12!==null&&r.r12>cr;
+return ‘<tr><td class="mono" style="color:var(--mu)">’+(i+1)+’</td><td class="mono" style="font-weight:700;color:var(--tw)">’+r.s.c+’</td><td>’+r.s.n+’</td><td style="font-size:10px;color:var(--mu)">’+r.s.ind+’</td>’+
+‘<td class="mono" style="font-weight:700;color:'+(r.score>=0?'var(--gr)':'var(--re)')+'">’+zf(r.score)+’</td>’+
+‘<td class="mono">’+zf(r.zm)+’</td><td class="mono">’+zf(r.zb)+’</td><td class="mono">’+zf(r.zs)+’</td><td class="mono">’+zf(r.zv)+’</td><td class="mono">’+zf(r.zk)+’</td>’+
+‘<td class="mono">’+pf(r.r12)+’</td><td class="mono">’+pf(r.r6)+’</td><td class="mono">’+pf(r.r3)+’</td>’+
+‘<td>’+(ts?’<span style="color:var(--gr)">\u2713</span>’:’<span style="color:var(--re)">\u2717</span>’)+’</td></tr>’;
+}).join(’’);
+}
+// ─── Backtest
+function initBT(){var b=$(‘btnBT’);if(b)b.addEventListener(‘click’,runBT);}
+function runBT(){
+if(!CACHE_BUILT){showErr(’\u8acb\u5148\u6293\u53d6\u8cc7\u6599\u5efa\u7acb\u5feb\u53d6’);return;}
+sl(‘btLog’,’\u56de\u6e2c\u8a08\u7b97\u4e2d…’,null);
+showL(’\u56de\u6e2c\u4e2d…’);
+setTimeout(function(){
+try{
+var enabled=POOL.filter(function(s){return s.on&&RAW_SCORES[s.c];});
+if(enabled.length<3){showErr(’\u81f3\u5c113\u652f\u80a1\u7968\u6709\u5feb\u53d6’);hideL();return;}
+// Get all available months from first enabled stock’s MONTHLY
+var refMo=MONTHLY[enabled[0].c];
+var allMonths=refMo.map(function(p){return p.date;}).sort();
+var rawS=($(‘btS’).value||’’).trim().slice(0,7);
+var rawE=($(‘btE’).value||’’).trim().slice(0,7);
+var MIN=14,cS=MIN;
+if(rawS){for(var i=MIN;i<allMonths.length;i++){if(allMonths[i]>=rawS){cS=i;break;}}}
+var cE=allMonths.length-2;
+if(rawE){for(var i2=allMonths.length-2;i2>=MIN;i2–){if(allMonths[i2]<=rawE){cE=i2;break;}}}
+if(cS>cE){showErr(’\u5340\u9593\u7121\u6548’);hideL();return;}
+var INIT=gv(‘btCap’)||100000,COST=(gv(‘btC’)||0.3)/100;
+var cr=(gv(‘btR’)||1.5)/100,ct=gv(‘corrT’)||0.75;
+var mh=parseInt(($(‘btH’)||{value:‘3’}).value)||3;
+var nav=INIT,bNav=INIT;
+var records=[],holdings={CASH:1.0};
+function getBench(yyyymm){
+if(!BENCH_MONTHLY||!BENCH_MONTHLY.length)return null;
+var best=null;BENCH_MONTHLY.forEach(function(p){if(p.date<=yyyymm)best=p;});
+return best?best.c:null;
+}
+function getMo(code,yyyymm){
+var m=MONTHLY[code];if(!m)return null;
+var best=null;m.forEach(function(p){if(p.date<=yyyymm)best=p;});
+return best?best.c:null;
+}
+for(var idx=cS;idx<=cE;idx++){
+var sigM=allMonths[idx],nextM=allMonths[idx+1];if(!nextM)break;
+var scores=calcAllScores(sigM);
+var valid=scores.filter(function(r){return r.score!==null;});
+valid.sort(function(a,b){return b.score-a.score;});
+var tsP=valid.filter(function(r){return r.r12!==null&&r.r12>cr;});
+var sel=[];
+for(var j=0;j<tsP.length&&sel.length<mh;j++){
+var cand=tsP[j];
+if(sel.every(function(x){return Math.abs(calcCorr(cand.s.c,x.s.c,sigM))<ct;}))sel.push(cand);
+}
+var newH={};
+if(sel.length){var w=1/sel.length;sel.forEach(function(r){newH[r.s.c]=w;});}
+else newH.CASH=1.0;
+var allC=new Set(Object.keys(holdings).concat(Object.keys(newH)));
+var tv=0;allC.forEach(function(c){tv+=Math.abs((newH[c]||0)-(holdings[c]||0));});
+var pRet=0;
+Object.entries(holdings).forEach(function(kv){
+var c=kv[0],w=kv[1];
+if(c===‘CASH’){pRet+=w*(cr/12);return;}
+var p0=getMo(c,sigM),p1=getMo(c,nextM);
+if(p0&&p1&&p0>0)pRet+=w*(p1/p0-1);
+});
+pRet-=(tv/2)*COST;nav*=(1+pRet);
+var b0=getBench(sigM),b1=getBench(nextM);
+if(b0&&b1&&b0>0)bNav*=(1+b1/b0-1);
+records.push({month:nextM,nav:nav,bNav:bNav,holdings:Object.assign({},newH),pRet:pRet,
+tops:sel.map(function(r){return r.s.c;}).join(’+’)});
+holdings=newH;
+}
+if(records.length<6){showErr(’\u56de\u6e2c\u8cc7\u6599\u904e\u5c11’);hideL();return;}
+BT_RESULT={records:records,initial:INIT};
+renderBT();
+sl(‘btLog’,’\u2705 \u5b8c\u6210\uff0c\u5171’+records.length+’\u500b\u6708 (’+records[0].month+’ ~ ‘+records[records.length-1].month+’)’,true);
+}catch(err){sl(‘btLog’,’\u274c ‘+err.message,false);console.error(err);}
+finally{hideL();}
+},80);
+}
+function renderBT(){
+var res=BT_RESULT,recs=res.records,init=res.initial;
+$(‘btRes’).classList.remove(‘hidden’);
+var last=recs[recs.length-1],first=recs[0];
+var yrs=(new Date(last.month+’-01’)-new Date(first.month+’-01’))/(365.25*86400000);
+var tr=last.nav/init-1,cagr=yrs>0?Math.pow(1+Math.max(tr,-0.999),1/yrs)-1:0;
+var btr=last.bNav/init-1,bcagr=yrs>0?Math.pow(1+Math.max(btr,-0.999),1/yrs)-1:0;
+var pk=init,mdd=0;
+recs.forEach(function(r){if(r.nav>pk)pk=r.nav;var dd=(r.nav-pk)/pk;if(dd<mdd)mdd=dd;});
+var rets=recs.map(function(r){return r.pRet;});
+var avg=rets.reduce(function(a,b){return a+b;},0)/rets.length;
+var std=Math.sqrt(rets.reduce(function(a,b){return a+(b-avg)*(b-avg);},0)/rets.length)*Math.sqrt(12);
+var sh=std>0?(cagr-0.015)/std:0;
+var fmt=function(v,p,pl){return(pl&&v>=0?’+’:’’)+(p?(v*100).toFixed(2)+’%’:v.toFixed(2));};
+$(‘btMetrics’).innerHTML=[
+{lb:’\u53f0\u80a1\u52d5\u80fd’,co:‘tw’,rows:[
+[’\u6700\u7d42\u6de8\u5024’,’$’+Math.round(last.nav).toLocaleString(),‘wh’],
+[’\u5340\u9593\u5831\u916c’,fmt(tr,true,true),tr>=0?‘tg’:‘tr’],
+[‘CAGR’,fmt(cagr,true),’’],
+[’\u6700\u5927\u56de\u64a4’,fmt(mdd,true),‘tr’],
+[‘Sharpe’,sh.toFixed(2),‘tg’]
+]},
+{lb:‘TAIEX B&H’,co:‘mu’,rows:[
+[’\u5340\u9593\u5831\u916c’,fmt(btr,true,true),btr>=0?‘tg’:‘tr’],
+[‘CAGR’,fmt(bcagr,true),’’],
+[‘CAGR\u8d85\u984d’,fmt(cagr-bcagr,true,true),(cagr-bcagr)>=0?‘tg’:‘tr’]
+]},
+].map(function(m){
+return ‘<div class="card" style="border-top:3px solid var(--'+m.co+')"><div class="ct">’+m.lb+’</div>’+
+m.rows.map(function(r){return ‘<div class="mr"><span>’+r[0]+’</span><span class="mv '+(r[2]||'')+'">’+r[1]+’</span></div>’;}).join(’’)+’</div>’;
+}).join(’’);
+if(CHART.n){CHART.n.destroy();CHART.d.destroy();}
+var labels=recs.map(function(r){return r.month;});
+var sc={x:{ticks:{color:’#6b7a99’,maxTicksLimit:12},grid:{color:’#1a2030’}},y:{ticks:{color:’#6b7a99’},grid:{color:’#1a2030’}}};
+var opt={responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:‘index’},animation:{duration:200},plugins:{legend:{labels:{color:’#6b7a99’,boxWidth:10,font:{size:11}}}}};
+CHART.n=new Chart($(‘navC’).getContext(‘2d’),{type:‘line’,data:{labels:labels,datasets:[
+{label:’\u53f0\u80a1\u52d5\u80fd’,data:recs.map(function(r){return r.nav;}),borderColor:’#ff6b9d’,borderWidth:2.5,pointRadius:0},
+{label:‘TAIEX’,data:recs.map(function(r){return r.bNav;}),borderColor:’#3d4a66’,borderWidth:1,pointRadius:0}
+]},options:Object.assign({},opt,{scales:Object.assign({},sc,{y:Object.assign({},sc.y,{type:‘logarithmic’})})})});
+var mddData=[],pk2=init;
+recs.forEach(function(r){if(r.nav>pk2)pk2=r.nav;mddData.push((r.nav-pk2)/pk2*100);});
+CHART.d=new Chart($(‘ddC’).getContext(‘2d’),{type:‘line’,data:{labels:labels,datasets:[
+{label:‘MDD’,data:mddData,borderColor:’#ff6b9d’,borderWidth:1,pointRadius:0,fill:true,backgroundColor:‘rgba(255,107,157,0.08)’}
+]},options:Object.assign({},opt,{plugins:{legend:{display:false}},scales:sc})});
+$(‘btBody’).innerHTML=recs.slice().reverse().map(function(r,ri){
+var idx2=recs.length-1-ri,pb=idx2>0?recs[idx2-1].bNav:init;
+var bRet=r.bNav/pb-1,ex=r.pRet-bRet;
+var rc=r.pRet>=0?‘var(–gr)’:‘var(–re)’,ec=ex>=0?‘var(–gr)’:‘var(–re)’;
+var chips=Object.entries(r.holdings).map(function(kv){
+return ‘<span style="background:var(--twd);color:var(--tw);border:1px solid var(--tw);padding:1px 6px;border-radius:3px;font-size:10px;font-family:monospace;margin:1px">’+kv[0]+(kv[1]<0.99?’ ‘+(kv[1]*100).toFixed(0)+’%’:’’)+’</span>’;
+}).join(’’);
+return ‘<tr><td class="mono" style="font-weight:700">’+r.month+’</td><td>’+chips+’</td>’+
+‘<td class="mono" style="color:'+rc+';font-weight:700">’+(r.pRet>=0?’+’:’’)+(r.pRet*100).toFixed(2)+’%</td>’+
+‘<td class="mono" style="color:var(--tw);font-weight:700">$’+Math.round(r.nav).toLocaleString()+’</td>’+
+‘<td class="mono" style="color:var(--mu)">$’+Math.round(r.bNav).toLocaleString()+’</td>’+
+‘<td class="mono" style="color:'+ec+';font-weight:700">’+(ex>=0?’+’:’’)+(ex*100).toFixed(2)+‘pp</td></tr>’;
+}).join(’’);
+}
+
+// ─── Download / Upload data
+function initDL(){
+var bj=$(‘btnDlJson’);if(bj)bj.addEventListener(‘click’,dlJson);
+var bw=$(‘btnDlWeekly’);if(bw)bw.addEventListener(‘click’,dlWeeklyCsv);
+var bm=$(‘btnDlMonthly’);if(bm)bm.addEventListener(‘click’,dlMonthlyCsv);
+var bu=$(‘btnUpJson’);if(bu)bu.addEventListener(‘click’,function(){$(‘fileJson’).click();});
+var fj=$(‘fileJson’);if(fj)fj.addEventListener(‘change’,upJson);
+var bb=$(‘btnDlBt’);if(bb)bb.addEventListener(‘click’,dlBtCsv);
+}
+function dlJson(){
+if(!Object.keys(MONTHLY).length){sl(‘dlLog’,’\u5c1a\u7121\u8cc7\u6599\u53ef\u5b58\u6a94’,false);return;}
+var obj={ts:new Date().toISOString(),WEEKLY:WEEKLY,MONTHLY:MONTHLY,BENCH_MONTHLY:BENCH_MONTHLY};
+var ts=new Date().toISOString().slice(0,10);
+dlBlob(new Blob([JSON.stringify(obj)],{type:‘application/json’}),‘tw_momentum_’+ts+’.json’);
+sl(‘dlLog’,’\u2705 JSON \u5df2\u4e0b\u8f09’,true);
+}
+function dlWeeklyCsv(){
+if(!Object.keys(WEEKLY).length){sl(‘dlLog’,’\u5c1a\u7121\u9031\u983b\u8cc7\u6599’,false);return;}
+var rows=[‘code,date,high,low,close,volume’];
+Object.entries(WEEKLY).forEach(function(kv){
+kv[1].forEach(function(w){rows.push(kv[0]+’,’+w.date+’,’+w.h+’,’+w.l+’,’+w.c+’,’+w.v);});
+});
+var ts=new Date().toISOString().slice(0,10);
+dlText(rows.join(’\n’),‘tw_weekly_’+ts+’.csv’,‘text/csv;charset=utf-8’);
+sl(‘dlLog’,’\u2705 \u9031\u983b CSV \u5df2\u4e0b\u8f09 (’+Object.keys(WEEKLY).length+’\u652f)’,true);
+}
+function dlMonthlyCsv(){
+if(!Object.keys(MONTHLY).length){sl(‘dlLog’,’\u5c1a\u7121\u6708\u983b\u8cc7\u6599’,false);return;}
+var rows=[‘code,date,close’];
+Object.entries(MONTHLY).forEach(function(kv){
+kv[1].forEach(function(m){rows.push(kv[0]+’,’+m.date+’,’+m.c);});
+});
+var ts=new Date().toISOString().slice(0,10);
+dlText(rows.join(’\n’),‘tw_monthly_’+ts+’.csv’,‘text/csv;charset=utf-8’);
+sl(‘dlLog’,’\u2705 \u6708\u983b CSV \u5df2\u4e0b\u8f09 (’+Object.keys(MONTHLY).length+’\u652f)’,true);
+}
+async function upJson(e){
+var file=e.target.files[0];if(!file)return;
+sl(‘dlLog’,’\u8b80\u53d6 ‘+file.name+’…’,null);
+try{
+var text=await file.text();
+var obj=JSON.parse(text);
+if(!obj.MONTHLY){sl(‘dlLog’,’\u683c\u5f0f\u932f\u8aa4\uff1a\u7121 MONTHLY \u6b04\u4f4d’,false);return;}
+WEEKLY=obj.WEEKLY||{};
+MONTHLY=obj.MONTHLY||{};
+BENCH_MONTHLY=obj.BENCH_MONTHLY||[];
+sl(‘dlLog’,’\u8cc7\u6599\u5df2\u8f09\u5165\uff0c\u91cd\u5efa\u5feb\u53d6\u4e2d…’,null);
+updFetchStat();
+await buildCache();
+sl(‘dlLog’,’\u2705 \u8f09\u5165\u5b8c\u6210\uff01\u53ef\u76f4\u63a5\u8a08\u7b97\u4fe1\u865f/\u56de\u6e2c\u3002’,true);
+}catch(err){sl(‘dlLog’,’\u274c ‘+err.message,false);}
+e.target.value=’’;
+}
+function dlBtCsv(){
+if(!BT_RESULT){sl(‘btLog’,’\u8acb\u5148\u57f7\u884c\u56de\u6e2c’,false);return;}
+var recs=BT_RESULT.records,init=BT_RESULT.initial;
+var rows=[’\u63db\u5009\u6708,\u6301\u5009,\u6708\u5831\u916c%,\u6de8\u5024,TAIEX\u6de8\u5024,\u8d85\u984d%’];
+recs.forEach(function(r,i){
+var pb=i>0?recs[i-1].bNav:init;
+var bRet=r.bNav/pb-1,ex=r.pRet-bRet;
+var hold=Object.entries(r.holdings).map(function(kv){return kv[0]+(kv[1]<0.99?’ ‘+(kv[1]*100).toFixed(0)+’%’:’’);}).join(’+’);
+rows.push([r.month,hold,(r.pRet*100).toFixed(3),Math.round(r.nav),Math.round(r.bNav),(ex*100).toFixed(3)].join(’,’));
+});
+var ts=new Date().toISOString().slice(0,10);
+dlText(rows.join(’\n’),‘tw_backtest_’+ts+’.csv’,‘text/csv;charset=utf-8’);
+}
+
+// ─── Init
+window.addEventListener(‘DOMContentLoaded’,function(){
+try{
+initTabs();buildPool();initPool();
+initFetch();initSig();initBT();initDL();
+updCacheStatus();clearErr();
+}catch(e){showErr(’\u521d\u59cb\u5316\u5931\u6557: ’+e.message);console.error(e);}
+});
 </script>
 
 </body>
