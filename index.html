@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股動能選股 V1.2</title>
+<title>台股動能選股 V1.3</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Noto+Sans+TC:wght@400;600;700&display=swap');
@@ -15,6 +15,7 @@
   --gr:#00e5a0;--grd:#003d2a;--re:#ff4d6d;--red:#3d0012;
   --ye:#ffb830;--yed:#3d2900;--bl:#4d9fff;--bld:#001a3d;
   --ac:#7eb8ff;--tw:#ff6b9d;--twd:#3d0020;--te:#00d4aa;--ted:#003328;--wh:#f8faff;
+  --us:#a78bfa;--usd:#1a0040;
 }
 body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;padding:16px;font-size:14px;line-height:1.6}
 .mono{font-family:'IBM Plex Mono',monospace}
@@ -28,7 +29,6 @@ h1{font-size:18px;font-weight:700;color:var(--wh);display:flex;align-items:cente
 .panel{display:none}.panel.active{display:block}
 .card{background:var(--sf);border:1px solid var(--bd);padding:13px;margin-bottom:10px}
 .ct{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--mu);margin-bottom:9px;display:flex;justify-content:space-between;align-items:center}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .fi{display:flex;flex-direction:column;gap:3px}
 .fi label{font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase}
@@ -41,20 +41,28 @@ button{padding:9px 14px;border:none;border-radius:3px;cursor:pointer;font-size:1
 .log{font-size:11px;color:var(--mu);font-family:'IBM Plex Mono',monospace;margin-top:7px;min-height:14px;word-break:break-all;white-space:pre-wrap}
 .pw{background:var(--bd);border-radius:2px;height:4px;margin-top:6px;overflow:hidden}
 .pf{height:100%;background:var(--tw);border-radius:2px;transition:width .3s}
+/* Pool chips */
 .ig{border:1px solid var(--bd);margin-bottom:5px;border-radius:3px;overflow:hidden}
-.ih{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;cursor:pointer;background:var(--sf2);user-select:none}
+.ih{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;cursor:pointer;background:var(--sf2);user-select:none;gap:8px}
 .ih:hover{background:var(--bhi)}
-.in{font-size:12px;font-weight:700;color:var(--ac)}
-.ic{font-size:10px;color:var(--mu)}
+.in{font-size:12px;font-weight:700;color:var(--ac);flex:1}
+.ic{font-size:10px;color:var(--mu);white-space:nowrap}
 .ib{padding:7px;display:flex;flex-wrap:wrap;gap:4px}
 .ib.col{display:none}
 .sc{display:inline-flex;align-items:center;padding:4px 8px;border-radius:3px;font-size:11px;font-family:'IBM Plex Mono',monospace;border:1px solid var(--bd);background:var(--bg);cursor:pointer;gap:4px;user-select:none;transition:.12s}
 .sc:hover{border-color:var(--tw);background:var(--twd)}
 .sc.act{background:var(--twd);border-color:var(--tw);color:var(--tw)}
-.cc{font-weight:700}.cn{font-size:9px;color:var(--mu)}.sc.act .cn{color:var(--tw);opacity:.7}
-.cd{font-size:12px;color:var(--re);opacity:0;padding:0 2px}.sc:hover .cd{opacity:1}
+.sc.us-chip{border-color:var(--usd)}
+.sc.us-chip:hover{border-color:var(--us);background:var(--usd)}
+.sc.us-chip.act{background:var(--usd);border-color:var(--us);color:var(--us)}
+.cc{font-weight:700}.cn{font-size:9px;color:var(--mu)}
+.sc.act .cn{color:var(--tw);opacity:.7}
+.sc.us-chip.act .cn{color:var(--us);opacity:.7}
+.cd{font-size:12px;color:var(--re);opacity:0;padding:0 2px;line-height:1}
+.sc:hover .cd{opacity:1}
 .cust{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
 .cust input,.cust select{flex:1;min-width:75px}
+/* Signal */
 .sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:8px;margin-bottom:10px}
 .scard{background:var(--sf);border:1px solid var(--bd);padding:11px;border-radius:3px}
 .shdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px}
@@ -67,10 +75,12 @@ button{padding:9px 14px;border:none;border-radius:3px;cursor:pointer;font-size:1
 .sbwrap{flex:1;height:3px;background:var(--bd);border-radius:2px;overflow:hidden}
 .sbfill{height:100%;border-radius:2px}
 .wk .scode{color:var(--re)}.wk .srank{background:var(--red);color:var(--re);border-color:var(--re)}
+/* Metrics */
 .mr{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--bd)}
 .mr:last-child{border:none}.mv{font-family:'IBM Plex Mono',monospace;font-weight:700}
-.tg{color:var(--gr)}.tr{color:var(--re)}.ty{color:var(--ye)}
-.tw{overflow-x:auto;background:var(--sf);border:1px solid var(--bd);margin-bottom:10px;max-height:480px}
+.tg{color:var(--gr)}.tr{color:var(--re)}.ty{color:var(--ye)}.wh{color:var(--wh)}
+/* Table */
+.tw-wrap{overflow-x:auto;background:var(--sf);border:1px solid var(--bd);margin-bottom:10px;max-height:480px}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{padding:7px 8px;color:var(--mu);text-align:left;background:var(--sf2);position:sticky;top:0;z-index:2;font-size:10px;white-space:nowrap}
 td{padding:6px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}
@@ -88,19 +98,19 @@ tr:hover{background:var(--sf2)}
 .ib2{background:var(--sf2);border:1px solid var(--bd);padding:9px 11px;border-radius:3px;font-size:11px;color:var(--mu);line-height:1.9;margin-top:8px}
 .ib2 b{color:var(--tw)}
 .eb{display:none;background:var(--red);border:1px solid var(--re);color:var(--re);padding:8px 12px;border-radius:3px;font-size:12px;margin-bottom:9px;font-family:'IBM Plex Mono',monospace}
-.cs{display:flex;align-items:center;padding:6px 10px;background:var(--sf2);border:1px solid var(--bd);border-radius:3px;margin-bottom:8px;gap:10px;flex-wrap:wrap}
-.cst{font-size:11px;font-weight:700}
-.dlrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.cs-bar{display:flex;align-items:center;padding:6px 10px;background:var(--sf2);border:1px solid var(--bd);border-radius:3px;margin-bottom:8px;gap:10px;flex-wrap:wrap}
 </style>
 </head>
 <body>
+<textarea id="poolData" style="display:none">[{"c":"2330","n":"台積電","ind":"半導體","type":"tw50","on":true,"tw":true},{"c":"2454","n":"聯發科","ind":"半導體","type":"tw50","on":true,"tw":true},{"c":"2303","n":"聯電","ind":"半導體","type":"tw50","on":true,"tw":true},{"c":"3711","n":"日月光","ind":"半導體","type":"tw50","on":true,"tw":true},{"c":"2344","n":"華邦電","ind":"半導體","type":"tw50","on":true,"tw":true},{"c":"2368","n":"金像電","ind":"半導體","type":"tw50","on":true,"tw":true},{"c":"2449","n":"京元電子","ind":"半導體","type":"tw50","on":true,"tw":true},{"c":"2408","n":"南亞科","ind":"半導體","type":"tw50","on":true,"tw":true},{"c":"3037","n":"欣興","ind":"電子零組件","type":"tw50","on":true,"tw":true},{"c":"2383","n":"台光電","ind":"電子零組件","type":"tw50","on":true,"tw":true},{"c":"3653","n":"健策","ind":"電子零組件","type":"tw50","on":true,"tw":true},{"c":"2317","n":"鴻海","ind":"電子製造","type":"tw50","on":true,"tw":true},{"c":"2382","n":"廣達","ind":"電子製造","type":"tw50","on":true,"tw":true},{"c":"2308","n":"台達電","ind":"電子製造","type":"tw50","on":true,"tw":true},{"c":"2301","n":"光寶科","ind":"電子製造","type":"tw50","on":true,"tw":true},{"c":"2354","n":"鴻準","ind":"電子製造","type":"tw50","on":true,"tw":true},{"c":"2360","n":"致茂","ind":"電子製造","type":"tw50","on":true,"tw":true},{"c":"2357","n":"華碩","ind":"電腦周邊","type":"tw50","on":true,"tw":true},{"c":"2353","n":"宏碁","ind":"電腦周邊","type":"tw50","on":true,"tw":true},{"c":"2881","n":"富邦金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"2882","n":"國泰金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"2884","n":"玉山金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"2885","n":"元大金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"2886","n":"兆豐金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"2887","n":"台新金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"2888","n":"新光金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"2891","n":"中信金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"2892","n":"第一金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"2883","n":"開發金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"2880","n":"華南金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"5880","n":"合庫金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"2890","n":"永豐金","ind":"金融","type":"tw50","on":true,"tw":true},{"c":"2412","n":"中華電","ind":"電信","type":"tw50","on":true,"tw":true},{"c":"3045","n":"台灣大","ind":"電信","type":"tw50","on":true,"tw":true},{"c":"1301","n":"台塑","ind":"石化","type":"tw50","on":true,"tw":true},{"c":"1303","n":"南亞","ind":"石化","type":"tw50","on":true,"tw":true},{"c":"6505","n":"台塑化","ind":"石化","type":"tw50","on":true,"tw":true},{"c":"2002","n":"中鋼","ind":"鋼鐵","type":"tw50","on":true,"tw":true},{"c":"1216","n":"統一企業","ind":"食品消費","type":"tw50","on":true,"tw":true},{"c":"3008","n":"大立光","ind":"光學精密","type":"tw50","on":true,"tw":true},{"c":"2207","n":"和泰車","ind":"汽車","type":"tw50","on":true,"tw":true},{"c":"2059","n":"川湖","ind":"工業機械","type":"tw50","on":true,"tw":true},{"c":"2409","n":"友達","ind":"面板","type":"tw50","on":true,"tw":true},{"c":"3034","n":"聯詠","ind":"半導體","type":"mid","on":true,"tw":true},{"c":"2379","n":"瑞昱","ind":"半導體","type":"mid","on":true,"tw":true},{"c":"2337","n":"旺宏","ind":"半導體","type":"mid","on":true,"tw":true},{"c":"3035","n":"智原","ind":"半導體","type":"mid","on":true,"tw":true},{"c":"6770","n":"力積電","ind":"半導體","type":"mid","on":true,"tw":true},{"c":"3443","n":"創意","ind":"半導體","type":"mid","on":true,"tw":true},{"c":"5274","n":"信驊","ind":"半導體","type":"mid","on":true,"tw":true},{"c":"3189","n":"景碩","ind":"電子零組件","type":"mid","on":true,"tw":true},{"c":"3533","n":"嘉澤","ind":"電子零組件","type":"mid","on":true,"tw":true},{"c":"2327","n":"國巨","ind":"電子零組件","type":"mid","on":true,"tw":true},{"c":"3017","n":"奇鋐","ind":"電子零組件","type":"mid","on":true,"tw":true},{"c":"3044","n":"健鼎","ind":"電子零組件","type":"mid","on":true,"tw":true},{"c":"2492","n":"華新科","ind":"電子零組件","type":"mid","on":true,"tw":true},{"c":"3665","n":"貿聯-KY","ind":"電子零組件","type":"mid","on":true,"tw":true},{"c":"8996","n":"高力","ind":"電子零組件","type":"mid","on":true,"tw":true},{"c":"4938","n":"和碩","ind":"電子製造","type":"mid","on":true,"tw":true},{"c":"3231","n":"緯創","ind":"電子製造","type":"mid","on":true,"tw":true},{"c":"2356","n":"英業達","ind":"電子製造","type":"mid","on":true,"tw":true},{"c":"2324","n":"仁寶","ind":"電腦周邊","type":"mid","on":true,"tw":true},{"c":"2377","n":"微星","ind":"電腦周邊","type":"mid","on":true,"tw":true},{"c":"2395","n":"研華","ind":"工業電腦","type":"mid","on":true,"tw":true},{"c":"2838","n":"聯邦銀","ind":"金融","type":"mid","on":true,"tw":true},{"c":"5876","n":"上商銀","ind":"金融","type":"mid","on":true,"tw":true},{"c":"2823","n":"中壽","ind":"金融","type":"mid","on":true,"tw":true},{"c":"2912","n":"統一超","ind":"食品消費","type":"mid","on":true,"tw":true},{"c":"1210","n":"大成","ind":"食品消費","type":"mid","on":true,"tw":true},{"c":"2615","n":"萬海","ind":"航運","type":"mid","on":true,"tw":true},{"c":"2603","n":"長榮","ind":"航運","type":"mid","on":true,"tw":true},{"c":"2609","n":"陽明","ind":"航運","type":"mid","on":true,"tw":true},{"c":"2610","n":"華航","ind":"航運","type":"mid","on":true,"tw":true},{"c":"2618","n":"長榮航","ind":"航運","type":"mid","on":true,"tw":true},{"c":"2645","n":"長榮航太","ind":"航運","type":"mid","on":true,"tw":true},{"c":"4904","n":"遠傳","ind":"電信","type":"mid","on":true,"tw":true},{"c":"3406","n":"玉晶光","ind":"光學精密","type":"mid","on":true,"tw":true},{"c":"2049","n":"上銀","ind":"工業機械","type":"mid","on":true,"tw":true},{"c":"6547","n":"美時","ind":"生技醫療","type":"mid","on":true,"tw":true},{"c":"SPY","n":"S&P500","ind":"美股ETF","type":"mid","on":true,"tw":false},{"c":"QQQ","n":"那斯達克","ind":"美股ETF","type":"mid","on":true,"tw":false},{"c":"IWM","n":"小型股","ind":"美股ETF","type":"mid","on":true,"tw":false},{"c":"VEU","n":"全球ex-US","ind":"美股ETF","type":"mid","on":true,"tw":false},{"c":"EFA","n":"已開發國際","ind":"美股ETF","type":"mid","on":true,"tw":false},{"c":"EEM","n":"新興市場","ind":"美股ETF","type":"mid","on":true,"tw":false},{"c":"TLT","n":"長債20Y","ind":"美股ETF","type":"mid","on":true,"tw":false},{"c":"IEF","n":"中債7Y","ind":"美股ETF","type":"mid","on":true,"tw":false},{"c":"GLD","n":"黃金","ind":"美股ETF","type":"mid","on":true,"tw":false},{"c":"SLV","n":"白銀","ind":"美股ETF","type":"mid","on":true,"tw":false},{"c":"VNQ","n":"REIT","ind":"美股ETF","type":"mid","on":true,"tw":false}]</textarea>
+
 <div class="load hidden" id="loadEl">
   <div class="spin"></div>
   <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">載入中...</div>
 </div>
 <div class="wrap">
-<h1>🇹🇼 台股動能選股 <span class="tag">V1.2</span></h1>
-<div class="sub">台灣50 + 中型100 ｜ 動能 z分(50%) + 技術面四維(50%) ｜ 月頻換倉 ｜ 最刨3支做多 vs TAIEX ｜ V1.2: 快取+存檔+權重即時生效</div>
+<h1>🇹🇼 台股動能選股 <span class="tag">V1.3</span></h1>
+<div class="sub">台灣50 + 中型100 + 美股ETF ｜ 動能 z分(50%) + 技術面四維(50%) ｜ 月頻換倉 ｜ 最強3支做多 vs TAIEX ｜ 快取+存檔+權重即時生效</div>
 <div class="eb" id="errBanner"></div>
 <div class="tabs" id="tabBar">
   <button class="tab active" data-tab="pool">📋 股池設定</button>
@@ -124,28 +134,32 @@ tr:hover{background:var(--sf2)}
         <button class="bo sm" id="btnNone">全停</button>
       </div>
     </div>
-    <div id="poolCont">建構中...</div>
+    <div id="poolCont">載入股池...</div>
     <div class="cust">
-      <input type="text" id="cusT" placeholder="2330 或 2330.TW" style="max-width:130px">
+      <input type="text" id="cusT" placeholder="2330 或 SPY" style="max-width:120px">
       <input type="text" id="cusN" placeholder="名稱" style="max-width:90px">
       <select id="cusI" style="max-width:110px">
-<option value='\u5149\u5b78\u7cbe\u5bc6'>\u5149\u5b78\u7cbe\u5bc6</option>
-<option value='\u534a\u5c0e\u9ad4'>\u534a\u5c0e\u9ad4</option>
-<option value='\u5de5\u696d\u6a5f\u68b0'>\u5de5\u696d\u6a5f\u68b0</option>
-<option value='\u5de5\u696d\u96fb\u8166'>\u5de5\u696d\u96fb\u8166</option>
-<option value='\u6c7d\u8eca'>\u6c7d\u8eca</option>
-<option value='\u751f\u6280\u91ab\u7642'>\u751f\u6280\u91ab\u7642</option>
-<option value='\u77f3\u5316'>\u77f3\u5316</option>
-<option value='\u822a\u904b'>\u822a\u904b</option>
-<option value='\u91d1\u878d'>\u91d1\u878d</option>
-<option value='\u92fc\u9435'>\u92fc\u9435</option>
-<option value='\u96fb\u4fe1'>\u96fb\u4fe1</option>
-<option value='\u96fb\u5b50\u88fd\u9020'>\u96fb\u5b50\u88fd\u9020</option>
-<option value='\u96fb\u5b50\u96f6\u7d44\u4ef6'>\u96fb\u5b50\u96f6\u7d44\u4ef6</option>
-<option value='\u96fb\u8166\u5468\u908a'>\u96fb\u8166\u5468\u908a</option>
-<option value='\u9762\u677f'>\u9762\u677f</option>
-<option value='\u98df\u54c1\u6d88\u8cbb'>\u98df\u54c1\u6d88\u8cbb</option>
+<option value="光學精密">光學精密</option>
+<option value="半導體">半導體</option>
+<option value="工業機械">工業機械</option>
+<option value="工業電腦">工業電腦</option>
+<option value="汽車">汽車</option>
+<option value="生技醫療">生技醫療</option>
+<option value="石化">石化</option>
+<option value="美股ETF">美股ETF</option>
+<option value="航運">航運</option>
+<option value="金融">金融</option>
+<option value="鋼鐵">鋼鐵</option>
+<option value="電信">電信</option>
+<option value="電子製造">電子製造</option>
+<option value="電子零組件">電子零組件</option>
+<option value="電腦周邊">電腦周邊</option>
+<option value="面板">面板</option>
+<option value="食品消費">食品消費</option>
       </select>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--mu);white-space:nowrap">
+        <input type="checkbox" id="cusUS" style="width:14px;accent-color:var(--us)"> 美股
+      </label>
       <button class="bo sm" id="btnAdd">+ 新增</button>
     </div>
   </div>
@@ -161,9 +175,11 @@ tr:hover{background:var(--sf2)}
     </div>
     <div class="ib2">
       <b>動能</b>：0.5×z₁₂+0.3×z₆+0.2×z₃（月頻，各期波動率標準化）<br>
-      <b>VWMA Bias</b>：(close−VWMA50)/VWMA50，週頻，跨截面z，z&gt;2截斷<br>
-      <b>VWMA斜率</b>：VWMA50近13週線性斜率，z標準化｜<b>量能</b>：價漲量增/價跌量縮z，z&gt;2截斷<br>
-      <b>K棒強弱</b>：13週滚動(close−low)/(high−low)均値，z標準化
+      <b>VWMA Bias</b>：(close−VWMA50)/VWMA50，週頻，跨截面z，z&gt;2截斷 ｜
+      <b>VWMA斜率</b>：VWMA50近13週線性斜率，z標準化<br>
+      <b>量能確認</b>：價漲量增/價跌量縮z，z&gt;2截斷 ｜
+      <b>K棒強弱</b>：13週滾動(close−low)/(high−low)均值，z標準化<br>
+      <span style="color:var(--us)">⚠ 美股ETF無週頻成交量→ VWMA Bias/斜率/量能/K棒均使用月頻替代計算</span>
     </div>
   </div>
 </div>
@@ -191,13 +207,13 @@ tr:hover{background:var(--sf2)}
         <button class="bo sm" id="btnDlMonthly">⬇ 月頻 CSV</button>
       </div>
     </div>
-    <div class="cs" id="cacheStatus">
-      <span class="cst" id="cacheStatusTxt" style="color:var(--mu)">快取狀態：尚未建立</span>
+    <div class="cs-bar">
+      <span style="font-size:11px;font-weight:700" id="cacheStatusTxt" style="color:var(--mu)">快取狀態：尚未建立</span>
     </div>
-    <div style="margin-top:8px">
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <input type="file" id="fileJson" accept=".json" style="display:none">
       <button class="bo sm" id="btnUpJson">⬆ 上傳 JSON 還原資料</button>
-      <span style="font-size:10px;color:var(--mu);margin-left:8px">上傳後自動重建快取，可直接計算信號/回測</span>
+      <span style="font-size:10px;color:var(--mu)">上傳後自動重建快取，可直接計算信號/回測</span>
     </div>
     <div class="log" id="dlLog"></div>
   </div>
@@ -213,9 +229,9 @@ tr:hover{background:var(--sf2)}
   </div>
   <div class="card hidden" id="stCard">
     <div class="ct">全股池評分排行</div>
-    <div class="tw"><table>
+    <div class="tw-wrap"><table>
       <thead><tr><th>排名</th><th>代號</th><th>名稱</th><th>產業</th>
-      <th>綜分</th><th>動能Z</th><th>BiasZ</th><th>SlopeZ</th><th>VolZ</th><th>KbarZ</th>
+      <th>綜合分</th><th>動能Z</th><th>BiasZ</th><th>SlopeZ</th><th>VolZ</th><th>KbarZ</th>
       <th>R12</th><th>R6</th><th>R3</th><th>TS</th></tr></thead>
       <tbody id="stBody"></tbody>
     </table></div>
@@ -240,105 +256,24 @@ tr:hover{background:var(--sf2)}
   </div>
   <div id="btRes" class="hidden">
     <div id="btMetrics" class="g3" style="gap:8px;margin-bottom:10px"></div>
-    <div class="cw"><div class="ct2">淨値曲線（對數刻度）vs TAIEX</div><canvas id="navC" height="260"></canvas></div>
+    <div class="cw"><div class="ct2">淨值曲線（對數刻度）vs TAIEX</div><canvas id="navC" height="260"></canvas></div>
     <div class="cw"><div class="ct2">最大回撤</div><canvas id="ddC" height="140"></canvas></div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
       <button class="bo sm" id="btnDlBt">⬇ 下載回測歷程 CSV</button>
     </div>
-    <div class="tw"><table><thead><tr>
-      <th>換倉月</th><th>持倉</th><th>月報酬</th><th>淨値</th><th>TAIEX淨値</th><th>超額</th>
+    <div class="tw-wrap"><table><thead><tr>
+      <th>換倉月</th><th>持倉</th><th>月報酬</th><th>淨值</th><th>TAIEX淨值</th><th>超額</th>
     </tr></thead><tbody id="btBody"></tbody></table></div>
   </div>
 </div>
 </div>
 <script>
-var POOL = [
-{c:'2330',n:'\u53f0\u7a4d\u96fb',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
-{c:'2454',n:'\u806f\u767c\u79d1',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
-{c:'2303',n:'\u806f\u96fb',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
-{c:'3711',n:'\u65e5\u6708\u5149',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
-{c:'2344',n:'\u83ef\u90a6\u96fb',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
-{c:'2368',n:'\u91d1\u50cf\u96fb',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
-{c:'2449',n:'\u4eac\u5143\u96fb\u5b50',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
-{c:'2408',n:'\u5357\u4e9e\u79d1',ind:'\u534a\u5c0e\u9ad4',type:'tw50',on:true},
-{c:'3037',n:'\u6b23\u8208',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'tw50',on:true},
-{c:'2383',n:'\u53f0\u5149\u96fb',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'tw50',on:true},
-{c:'3653',n:'\u5065\u7b56',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'tw50',on:true},
-{c:'2317',n:'\u9d3b\u6d77',ind:'\u96fb\u5b50\u88fd\u9020',type:'tw50',on:true},
-{c:'2382',n:'\u5ee3\u9054',ind:'\u96fb\u5b50\u88fd\u9020',type:'tw50',on:true},
-{c:'2308',n:'\u53f0\u9054\u96fb',ind:'\u96fb\u5b50\u88fd\u9020',type:'tw50',on:true},
-{c:'2301',n:'\u5149\u5bf6\u79d1',ind:'\u96fb\u5b50\u88fd\u9020',type:'tw50',on:true},
-{c:'2354',n:'\u9d3b\u6e96',ind:'\u96fb\u5b50\u88fd\u9020',type:'tw50',on:true},
-{c:'2360',n:'\u81f4\u8302',ind:'\u96fb\u5b50\u88fd\u9020',type:'tw50',on:true},
-{c:'2357',n:'\u83ef\u78a9',ind:'\u96fb\u8166\u5468\u908a',type:'tw50',on:true},
-{c:'2353',n:'\u5b8f\u7881',ind:'\u96fb\u8166\u5468\u908a',type:'tw50',on:true},
-{c:'2881',n:'\u5bcc\u90a6\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'2882',n:'\u570b\u6cf0\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'2884',n:'\u7389\u5c71\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'2885',n:'\u5143\u5927\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'2886',n:'\u5146\u8c50\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'2887',n:'\u53f0\u65b0\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'2888',n:'\u65b0\u5149\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'2891',n:'\u4e2d\u4fe1\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'2892',n:'\u7b2c\u4e00\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'2883',n:'\u958b\u767c\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'2880',n:'\u83ef\u5357\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'5880',n:'\u5408\u5eab\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'2890',n:'\u6c38\u8c50\u91d1',ind:'\u91d1\u878d',type:'tw50',on:true},
-{c:'2412',n:'\u4e2d\u83ef\u96fb',ind:'\u96fb\u4fe1',type:'tw50',on:true},
-{c:'3045',n:'\u53f0\u7063\u5927',ind:'\u96fb\u4fe1',type:'tw50',on:true},
-{c:'1301',n:'\u53f0\u5851',ind:'\u77f3\u5316',type:'tw50',on:true},
-{c:'1303',n:'\u5357\u4e9e',ind:'\u77f3\u5316',type:'tw50',on:true},
-{c:'6505',n:'\u53f0\u5851\u5316',ind:'\u77f3\u5316',type:'tw50',on:true},
-{c:'2002',n:'\u4e2d\u92fc',ind:'\u92fc\u9435',type:'tw50',on:true},
-{c:'1216',n:'\u7d71\u4e00\u4f01\u696d',ind:'\u98df\u54c1\u6d88\u8cbb',type:'tw50',on:true},
-{c:'3008',n:'\u5927\u7acb\u5149',ind:'\u5149\u5b78\u7cbe\u5bc6',type:'tw50',on:true},
-{c:'2207',n:'\u548c\u6cf0\u8eca',ind:'\u6c7d\u8eca',type:'tw50',on:true},
-{c:'2059',n:'\u5ddd\u6e56',ind:'\u5de5\u696d\u6a5f\u68b0',type:'tw50',on:true},
-{c:'2409',n:'\u53cb\u9054',ind:'\u9762\u677f',type:'tw50',on:true},
-{c:'3034',n:'\u806f\u8a60',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
-{c:'2379',n:'\u745e\u6631',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
-{c:'2337',n:'\u65fa\u5b8f',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
-{c:'3035',n:'\u667a\u539f',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
-{c:'6770',n:'\u529b\u7a4d\u96fb',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
-{c:'3443',n:'\u5275\u610f',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
-{c:'5274',n:'\u4fe1\u9a4a',ind:'\u534a\u5c0e\u9ad4',type:'mid',on:true},
-{c:'3189',n:'\u666f\u78a9',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
-{c:'3533',n:'\u5609\u6fa4',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
-{c:'2327',n:'\u570b\u5de8',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
-{c:'3017',n:'\u5947\u92d0',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
-{c:'3044',n:'\u5065\u9f0e',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
-{c:'2492',n:'\u83ef\u65b0\u79d1',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
-{c:'3665',n:'\u8cbf\u806f-KY',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
-{c:'8996',n:'\u9ad8\u529b',ind:'\u96fb\u5b50\u96f6\u7d44\u4ef6',type:'mid',on:true},
-{c:'4938',n:'\u548c\u78a9',ind:'\u96fb\u5b50\u88fd\u9020',type:'mid',on:true},
-{c:'3231',n:'\u7def\u5275',ind:'\u96fb\u5b50\u88fd\u9020',type:'mid',on:true},
-{c:'2356',n:'\u82f1\u696d\u9054',ind:'\u96fb\u5b50\u88fd\u9020',type:'mid',on:true},
-{c:'2324',n:'\u4ec1\u5bf6',ind:'\u96fb\u8166\u5468\u908a',type:'mid',on:true},
-{c:'2377',n:'\u5fae\u661f',ind:'\u96fb\u8166\u5468\u908a',type:'mid',on:true},
-{c:'2395',n:'\u7814\u83ef',ind:'\u5de5\u696d\u96fb\u8166',type:'mid',on:true},
-{c:'2838',n:'\u806f\u90a6\u9280',ind:'\u91d1\u878d',type:'mid',on:true},
-{c:'5876',n:'\u4e0a\u5546\u9280',ind:'\u91d1\u878d',type:'mid',on:true},
-{c:'2823',n:'\u4e2d\u58fd',ind:'\u91d1\u878d',type:'mid',on:true},
-{c:'2912',n:'\u7d71\u4e00\u8d85',ind:'\u98df\u54c1\u6d88\u8cbb',type:'mid',on:true},
-{c:'1210',n:'\u5927\u6210',ind:'\u98df\u54c1\u6d88\u8cbb',type:'mid',on:true},
-{c:'2615',n:'\u842c\u6d77',ind:'\u822a\u904b',type:'mid',on:true},
-{c:'2603',n:'\u9577\u69ae',ind:'\u822a\u904b',type:'mid',on:true},
-{c:'2609',n:'\u967d\u660e',ind:'\u822a\u904b',type:'mid',on:true},
-{c:'2610',n:'\u83ef\u822a',ind:'\u822a\u904b',type:'mid',on:true},
-{c:'2618',n:'\u9577\u69ae\u822a',ind:'\u822a\u904b',type:'mid',on:true},
-{c:'2645',n:'\u9577\u69ae\u822a\u592a',ind:'\u822a\u904b',type:'mid',on:true},
-{c:'4904',n:'\u9060\u50b3',ind:'\u96fb\u4fe1',type:'mid',on:true},
-{c:'3406',n:'\u7389\u6676\u5149',ind:'\u5149\u5b78\u7cbe\u5bc6',type:'mid',on:true},
-{c:'2049',n:'\u4e0a\u9280',ind:'\u5de5\u696d\u6a5f\u68b0',type:'mid',on:true},
-{c:'6547',n:'\u7f8e\u6642',ind:'\u751f\u6280\u91ab\u7642',type:'mid',on:true}
-];
-
-// ─── State
+// ── State
+var POOL = [];
 var WEEKLY={}, MONTHLY={}, BENCH_MONTHLY=[], RAW_SCORES={}, BT_RESULT=null, CHART={};
 var CACHE_BUILT=false, CACHE_TS=null;
 
-// ─── Helpers
+// ── Helpers
 function $(i){return document.getElementById(i);}
 function gv(i){var e=$(i);return e?parseFloat(e.value)||0:0;}
 function sl(i,msg,ok){var e=$(i);if(!e)return;e.textContent=msg;e.style.color=ok===true?‘var(–gr)’:ok===false?‘var(–re)’:‘var(–mu)’;}
@@ -349,42 +284,59 @@ function clearErr(){var b=$(‘errBanner’);if(b)b.style.display=‘none’;}
 function dlBlob(blob,name){var a=document.createElement(‘a’);a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);}
 function dlText(text,name,type){dlBlob(new Blob([text],{type:type||‘text/plain;charset=utf-8’}),name);}
 
-// ─── Tabs
+// ── Load POOL from hidden textarea (UTF-8 JSON, no escape issues)
+function loadPoolData(){
+try{
+var ta=$(‘poolData’);
+if(!ta){showErr(‘poolData textarea missing’);return;}
+POOL=JSON.parse(ta.value);
+console.log(‘POOL loaded:’,POOL.length,‘stocks’);
+}catch(e){showErr(’POOL JSON parse failed: ’+e.message);}
+}
+
+// ── Tabs (event delegation, no inline onclick)
 function initTabs(){
 var bar=$(‘tabBar’);if(!bar)return;
 bar.addEventListener(‘click’,function(e){
 var btn=e.target.closest(’.tab’);if(!btn||!btn.dataset.tab)return;
 document.querySelectorAll(’.tab’).forEach(function(t){t.classList.remove(‘active’);});
 document.querySelectorAll(’.panel’).forEach(function(p){p.classList.remove(‘active’);});
-btn.classList.add(‘active’);var p=$(‘panel-’+btn.dataset.tab);if(p)p.classList.add(‘active’);
+btn.classList.add(‘active’);
+var p=$(‘panel-’+btn.dataset.tab);if(p)p.classList.add(‘active’);
 });
 }
 
-// ─── Pool
+// ── Build pool UI
 function buildPool(){
 try{
 var cont=$(‘poolCont’);if(!cont)return;
+if(!POOL.length){cont.innerHTML=’<span style="color:var(--re)">股池資料載入失敗</span>’;return;}
 var grps={};
 POOL.forEach(function(s){if(!grps[s.ind])grps[s.ind]=[];grps[s.ind].push(s);});
 var html=’’;
-Object.keys(grps).sort().forEach(function(ind){
+Object.keys(grps).sort().forEach(function(ind,gi){
 var stocks=grps[ind];
 var ac=stocks.filter(function(s){return s.on;}).length;
-var key=ind.replace(/[^a-zA-Z0-9]/g,’*’);
+var isUs=ind===‘美股ETF’;
+// Use numeric index for ID to avoid CJK char issues
 html+=’<div class="ig"><div class="ih" data-act="ti">’;
-html+=’<span class="in">’+ind+’</span><span class="ic" id="ic_'+key+'">’+ac+’/’+stocks.length+’</span></div>’;
+html+=’<span class="in">’+(isUs?‘🇺🇸 ‘:’’)+ind+’</span>’;
+html+=’<span class="ic" id="ic'+gi+'">’+ac+’/’+stocks.length+’</span></div>’;
 html+=’<div class="ib">’;
 stocks.forEach(function(s){
-html+=’<span class="sc'+(s.on?' act':'')+'" data-act="ts" data-code="'+s.c+'">’;
+var isUsc=!s.tw;
+html+=’<span class="sc'+(isUsc?' us-chip':'')+(s.on?' act':'')+'" data-act="ts" data-code="'+s.c+'">’;
 html+=’<span class="cc">’+s.c+’</span><span class="cn">’+s.n+’</span>’;
 if(s.type!==‘tw50’)html+=’<span class="cd" data-act="ds" data-code="'+s.c+'">×</span>’;
 html+=’</span>’;
 });
 html+=’</div></div>’;
 });
-cont.innerHTML=html;clearErr();
-}catch(e){showErr(‘buildPool: ‘+e.message);}
+cont.innerHTML=html;
+clearErr();
+}catch(e){showErr(’buildPool: ’+e.message);console.error(e);}
 }
+
 function initPool(){
 var cont=$(‘poolCont’);if(!cont)return;
 cont.addEventListener(‘click’,function(e){
@@ -399,8 +351,9 @@ var ba2=$(‘btnAdd’);if(ba2)ba2.addEventListener(‘click’,addCustom);
 function togStock(code){
 var s=POOL.find(function(p){return p.c===code;});if(!s)return;
 s.on=!s.on;
-var chips=document.querySelectorAll(’[data-code=”’+code+’”][data-act=“ts”]’);
-chips.forEach(function(c){c.classList.toggle(‘act’,s.on);});
+document.querySelectorAll(’[data-act=“ts”][data-code=”’+code+’”]’).forEach(function(el){
+el.classList.toggle(‘act’,s.on);
+});
 updCounts();
 }
 function delStock(code){
@@ -411,25 +364,27 @@ POOL.splice(idx,1);buildPool();
 function updCounts(){
 var grps={};
 POOL.forEach(function(s){if(!grps[s.ind])grps[s.ind]={t:0,a:0};grps[s.ind].t++;if(s.on)grps[s.ind].a++;});
-Object.keys(grps).forEach(function(ind){
-var el=$(’ic*’+ind.replace(/[^a-zA-Z0-9]/g,’_’));
-if(el)el.textContent=grps[ind].a+’/’+grps[ind].t;
+var inds=Object.keys(grps).sort();
+inds.forEach(function(ind,gi){
+var el=$(‘ic’+gi);if(el)el.textContent=grps[ind].a+’/’+grps[ind].t;
 });
 }
 function addCustom(){
 try{
-var raw=$(‘cusT’).value.trim().toUpperCase().replace(’.TW’,’’);
-if(!raw){showErr(‘請輸入股票代號’);return;}
-if(POOL.find(function(p){return p.c===raw;})){showErr(‘已存在: ‘+raw);return;}
-var name=$(‘cusN’).value.trim()||raw;
+var raw=$(‘cusT’).value.trim().toUpperCase();
+var isUS=$(‘cusUS’)&&$(‘cusUS’).checked;
+var code=isUS?raw:raw.replace(’.TW’,’’);
+if(!code){showErr(‘請輸入股票代號’);return;}
+if(POOL.find(function(p){return p.c===code;})){showErr(‘已存在: ‘+code);return;}
+var name=$(‘cusN’).value.trim()||code;
 var ind=$(‘cusI’).value||‘其他’;
-POOL.push({c:raw,n:name,ind:ind,type:‘custom’,on:true});
+POOL.push({c:code,n:name,ind:ind,type:‘custom’,on:true,tw:!isUS});
 $(‘cusT’).value=’’;$(‘cusN’).value=’’;
 buildPool();clearErr();
 }catch(e){showErr(’addCustom: ’+e.message);}
 }
 
-// ─── Network
+// ── Network
 function buildProxies(){
 var p=$(‘proxyUrl’)?$(‘proxyUrl’).value.trim():’’;
 if(p&&!p.includes(‘url=’))p+=p.endsWith(’/’)?’?url=’:’/?url=’;
@@ -443,8 +398,15 @@ catch(e){lastErr=e;}
 }
 throw lastErr||new Error(‘所有Proxy失敗’);
 }
-async function fetchWeekly(code,proxies){
-var tk=(code.startsWith(’^’)||code.includes(’.’))?code:code+’.TW’;
+// Build Yahoo ticker: TW stocks append .TW, US stocks use as-is, special tickers unchanged
+function buildTicker(stock){
+if(!stock.tw)return stock.c; // US ETF or special
+if(stock.c.startsWith(’^’))return stock.c;
+if(stock.c.includes(’.’))return stock.c;
+return stock.c+’.TW’;
+}
+async function fetchWeekly(stock,proxies){
+var tk=buildTicker(stock);
 var r=await fetchProxy(‘https://query1.finance.yahoo.com/v8/finance/chart/’+tk+’?range=max&interval=1wk’,proxies);
 var j=await r.json();
 var ch=j&&j.chart&&j.chart.result&&j.chart.result[0];
@@ -457,8 +419,8 @@ if(c&&c>0&&h&&l&&v!=null)out.push({date:new Date(ts*1000).toISOString().slice(0,
 });
 return out;
 }
-async function fetchMonthly(code,proxies){
-var tk=(code.startsWith(’^’)||code.includes(’.’))?code:code+’.TW’;
+async function fetchMonthly(stock,proxies){
+var tk=(typeof stock===‘string’)?stock:buildTicker(stock);
 var r=await fetchProxy(‘https://query1.finance.yahoo.com/v8/finance/chart/’+tk+’?range=max&interval=1mo’,proxies);
 var j=await r.json();
 var ch=j&&j.chart&&j.chart.result&&j.chart.result[0];
@@ -466,31 +428,35 @@ if(!ch||!ch.timestamp)throw new Error(‘無資料’);
 var out=[];
 ch.timestamp.forEach(function(ts,i){
 var adj=ch.indicators.adjclose&&ch.indicators.adjclose[0]?ch.indicators.adjclose[0].adjclose[i]:null;
-var cl=ch.indicators.quote[0].close[i];
-var c=adj!=null?adj:cl;
+var cl=ch.indicators.quote[0].close[i];var c=adj!=null?adj:cl;
 if(c&&c>0)out.push({date:new Date(ts*1000).toISOString().slice(0,7),c:+c.toFixed(4)});
 });
 var seen={};out.forEach(function(p){seen[p.date]=p;});
 return Object.values(seen).sort(function(a,b){return a.date.localeCompare(b.date);});
 }
 
-// ─── Fetch all + auto-build cache
+// ── Fetch all
 function initFetch(){var b=$(‘btnFetch’);if(b)b.addEventListener(‘click’,fetchAll);}
 async function fetchAll(){
 var proxies=buildProxies();
 var enabled=POOL.filter(function(s){return s.on;});
-var all=enabled.map(function(s){return s.c;}).concat([’^TWII’]);
+var all=enabled.concat([{c:’^TWII’,tw:false,n:‘TAIEX’}]);
 showL(‘準備抓取…’);
 $(‘fetchProg’).classList.remove(‘hidden’);
 var failed=[];
 for(var i=0;i<all.length;i++){
-var code=all[i];var isB=code===’^TWII’;
-$(‘loadTxt’).textContent=‘抓取 ‘+(isB?’^TWII’:code+’.TW’)+’ (’+(i+1)+’/’+all.length+’)’;
+var s=all[i];var isB=s.c===’^TWII’;
+var tk=buildTicker(s);
+$(‘loadTxt’).textContent=‘抓取 ‘+tk+’ (’+(i+1)+’/’+all.length+’)’;
 $(‘fetchFill’).style.width=((i/all.length)*100)+’%’;
 try{
-if(!isB){WEEKLY[code]=await fetchWeekly(code,proxies);MONTHLY[code]=await fetchMonthly(code,proxies);}
-else BENCH_MONTHLY=await fetchMonthly(’^TWII’,proxies);
-}catch(e){failed.push(code);}
+if(!isB){
+WEEKLY[s.c]=await fetchWeekly(s,proxies);
+MONTHLY[s.c]=await fetchMonthly(s,proxies);
+}else{
+BENCH_MONTHLY=await fetchMonthly(’^TWII’,proxies);
+}
+}catch(e){failed.push(s.c);}
 await new Promise(function(r){setTimeout(r,400);});
 }
 $(‘fetchFill’).style.width=‘100%’;
@@ -499,7 +465,6 @@ var ok=all.length-failed.length;
 sl(‘fetchLog’,‘✅ 完成 ‘+ok+’/’+all.length+(failed.length?’ | 失敗: ‘+failed.slice(0,6).join(’,’):’’),failed.length===0);
 updFetchStat();
 hideL();
-// Auto-build cache
 await buildCache();
 }
 function updFetchStat(){
@@ -507,13 +472,15 @@ var bar=$(‘fetchStat’);if(!bar)return;
 bar.innerHTML=POOL.filter(function(s){return s.on;}).map(function(s){
 var ok=WEEKLY[s.c]&&WEEKLY[s.c].length>0&&MONTHLY[s.c]&&MONTHLY[s.c].length>0;
 var pa=WEEKLY[s.c]||MONTHLY[s.c];
-var bg=ok?‘var(–ted)’:pa?‘var(–yed)’:‘var(–sf2)’;
-var col=ok?‘var(–te)’:pa?‘var(–ye)’:‘var(–mu)’;
-var bd=ok?‘var(–te)’:pa?‘var(–ye)’:‘var(–bd)’;
+var isUs=!s.tw;
+var bg=ok?(isUs?‘var(–usd)’:‘var(–ted)’):pa?‘var(–yed)’:‘var(–sf2)’;
+var col=ok?(isUs?‘var(–us)’:‘var(–te)’):pa?‘var(–ye)’:‘var(–mu)’;
+var bd=ok?(isUs?‘var(–us)’:‘var(–te)’):pa?‘var(–ye)’:‘var(–bd)’;
 return ‘<span class="bdg" style="background:'+bg+';color:'+col+';border:1px solid '+bd+'">’+s.c+’</span>’;
 }).join(’’);
 }
-// ─── Technical indicators (weekly)
+
+// ── Technical indicators
 function calcVWMA(wks,n){
 if(wks.length<n)return null;
 var sl=wks.slice(-n),sp=0,sv=0;
@@ -522,8 +489,7 @@ return sv>0?sp/sv:null;
 }
 function rawBias(wks){
 if(wks.length<52)return null;
-var v=calcVWMA(wks,50);
-return v?( wks[wks.length-1].c-v)/v:null;
+var v=calcVWMA(wks,50);return v?(wks[wks.length-1].c-v)/v:null;
 }
 function rawSlope(wks){
 if(wks.length<63)return null;
@@ -554,7 +520,34 @@ var sl=wks.slice(-13);
 var v=sl.map(function(w){var r=w.h-w.l;return r>0?(w.c-w.l)/r:0.5;});
 return v.reduce(function(a,b){return a+b;},0)/v.length;
 }
-// Momentum z-score (monthly)
+// Monthly fallback for US ETFs (no volume → use simple MA)
+function rawBiasMonthly(mo,idx){
+if(idx<12)return null;
+var sl=mo.slice(Math.max(0,idx-50),idx);
+var ma=sl.reduce(function(a,b){return a+b.c;},0)/sl.length;
+return ma>0?(mo[idx-1].c-ma)/ma:null;
+}
+function rawSlopeMonthly(mo,idx){
+if(idx<15)return null;
+var sl=mo.slice(idx-13,idx).map(function(p){return p.c;});
+if(sl.length<6)return null;
+var n=sl.length,sx=0,sy=0,sxy=0,sx2=0;
+for(var j=0;j<n;j++){sx+=j;sy+=sl[j];sxy+=j*sl[j];sx2+=j*j;}
+var den=n*sx2-sx*sx;if(!den)return 0;
+return (n*sxy-sx*sy)/den/(sl[0]||1);
+}
+function rawVolMonthly(mo,idx){
+if(idx<6)return null;
+var sl=mo.slice(idx-6,idx);var sc=[];
+for(var i=1;i<sl.length;i++){
+var pr=(sl[i].c-sl[i-1].c)/(sl[i-1].c||1);sc.push(pr>=0?0.1:-0.1);
+}
+return sc.length?sc.reduce(function(a,b){return a+b;},0)/sc.length:null;
+}
+function rawKbarMonthly(mo,idx){
+// Can’t compute without OHLC, return neutral
+return 0.5;
+}
 function momZ(mo,idx,n){
 if(idx<n)return null;
 var pn=mo[idx-1].c,p0=mo[idx-n].c;if(!p0||p0<=0)return null;
@@ -575,53 +568,60 @@ for(var i=0;i<mo.length;i++){if(mo[i].date>yyyymm)return i;}
 return mo.length;
 }
 
-// ─── BUILD CACHE (core of V1.2)
+// ── Build cache (auto after fetch)
 async function buildCache(){
 var enabled=POOL.filter(function(s){return s.on&&WEEKLY[s.c]&&MONTHLY[s.c];});
-if(!enabled.length){updCacheStatus();return;}
-showL(’\u5efa\u7acb\u5feb\u53d6\u4e2d (0/’+enabled.length+’)…’);
+if(!enabled.length){updCacheSt();return;}
+showL(‘建立快取中 (0/’+enabled.length+’)…’);
 RAW_SCORES={};
-var done=0;
 for(var si=0;si<enabled.length;si++){
 var s=enabled[si];
-$(‘loadTxt’).textContent=’\u5efa\u5feb\u53d6: ‘+s.c+’ (’+(si+1)+’/’+enabled.length+’)’;
+$(‘loadTxt’).textContent=‘建快取: ‘+s.c+’ (’+(si+1)+’/’+enabled.length+’)’;
 var mo=MONTHLY[s.c],wk=WEEKLY[s.c];
-if(!mo||!wk){done++;continue;}
+if(!mo||!wk){continue;}
+var isUs=!s.tw;
 RAW_SCORES[s.c]={};
-var allMonths=mo.map(function(p){return p.date;});
-for(var mi=13;mi<allMonths.length;mi++){
-var yyyymm=allMonths[mi];
+var allMo=mo.map(function(p){return p.date;});
+for(var mi=13;mi<allMo.length;mi++){
+var yyyymm=allMo[mi];
 var mIdx=getMonthIdx(mo,yyyymm);
 var wkCut=wk.filter(function(w){return w.date<=yyyymm+’-28’;});
 var rm=rawMom(mo,mIdx);
-var rb=wkCut.length>=52?rawBias(wkCut):null;
-var rs=wkCut.length>=63?rawSlope(wkCut):null;
-var rv=wkCut.length>=14?rawVol(wkCut):null;
-var rk=wkCut.length>=13?rawKbar(wkCut):null;
-var p_now=mo[mIdx-1]?mo[mIdx-1].c:null;
-var r12=mIdx>=13&&mo[mIdx-13]?p_now/mo[mIdx-13].c-1:null;
-var r6 =mIdx>=7 &&mo[mIdx-7] ?p_now/mo[mIdx-7].c-1:null;
-var r3 =mIdx>=4 &&mo[mIdx-4] ?p_now/mo[mIdx-4].c-1:null;
+var rb,rs,rv,rk;
+if(isUs||wkCut.length<14){
+// Use monthly fallback for US ETFs
+rb=rawBiasMonthly(mo,mIdx);
+rs=rawSlopeMonthly(mo,mIdx);
+rv=rawVolMonthly(mo,mIdx);
+rk=rawKbarMonthly(mo,mIdx);
+}else{
+rb=wkCut.length>=52?rawBias(wkCut):null;
+rs=wkCut.length>=63?rawSlope(wkCut):null;
+rv=wkCut.length>=14?rawVol(wkCut):null;
+rk=wkCut.length>=13?rawKbar(wkCut):null;
+}
+var pn=mo[mIdx-1]?mo[mIdx-1].c:null;
+var r12=mIdx>=13&&mo[mIdx-13]?pn/mo[mIdx-13].c-1:null;
+var r6 =mIdx>=7 &&mo[mIdx-7] ?pn/mo[mIdx-7].c-1:null;
+var r3 =mIdx>=4 &&mo[mIdx-4] ?pn/mo[mIdx-4].c-1:null;
 RAW_SCORES[s.c][yyyymm]={rm:rm,rb:rb,rs:rs,rv:rv,rk:rk,r12:r12,r6:r6,r3:r3};
 }
-done++;
-// Yield every 5 stocks so UI doesn’t freeze
 if(si%5===4)await new Promise(function(r){setTimeout(r,0);});
 }
 CACHE_BUILT=true;CACHE_TS=new Date().toISOString();
-hideL();updCacheStatus();
-sl(‘fetchLog’,’\u2705 \u8cc7\u6599+\u5feb\u53d6\u5b8c\u6210 (’+enabled.length+’\u652f\u80a1\u7968, ‘+Object.keys(RAW_SCORES).length+’\u652f\u5df2\u5efa\u5feb\u53d6)’,true);
+hideL();updCacheSt();
+sl(‘fetchLog’,‘✅ 資料+快取完成 (’+enabled.length+‘支股票, ‘+Object.keys(RAW_SCORES).length+‘支已建快取)’,true);
 }
-function updCacheStatus(){
+function updCacheSt(){
 var el=$(‘cacheStatusTxt’);if(!el)return;
-if(!CACHE_BUILT){el.textContent=’\u5feb\u53d6\u72c0\u614b\uff1a\u5c1a\u672a\u5efa\u7acb’;el.style.color=‘var(–mu)’;return;}
+if(!CACHE_BUILT){el.textContent=‘快取狀態：尚未建立’;el.style.color=‘var(–mu)’;return;}
 var n=Object.keys(RAW_SCORES).length;
 var dt=CACHE_TS?new Date(CACHE_TS).toLocaleTimeString(‘zh-TW’,{hour:‘2-digit’,minute:‘2-digit’}):’’;
-el.textContent=’\u2705 \u5feb\u53d6\u5df2\u5efa\u7acb (’+n+’\u652f, ‘+dt+’) \u2014 \u6539\u6b0a\u91cd\u5373\u6642\u751f\u6548\uff0c\u4e0d\u9700\u91cd\u6293\u53d6’;
+el.textContent=‘✅ 快取已建立 (’+n+‘支, ‘+dt+’) — 改權重即時生效，不需重抓取’;
 el.style.color=‘var(–gr)’;
 }
 
-// ─── Cross-sectional z with cap
+// ── Cross-sectional z
 function crossZ(arr,cap){
 cap=cap||2;
 var vals=arr.filter(function(v){return v!==null&&!isNaN(v);});
@@ -634,19 +634,19 @@ return Math.max(-cap,Math.min(cap,(v-mean)/std));
 });
 }
 
-// ─── Score from cache (fast, weight-sensitive)
+// ── Score from cache
 function calcAllScores(yyyymm){
 var enabled=POOL.filter(function(s){return s.on&&RAW_SCORES[s.c]&&RAW_SCORES[s.c][yyyymm];});
 if(!enabled.length)return[];
 var wMom=gv(‘wMom’)/100,wBias=gv(‘wBias’)/100,wSlope=gv(‘wSlope’)/100;
 var wVol=gv(‘wVol’)/100,wKbar=gv(‘wKbar’)/100;
-var rawMs=[],rawBs=[],rawSs=[],rawVs=[],rawKs=[];
+var rMs=[],rBs=[],rSs=[],rVs=[],rKs=[];
 var infos=enabled.map(function(s){
 var raw=RAW_SCORES[s.c][yyyymm];
-rawMs.push(raw.rm);rawBs.push(raw.rb);rawSs.push(raw.rs);rawVs.push(raw.rv);rawKs.push(raw.rk);
+rMs.push(raw.rm);rBs.push(raw.rb);rSs.push(raw.rs);rVs.push(raw.rv);rKs.push(raw.rk);
 return{s:s,raw:raw};
 });
-var zMs=crossZ(rawMs,99),zBs=crossZ(rawBs,2),zSs=crossZ(rawSs,99),zVs=crossZ(rawVs,2),zKs=crossZ(rawKs,99);
+var zMs=crossZ(rMs,99),zBs=crossZ(rBs,2),zSs=crossZ(rSs,99),zVs=crossZ(rVs,2),zKs=crossZ(rKs,99);
 return infos.map(function(d,i){
 var zm=zMs[i],zb=zBs[i],zs=zSs[i],zv=zVs[i],zk=zKs[i];
 var tw=0,tt=0;
@@ -660,7 +660,7 @@ r12:d.raw.r12,r6:d.raw.r6,r3:d.raw.r3};
 });
 }
 
-// ─── Correlation (from MONTHLY data)
+// ── Correlation
 function calcCorr(c1,c2,yyyymm,n){
 n=n||12;
 var m1=MONTHLY[c1],m2=MONTHLY[c2];if(!m1||!m2)return 0;
@@ -680,13 +680,13 @@ r1.forEach(function(v,i){num+=(v-m1a)*(r2[i]-m2a);d1+=(v-m1a)*(v-m1a);d2+=(r2[i]
 return num/Math.sqrt((d1*d2)||1);
 }
 
-// ─── Signal
+// ── Signal
 function initSig(){var b=$(‘btnSig’);if(b)b.addEventListener(‘click’,calcSignal);}
 function calcSignal(){
 try{
-if(!CACHE_BUILT){showErr(’\u8acb\u5148\u6293\u53d6\u8cc7\u6599\u5efa\u7acb\u5feb\u53d6’);return;}
+if(!CACHE_BUILT){showErr(‘請先抓取資料建立快取’);return;}
 var enabled=POOL.filter(function(s){return s.on&&RAW_SCORES[s.c];});
-if(!enabled.length){showErr(’\u7121\u5df2\u5efa\u5feb\u53d6\u7684\u8cc7\u6599’);return;}
+if(!enabled.length){showErr(‘無已建快取的資料’);return;}
 var mo=MONTHLY[enabled[0].c];
 var yyyymm=mo[mo.length-1].date;
 var scores=calcAllScores(yyyymm);
@@ -700,19 +700,22 @@ for(var i=0;i<tsPass.length&&sel.length<mh;i++){
 var cand=tsPass[i];
 if(sel.every(function(x){return Math.abs(calcCorr(cand.s.c,x.s.c,yyyymm))<ct;}))sel.push(cand);
 }
-var wk=valid.slice(-3).reverse();
-renderSig(sel,wk,valid,yyyymm,cr);clearErr();
+renderSig(sel,valid.slice(-3).reverse(),valid,yyyymm,cr);clearErr();
 }catch(e){showErr(‘calcSignal: ‘+e.message);console.error(e);}
 }
 function renderSig(sel,wk,all,yyyymm,cr){
 var zf=function(v){return v!==null?(v>=0?’+’:’’)+v.toFixed(2):’-’;};
 var pf=function(v){return v!==null?(v>=0?’+’:’’)+(v*100).toFixed(1)+’%’:’-’;};
-var html=’<div style="font-size:11px;color:var(--mu);margin-bottom:9px">\u8a55\u5206\u6708\u4efd: <b style="color:var(--tw)">’+yyyymm+’</b> \uff5c \u73fe\u91d1\u5229\u7387: <b style="color:var(--gr)">’+(cr*100).toFixed(1)+’%</b></div>’;
-html+=’<div style="font-size:12px;font-weight:700;color:var(--tw);margin-bottom:6px">\u25b2 \u6700\u5f37’+sel.length+’\u652f</div><div class="sg">’;
+var html=’<div style="font-size:11px;color:var(--mu);margin-bottom:9px">評分月份: <b style="color:var(--tw)">’+yyyymm+’</b> ｜ 現金利率: <b style="color:var(--gr)">’+(cr*100).toFixed(1)+’%</b></div>’;
+html+=’<div style="font-size:12px;font-weight:700;color:var(--tw);margin-bottom:6px">▲ 最強’+sel.length+‘支</div><div class="sg">’;
 sel.forEach(function(r,rk){
-html+=’<div class="scard"><div class="shdr"><div><div class="scode">’+r.s.c+’</div><div class="sname">’+r.s.n+’</div></div><span class="srank">#’+(rk+1)+’</span></div>’;
+var isUs=!r.s.tw;
+var col=isUs?‘var(–us)’:‘var(–tw)’;
+var rankBg=isUs?‘var(–usd)’:‘var(–twd)’;
+html+=’<div class="scard"><div class="shdr"><div><div class="scode" style="color:'+col+'">’+r.s.c+’</div><div class="sname">’+r.s.n+’</div></div>’;
+html+=’<span class="srank" style="background:'+rankBg+';color:'+col+';border-color:'+col+'">#’+(rk+1)+’</span></div>’;
 html+=’<div class="sscore">’+(r.score>=0?’+’:’’)+r.score.toFixed(2)+’</div><div class="sbars">’;
-[[’\u52d5\u80fd’,r.zm,‘var(–tw)’],[‘Bias’,r.zb,‘var(–bl)’],[’\u659c\u7387’,r.zs,‘var(–te)’],[’\u91cf\u80fd’,r.zv,‘var(–ye)’],[‘K\u68d2’,r.zk,‘var(–ac)’]].forEach(function(b){
+[[‘動能’,r.zm,‘var(–tw)’],[‘Bias’,r.zb,‘var(–bl)’],[‘斜率’,r.zs,‘var(–te)’],[‘量能’,r.zv,‘var(–ye)’],[‘K棒’,r.zk,‘var(–ac)’]].forEach(function(b){
 if(b[1]===null)return;
 var w=Math.round(Math.min(100,Math.abs(b[1])*25));
 html+=’<div class="sbrow"><span style="width:28px">’+b[0]+’</span><div class="sbwrap"><div class="sbfill" style="width:'+w+'%;background:'+b[2]+'"></div></div><span style="width:36px;text-align:right;font-family:monospace">’+zf(b[1])+’</span></div>’;
@@ -720,10 +723,10 @@ html+=’<div class="sbrow"><span style="width:28px">’+b[0]+’</span><div cla
 html+=’</div><div style="margin-top:5px;font-size:10px;color:var(--mu);font-family:monospace">R12:’+pf(r.r12)+’ R6:’+pf(r.r6)+’ R3:’+pf(r.r3)+’</div></div>’;
 });
 html+=’</div>’;
-if(!sel.length)html+=’<div style="color:var(--ye);font-size:12px;margin-bottom:9px">\u26a0 \u7121\u7b26\u5408\u689d\u4ef6\u6a19\u7684\uff0c\u5efa\u8b70\u6301\u73fe\u91d1</div>’;
-html+=’<div style="font-size:12px;font-weight:700;color:var(--re);margin:9px 0 6px">\u25bc \u6700\u5f313\u652f\uff08\u7d14\u89c0\u5bdf\uff09</div><div class="sg">’;
+if(!sel.length)html+=’<div style="color:var(--ye);font-size:12px;margin-bottom:9px">⚠ 無符合條件標的，建議持現金</div>’;
+html+=’<div style="font-size:12px;font-weight:700;color:var(--re);margin:9px 0 6px">▼ 最弱3支（純觀察）</div><div class="sg">’;
 wk.forEach(function(r,rk){
-html+=’<div class="scard wk"><div class="shdr"><div><div class="scode">’+r.s.c+’</div><div class="sname">’+r.s.n+’</div></div><span class="srank">\u5f31’+(rk+1)+’</span></div><div class="sscore" style="color:var(--re)">’+(r.score>=0?’+’:’’)+r.score.toFixed(2)+’</div></div>’;
+html+=’<div class="scard wk"><div class="shdr"><div><div class="scode">’+r.s.c+’</div><div class="sname">’+r.s.n+’</div></div><span class="srank">弱’+(rk+1)+’</span></div><div class="sscore" style="color:var(--re)">’+(r.score>=0?’+’:’’)+r.score.toFixed(2)+’</div></div>’;
 });
 html+=’</div>’;
 $(‘sigContent’).innerHTML=html;
@@ -735,25 +738,28 @@ var sorted=all.filter(function(r){return r.score!==null;}).sort(function(a,b){re
 var zf=function(v){return v!==null?(v>=0?’+’:’’)+v.toFixed(2):’-’;};
 var pf=function(v){return v!==null?(v>=0?’+’:’’)+(v*100).toFixed(1)+’%’:’-’;};
 $(‘stBody’).innerHTML=sorted.map(function(r,i){
-var ts=r.r12!==null&&r.r12>cr;
-return ‘<tr><td class="mono" style="color:var(--mu)">’+(i+1)+’</td><td class="mono" style="font-weight:700;color:var(--tw)">’+r.s.c+’</td><td>’+r.s.n+’</td><td style="font-size:10px;color:var(--mu)">’+r.s.ind+’</td>’+
+var ts=r.r12!==null&&r.r12>cr;var isUs=!r.s.tw;
+return ‘<tr><td class="mono" style="color:var(--mu)">’+(i+1)+’</td>’+
+‘<td class="mono" style="font-weight:700;color:'+(isUs?'var(--us)':'var(--tw)')+'">’+r.s.c+’</td>’+
+‘<td>’+r.s.n+’</td><td style="font-size:10px;color:var(--mu)">’+r.s.ind+’</td>’+
 ‘<td class="mono" style="font-weight:700;color:'+(r.score>=0?'var(--gr)':'var(--re)')+'">’+zf(r.score)+’</td>’+
-‘<td class="mono">’+zf(r.zm)+’</td><td class="mono">’+zf(r.zb)+’</td><td class="mono">’+zf(r.zs)+’</td><td class="mono">’+zf(r.zv)+’</td><td class="mono">’+zf(r.zk)+’</td>’+
+‘<td class="mono">’+zf(r.zm)+’</td><td class="mono">’+zf(r.zb)+’</td><td class="mono">’+zf(r.zs)+’</td>’+
+‘<td class="mono">’+zf(r.zv)+’</td><td class="mono">’+zf(r.zk)+’</td>’+
 ‘<td class="mono">’+pf(r.r12)+’</td><td class="mono">’+pf(r.r6)+’</td><td class="mono">’+pf(r.r3)+’</td>’+
-‘<td>’+(ts?’<span style="color:var(--gr)">\u2713</span>’:’<span style="color:var(--re)">\u2717</span>’)+’</td></tr>’;
+‘<td>’+(ts?’<span style="color:var(--gr)">✓</span>’:’<span style="color:var(--re)">✗</span>’)+’</td></tr>’;
 }).join(’’);
 }
-// ─── Backtest
+
+// ── Backtest
 function initBT(){var b=$(‘btnBT’);if(b)b.addEventListener(‘click’,runBT);}
 function runBT(){
-if(!CACHE_BUILT){showErr(’\u8acb\u5148\u6293\u53d6\u8cc7\u6599\u5efa\u7acb\u5feb\u53d6’);return;}
-sl(‘btLog’,’\u56de\u6e2c\u8a08\u7b97\u4e2d…’,null);
-showL(’\u56de\u6e2c\u4e2d…’);
+if(!CACHE_BUILT){showErr(‘請先抓取資料建立快取’);return;}
+sl(‘btLog’,‘回測計算中…’,null);
+showL(‘回測中…’);
 setTimeout(function(){
 try{
 var enabled=POOL.filter(function(s){return s.on&&RAW_SCORES[s.c];});
-if(enabled.length<3){showErr(’\u81f3\u5c113\u652f\u80a1\u7968\u6709\u5feb\u53d6’);hideL();return;}
-// Get all available months from first enabled stock’s MONTHLY
+if(enabled.length<3){showErr(‘至少3支股票有快取’);hideL();return;}
 var refMo=MONTHLY[enabled[0].c];
 var allMonths=refMo.map(function(p){return p.date;}).sort();
 var rawS=($(‘btS’).value||’’).trim().slice(0,7);
@@ -762,7 +768,7 @@ var MIN=14,cS=MIN;
 if(rawS){for(var i=MIN;i<allMonths.length;i++){if(allMonths[i]>=rawS){cS=i;break;}}}
 var cE=allMonths.length-2;
 if(rawE){for(var i2=allMonths.length-2;i2>=MIN;i2–){if(allMonths[i2]<=rawE){cE=i2;break;}}}
-if(cS>cE){showErr(’\u5340\u9593\u7121\u6548’);hideL();return;}
+if(cS>cE){showErr(‘區間無效’);hideL();return;}
 var INIT=gv(‘btCap’)||100000,COST=(gv(‘btC’)||0.3)/100;
 var cr=(gv(‘btR’)||1.5)/100,ct=gv(‘corrT’)||0.75;
 var mh=parseInt(($(‘btH’)||{value:‘3’}).value)||3;
@@ -804,15 +810,14 @@ if(p0&&p1&&p0>0)pRet+=w*(p1/p0-1);
 pRet-=(tv/2)*COST;nav*=(1+pRet);
 var b0=getBench(sigM),b1=getBench(nextM);
 if(b0&&b1&&b0>0)bNav*=(1+b1/b0-1);
-records.push({month:nextM,nav:nav,bNav:bNav,holdings:Object.assign({},newH),pRet:pRet,
-tops:sel.map(function(r){return r.s.c;}).join(’+’)});
+records.push({month:nextM,nav:nav,bNav:bNav,holdings:Object.assign({},newH),pRet:pRet});
 holdings=newH;
 }
-if(records.length<6){showErr(’\u56de\u6e2c\u8cc7\u6599\u904e\u5c11’);hideL();return;}
+if(records.length<6){showErr(‘回測資料過少’);hideL();return;}
 BT_RESULT={records:records,initial:INIT};
 renderBT();
-sl(‘btLog’,’\u2705 \u5b8c\u6210\uff0c\u5171’+records.length+’\u500b\u6708 (’+records[0].month+’ ~ ‘+records[records.length-1].month+’)’,true);
-}catch(err){sl(‘btLog’,’\u274c ‘+err.message,false);console.error(err);}
+sl(‘btLog’,‘✅ 完成，共’+records.length+‘個月 (’+records[0].month+’ ~ ‘+records[records.length-1].month+’)’,true);
+}catch(err){sl(‘btLog’,‘❌ ‘+err.message,false);console.error(err);}
 finally{hideL();}
 },80);
 }
@@ -831,18 +836,8 @@ var std=Math.sqrt(rets.reduce(function(a,b){return a+(b-avg)*(b-avg);},0)/rets.l
 var sh=std>0?(cagr-0.015)/std:0;
 var fmt=function(v,p,pl){return(pl&&v>=0?’+’:’’)+(p?(v*100).toFixed(2)+’%’:v.toFixed(2));};
 $(‘btMetrics’).innerHTML=[
-{lb:’\u53f0\u80a1\u52d5\u80fd’,co:‘tw’,rows:[
-[’\u6700\u7d42\u6de8\u5024’,’$’+Math.round(last.nav).toLocaleString(),‘wh’],
-[’\u5340\u9593\u5831\u916c’,fmt(tr,true,true),tr>=0?‘tg’:‘tr’],
-[‘CAGR’,fmt(cagr,true),’’],
-[’\u6700\u5927\u56de\u64a4’,fmt(mdd,true),‘tr’],
-[‘Sharpe’,sh.toFixed(2),‘tg’]
-]},
-{lb:‘TAIEX B&H’,co:‘mu’,rows:[
-[’\u5340\u9593\u5831\u916c’,fmt(btr,true,true),btr>=0?‘tg’:‘tr’],
-[‘CAGR’,fmt(bcagr,true),’’],
-[‘CAGR\u8d85\u984d’,fmt(cagr-bcagr,true,true),(cagr-bcagr)>=0?‘tg’:‘tr’]
-]},
+{lb:‘台股動能’,co:‘tw’,rows:[[’ 最終淨值’,’$’+Math.round(last.nav).toLocaleString(),‘wh’],[‘區間報酬’,fmt(tr,true,true),tr>=0?‘tg’:‘tr’],[‘CAGR’,fmt(cagr,true),’’],[‘最大回撤’,fmt(mdd,true),‘tr’],[‘Sharpe’,sh.toFixed(2),‘tg’]]},
+{lb:‘TAIEX B&H’,co:‘mu’,rows:[[‘區間報酬’,fmt(btr,true,true),btr>=0?‘tg’:‘tr’],[‘CAGR’,fmt(bcagr,true),’’],[‘CAGR超額’,fmt(cagr-bcagr,true,true),(cagr-bcagr)>=0?‘tg’:‘tr’]]},
 ].map(function(m){
 return ‘<div class="card" style="border-top:3px solid var(--'+m.co+')"><div class="ct">’+m.lb+’</div>’+
 m.rows.map(function(r){return ‘<div class="mr"><span>’+r[0]+’</span><span class="mv '+(r[2]||'')+'">’+r[1]+’</span></div>’;}).join(’’)+’</div>’;
@@ -852,7 +847,7 @@ var labels=recs.map(function(r){return r.month;});
 var sc={x:{ticks:{color:’#6b7a99’,maxTicksLimit:12},grid:{color:’#1a2030’}},y:{ticks:{color:’#6b7a99’},grid:{color:’#1a2030’}}};
 var opt={responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:‘index’},animation:{duration:200},plugins:{legend:{labels:{color:’#6b7a99’,boxWidth:10,font:{size:11}}}}};
 CHART.n=new Chart($(‘navC’).getContext(‘2d’),{type:‘line’,data:{labels:labels,datasets:[
-{label:’\u53f0\u80a1\u52d5\u80fd’,data:recs.map(function(r){return r.nav;}),borderColor:’#ff6b9d’,borderWidth:2.5,pointRadius:0},
+{label:‘動能策略’,data:recs.map(function(r){return r.nav;}),borderColor:’#ff6b9d’,borderWidth:2.5,pointRadius:0},
 {label:‘TAIEX’,data:recs.map(function(r){return r.bNav;}),borderColor:’#3d4a66’,borderWidth:1,pointRadius:0}
 ]},options:Object.assign({},opt,{scales:Object.assign({},sc,{y:Object.assign({},sc.y,{type:‘logarithmic’})})})});
 var mddData=[],pk2=init;
@@ -865,7 +860,9 @@ var idx2=recs.length-1-ri,pb=idx2>0?recs[idx2-1].bNav:init;
 var bRet=r.bNav/pb-1,ex=r.pRet-bRet;
 var rc=r.pRet>=0?‘var(–gr)’:‘var(–re)’,ec=ex>=0?‘var(–gr)’:‘var(–re)’;
 var chips=Object.entries(r.holdings).map(function(kv){
-return ‘<span style="background:var(--twd);color:var(--tw);border:1px solid var(--tw);padding:1px 6px;border-radius:3px;font-size:10px;font-family:monospace;margin:1px">’+kv[0]+(kv[1]<0.99?’ ‘+(kv[1]*100).toFixed(0)+’%’:’’)+’</span>’;
+var isUs=POOL.find(function(p){return p.c===kv[0]&&!p.tw;});
+var col=isUs?‘var(–us)’:‘var(–tw)’;var bd=isUs?‘var(–usd)’:‘var(–twd)’;
+return ‘<span style="background:'+bd+';color:'+col+';border:1px solid '+col+';padding:1px 6px;border-radius:3px;font-size:10px;font-family:monospace;margin:1px">’+kv[0]+(kv[1]<0.99?’ ‘+(kv[1]*100).toFixed(0)+’%’:’’)+’</span>’;
 }).join(’’);
 return ‘<tr><td class="mono" style="font-weight:700">’+r.month+’</td><td>’+chips+’</td>’+
 ‘<td class="mono" style="color:'+rc+';font-weight:700">’+(r.pRet>=0?’+’:’’)+(r.pRet*100).toFixed(2)+’%</td>’+
@@ -875,7 +872,7 @@ return ‘<tr><td class="mono" style="font-weight:700">’+r.month+’</td><td>�
 }).join(’’);
 }
 
-// ─── Download / Upload data
+// ── Download / Upload
 function initDL(){
 var bj=$(‘btnDlJson’);if(bj)bj.addEventListener(‘click’,dlJson);
 var bw=$(‘btnDlWeekly’);if(bw)bw.addEventListener(‘click’,dlWeeklyCsv);
@@ -885,70 +882,68 @@ var fj=$(‘fileJson’);if(fj)fj.addEventListener(‘change’,upJson);
 var bb=$(‘btnDlBt’);if(bb)bb.addEventListener(‘click’,dlBtCsv);
 }
 function dlJson(){
-if(!Object.keys(MONTHLY).length){sl(‘dlLog’,’\u5c1a\u7121\u8cc7\u6599\u53ef\u5b58\u6a94’,false);return;}
+if(!Object.keys(MONTHLY).length){sl(‘dlLog’,‘尚無資料可存檔’,false);return;}
 var obj={ts:new Date().toISOString(),WEEKLY:WEEKLY,MONTHLY:MONTHLY,BENCH_MONTHLY:BENCH_MONTHLY};
 var ts=new Date().toISOString().slice(0,10);
 dlBlob(new Blob([JSON.stringify(obj)],{type:‘application/json’}),‘tw_momentum_’+ts+’.json’);
-sl(‘dlLog’,’\u2705 JSON \u5df2\u4e0b\u8f09’,true);
+sl(‘dlLog’,‘✅ JSON 已下載’,true);
 }
 function dlWeeklyCsv(){
-if(!Object.keys(WEEKLY).length){sl(‘dlLog’,’\u5c1a\u7121\u9031\u983b\u8cc7\u6599’,false);return;}
+if(!Object.keys(WEEKLY).length){sl(‘dlLog’,‘尚無週頻資料’,false);return;}
 var rows=[‘code,date,high,low,close,volume’];
-Object.entries(WEEKLY).forEach(function(kv){
-kv[1].forEach(function(w){rows.push(kv[0]+’,’+w.date+’,’+w.h+’,’+w.l+’,’+w.c+’,’+w.v);});
-});
-var ts=new Date().toISOString().slice(0,10);
-dlText(rows.join(’\n’),‘tw_weekly_’+ts+’.csv’,‘text/csv;charset=utf-8’);
-sl(‘dlLog’,’\u2705 \u9031\u983b CSV \u5df2\u4e0b\u8f09 (’+Object.keys(WEEKLY).length+’\u652f)’,true);
+Object.entries(WEEKLY).forEach(function(kv){kv[1].forEach(function(w){rows.push(kv[0]+’,’+w.date+’,’+w.h+’,’+w.l+’,’+w.c+’,’+w.v);});});
+dlText(rows.join(’\n’),‘tw_weekly_’+new Date().toISOString().slice(0,10)+’.csv’,‘text/csv;charset=utf-8’);
+sl(‘dlLog’,‘✅ 週頻 CSV 已下載 (’+Object.keys(WEEKLY).length+‘支)’,true);
 }
 function dlMonthlyCsv(){
-if(!Object.keys(MONTHLY).length){sl(‘dlLog’,’\u5c1a\u7121\u6708\u983b\u8cc7\u6599’,false);return;}
+if(!Object.keys(MONTHLY).length){sl(‘dlLog’,‘尚無月頻資料’,false);return;}
 var rows=[‘code,date,close’];
-Object.entries(MONTHLY).forEach(function(kv){
-kv[1].forEach(function(m){rows.push(kv[0]+’,’+m.date+’,’+m.c);});
-});
-var ts=new Date().toISOString().slice(0,10);
-dlText(rows.join(’\n’),‘tw_monthly_’+ts+’.csv’,‘text/csv;charset=utf-8’);
-sl(‘dlLog’,’\u2705 \u6708\u983b CSV \u5df2\u4e0b\u8f09 (’+Object.keys(MONTHLY).length+’\u652f)’,true);
+Object.entries(MONTHLY).forEach(function(kv){kv[1].forEach(function(m){rows.push(kv[0]+’,’+m.date+’,’+m.c);});});
+dlText(rows.join(’\n’),‘tw_monthly_’+new Date().toISOString().slice(0,10)+’.csv’,‘text/csv;charset=utf-8’);
+sl(‘dlLog’,‘✅ 月頻 CSV 已下載 (’+Object.keys(MONTHLY).length+‘支)’,true);
 }
 async function upJson(e){
 var file=e.target.files[0];if(!file)return;
-sl(‘dlLog’,’\u8b80\u53d6 ‘+file.name+’…’,null);
+sl(‘dlLog’,‘讀取 ‘+file.name+’…’,null);
 try{
-var text=await file.text();
-var obj=JSON.parse(text);
-if(!obj.MONTHLY){sl(‘dlLog’,’\u683c\u5f0f\u932f\u8aa4\uff1a\u7121 MONTHLY \u6b04\u4f4d’,false);return;}
-WEEKLY=obj.WEEKLY||{};
-MONTHLY=obj.MONTHLY||{};
-BENCH_MONTHLY=obj.BENCH_MONTHLY||[];
-sl(‘dlLog’,’\u8cc7\u6599\u5df2\u8f09\u5165\uff0c\u91cd\u5efa\u5feb\u53d6\u4e2d…’,null);
+var text=await file.text();var obj=JSON.parse(text);
+if(!obj.MONTHLY){sl(‘dlLog’,‘格式錯誤：無 MONTHLY 欄位’,false);return;}
+WEEKLY=obj.WEEKLY||{};MONTHLY=obj.MONTHLY||{};BENCH_MONTHLY=obj.BENCH_MONTHLY||[];
 updFetchStat();
 await buildCache();
-sl(‘dlLog’,’\u2705 \u8f09\u5165\u5b8c\u6210\uff01\u53ef\u76f4\u63a5\u8a08\u7b97\u4fe1\u865f/\u56de\u6e2c\u3002’,true);
-}catch(err){sl(‘dlLog’,’\u274c ‘+err.message,false);}
+sl(‘dlLog’,‘✅ 載入完成！可直接計算信號/回測。’,true);
+}catch(err){sl(‘dlLog’,‘❌ ‘+err.message,false);}
 e.target.value=’’;
 }
 function dlBtCsv(){
-if(!BT_RESULT){sl(‘btLog’,’\u8acb\u5148\u57f7\u884c\u56de\u6e2c’,false);return;}
+if(!BT_RESULT){sl(‘btLog’,‘請先執行回測’,false);return;}
 var recs=BT_RESULT.records,init=BT_RESULT.initial;
-var rows=[’\u63db\u5009\u6708,\u6301\u5009,\u6708\u5831\u916c%,\u6de8\u5024,TAIEX\u6de8\u5024,\u8d85\u984d%’];
+var rows=[‘換倉月,持倉,月報酬%,淨值,TAIEX淨值,超額%’];
 recs.forEach(function(r,i){
-var pb=i>0?recs[i-1].bNav:init;
-var bRet=r.bNav/pb-1,ex=r.pRet-bRet;
+var pb=i>0?recs[i-1].bNav:init;var ex=r.pRet-(r.bNav/pb-1);
 var hold=Object.entries(r.holdings).map(function(kv){return kv[0]+(kv[1]<0.99?’ ‘+(kv[1]*100).toFixed(0)+’%’:’’);}).join(’+’);
 rows.push([r.month,hold,(r.pRet*100).toFixed(3),Math.round(r.nav),Math.round(r.bNav),(ex*100).toFixed(3)].join(’,’));
 });
-var ts=new Date().toISOString().slice(0,10);
-dlText(rows.join(’\n’),‘tw_backtest_’+ts+’.csv’,‘text/csv;charset=utf-8’);
+dlText(rows.join(’\n’),‘tw_backtest_’+new Date().toISOString().slice(0,10)+’.csv’,‘text/csv;charset=utf-8’);
 }
 
-// ─── Init
+// ── Init
 window.addEventListener(‘DOMContentLoaded’,function(){
 try{
-initTabs();buildPool();initPool();
-initFetch();initSig();initBT();initDL();
-updCacheStatus();clearErr();
-}catch(e){showErr(’\u521d\u59cb\u5316\u5931\u6557: ’+e.message);console.error(e);}
+loadPoolData();
+initTabs();
+buildPool();
+initPool();
+initFetch();
+initSig();
+initBT();
+initDL();
+updCacheSt();
+clearErr();
+}catch(e){
+showErr(’初始化失敗: ’+e.message);
+console.error(e);
+}
 });
 </script>
 
