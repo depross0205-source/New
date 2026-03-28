@@ -100,6 +100,7 @@ tr:hover{background:var(--sf2)}
   <div class="spin"></div>
   <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">&#x8F09;&#x5165;&#x4E2D;...</div>
 </div>
+<div id="errBanner" style="display:none;background:#3d0012;border:1px solid #ff4d6d;color:#ff4d6d;padding:8px 12px;border-radius:3px;font-size:12px;margin-bottom:9px;font-family:monospace;word-break:break-all"></div>
 <div class="wrap">
 <h1>&#x1F1F9;&#x1F1FC; &#x53F0;&#x80A1;&#x52D5;&#x80FD;&#x9078;&#x80A1; <span class="tag">V1.6</span></h1>
 <div class="sub">&#x53F0;&#x706350;+&#x4E2D;&#x578B;100+&#x7F8E;&#x80A1;ETF &#xFF5C; TS=^TNX+0.5% &#xFF5C; &#x53F0;13&#x9031;/&#x7F8E;50&#x65E5; &#xFF5C; &#x5FEB;&#x53D6;+&#x5B58;&#x6A94;+&#x6B0A;&#x91CD;&#x5373;&#x6642;&#x751F;&#x6548;</div>
@@ -407,7 +408,10 @@ return result;
 }
 
 // Tabs
-document.addEventListener(‘DOMContentLoaded’,function(){
+// Script is at bottom of body - DOM is ready, no need to wait for DOMContentLoaded
+// Using IIFE to init immediately
+(function initApp(){
+try{
 var bar=$(‘tabBar’);
 if(bar)bar.addEventListener(‘click’,function(e){
 var btn=e.target.closest(’.tab’);if(!btn||!btn.dataset.tab)return;
@@ -458,7 +462,12 @@ var bm=$(‘btnDlMonthly’);if(bm)bm.addEventListener(‘click’,dlMonthlyCsv)
 var bu=$(‘btnUpJson’);if(bu)bu.addEventListener(‘click’,function(){$(‘fileJson’).click();});
 var fj=$(‘fileJson’);if(fj)fj.addEventListener(‘change’,upJson);
 var bbt=$(‘btnDlBt’);if(bbt)bbt.addEventListener(‘click’,dlBtCsv);
-});
+}catch(e){
+var eb=document.getElementById(‘errBanner’);
+if(eb){eb.style.display=‘block’;eb.textContent=’Init error: ’+e.message;}
+console.error(‘Init error:’,e);
+}
+}());
 
 function updCounts(){
 // Recount per industry group
