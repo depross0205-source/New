@@ -4,16 +4,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股動能選股 V1.4</title>
+<title>&#x53F0;&#x80A1;&#x52D5;&#x80FD;&#x9078;&#x80A1; V1.6</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Noto+Sans+TC:wght@400;600;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#0a0c10;--sf:#12161f;--sf2:#1a2030;--bd:#252d3d;--bhi:#3a4560;
-  --tx:#e2eaf8;--mu:#6b7a99;--dim:#3d4a66;
+  --tx:#e2eaf8;--mu:#6b7a99;
   --gr:#00e5a0;--grd:#003d2a;--re:#ff4d6d;--red:#3d0012;
-  --ye:#ffb830;--yed:#3d2900;--bl:#4d9fff;--bld:#001a3d;
+  --ye:#ffb830;--bl:#4d9fff;--bld:#001a3d;
   --ac:#7eb8ff;--tw:#ff6b9d;--twd:#3d0020;--te:#00d4aa;--ted:#003328;--wh:#f8faff;
   --us:#a78bfa;--usd:#1a0040;
 }
@@ -73,7 +73,7 @@ button{padding:9px 14px;border:none;border-radius:3px;cursor:pointer;font-size:1
 .wk .scode{color:var(--re)}.wk .srank{background:var(--red);color:var(--re);border-color:var(--re)}
 .mr{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--bd)}
 .mr:last-child{border:none}.mv{font-family:'IBM Plex Mono',monospace;font-weight:700}
-.tg{color:var(--gr)}.tr{color:var(--re)}.ty{color:var(--ye)}.wh{color:var(--wh)}
+.tg{color:var(--gr)}.tr{color:var(--re)}.wh{color:var(--wh)}
 .tw-wrap{overflow-x:auto;background:var(--sf);border:1px solid var(--bd);margin-bottom:10px;max-height:480px}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{padding:7px 8px;color:var(--mu);text-align:left;background:var(--sf2);position:sticky;top:0;z-index:2;font-size:10px;white-space:nowrap}
@@ -91,23 +91,18 @@ tr:hover{background:var(--sf2)}
 .shbar input{width:70px}.shbar span{font-size:10px;color:var(--mu)}
 .ib2{background:var(--sf2);border:1px solid var(--bd);padding:9px 11px;border-radius:3px;font-size:11px;color:var(--mu);line-height:1.9;margin-top:8px}
 .ib2 b{color:var(--tw)}
-.eb{display:none;background:var(--red);border:1px solid var(--re);color:var(--re);padding:8px 12px;border-radius:3px;font-size:12px;margin-bottom:9px;font-family:'IBM Plex Mono',monospace;word-break:break-all}
-.cs-bar{display:flex;align-items:center;padding:6px 10px;background:var(--sf2);border:1px solid var(--bd);border-radius:3px;margin-bottom:8px}
 .tnx-bar{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--bld);border:1px solid var(--bl);border-radius:3px;margin-bottom:8px;font-size:11px;flex-wrap:wrap}
+.cs-bar{display:flex;align-items:center;padding:6px 10px;background:var(--sf2);border:1px solid var(--bd);border-radius:3px;margin-bottom:8px}
 </style>
 </head>
 <body>
 <div class="load hidden" id="loadEl">
   <div class="spin"></div>
-  <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">載入中...</div>
+  <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">&#x8F09;&#x5165;&#x4E2D;...</div>
 </div>
 <div class="wrap">
-<h1>&#x1F1F9;&#x1F1FC; 台股動能選股 <span class="tag">V1.4</span></h1>
-<div class="sub">
-  台灣50 + 中型100 + 美股ETF &#x7B2C;&#x4E00;&#x6B21;&#x6210;&#x529F; &#xFF5C; TS&#x9580;&#x6F3B; = ^TNX+0.5% &#x52D5;&#x614B;&#x5229;&#x7387; &#xFF5C;
-  &#x53F0;&#x80A1;13&#x9031;&#xFF5C;&#x7F8E;&#x80A1;50&#x65E5; &#xFF5C; &#x5FEB;&#x53D6;+&#x5B58;&#x6A94;+&#x6B0A;&#x91CD;&#x5373;&#x6642;&#x751F;&#x6548;
-</div>
-<div class="eb" id="errBanner"></div>
+<h1>&#x1F1F9;&#x1F1FC; &#x53F0;&#x80A1;&#x52D5;&#x80FD;&#x9078;&#x80A1; <span class="tag">V1.6</span></h1>
+<div class="sub">&#x53F0;&#x706350;+&#x4E2D;&#x578B;100+&#x7F8E;&#x80A1;ETF &#xFF5C; TS=^TNX+0.5% &#xFF5C; &#x53F0;13&#x9031;/&#x7F8E;50&#x65E5; &#xFF5C; &#x5FEB;&#x53D6;+&#x5B58;&#x6A94;+&#x6B0A;&#x91CD;&#x5373;&#x6642;&#x751F;&#x6548;</div>
 <div class="tabs" id="tabBar">
   <button class="tab active" data-tab="pool">&#x1F4CB; &#x80A1;&#x6C60;&#x8A2D;&#x5B9A;</button>
   <button class="tab" data-tab="fetch">&#x1F310; &#x8CC7;&#x6599;&#x6293;&#x53D6;</button>
@@ -115,13 +110,11 @@ tr:hover{background:var(--sf2)}
   <button class="tab" data-tab="backtest">&#x1F4C8; &#x56DE;&#x6E2C;&#x7D50;&#x679C;</button>
 </div>
 
-<!-- POOL -->
-
 <div class="panel active" id="panel-pool">
   <div class="shbar">
-    <label>&#x1F6E1; &#x76FE;&#x724C;&#x5206;&#x6578;&#xFF08;&#x9078;&#x586B;&#xFF0CShield Gate&#xFF09;</label>
+    <label>&#x1F6E1; &#x76FE;&#x724C;&#x5206;&#x6578;</label>
     <input type="number" id="shieldScore" placeholder="0-100" min="0" max="100">
-    <span>&#x7559;&#x7A7A;=&#x4E0D;&#x904E;&#x6FFE; &#xFF5C; &#x4F4E;&#x65BC;&#x6B64;&#x5206;&#x63D0;&#x9AD4;&#x73FE;&#x91D1;&#x6BD4;&#x4F8B;</span>
+    <span>&#x7559;&#x7A7A;=&#x4E0D;&#x904E;&#x6FFE;</span>
   </div>
   <div class="card">
     <div class="ct">&#x80A1;&#x6C60;&#x8A2D;&#x5B9A;
@@ -129,30 +122,150 @@ tr:hover{background:var(--sf2)}
         <button class="bo sm" id="btnAll">&#x5168;&#x9078;</button>
         <button class="bo sm" id="btnNone">&#x5168;&#x505C;</button>
       </div>
-    </div>
-    <div id="poolCont">&#x8F09;&#x5165;&#x80A1;&#x6C60;...</div>
+    </div><div class="ig" id="grp0"><div class="ih" data-act="ti" data-gi="0"><span class="in">&#20809;&#23416;&#31934;&#23494;</span><span class="ic" id="ic0">2/2</span></div><div class="ib" id="ib0">
+<span class="sc act" data-act="ts" data-code="3008" data-name="&#22823;&#31435;&#20809;" data-ind="&#20809;&#23416;&#31934;&#23494;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">3008</span><span class="cn">&#22823;&#31435;&#20809;</span></span>
+<span class="sc act" data-act="ts" data-code="3406" data-name="&#29577;&#26230;&#20809;" data-ind="&#20809;&#23416;&#31934;&#23494;" data-type="mid" data-tw="1" data-on="1"><span class="cc">3406</span><span class="cn">&#29577;&#26230;&#20809;</span><span class="cd" data-act="ds" data-code="3406">&times;</span></span>
+</div></div>
+<div class="ig" id="grp1"><div class="ih" data-act="ti" data-gi="1"><span class="in">&#21322;&#23566;&#39636;</span><span class="ic" id="ic1">15/15</span></div><div class="ib" id="ib1">
+<span class="sc act" data-act="ts" data-code="2330" data-name="&#21488;&#31309;&#38651;" data-ind="&#21322;&#23566;&#39636;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2330</span><span class="cn">&#21488;&#31309;&#38651;</span></span>
+<span class="sc act" data-act="ts" data-code="2454" data-name="&#32879;&#30332;&#31185;" data-ind="&#21322;&#23566;&#39636;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2454</span><span class="cn">&#32879;&#30332;&#31185;</span></span>
+<span class="sc act" data-act="ts" data-code="2303" data-name="&#32879;&#38651;" data-ind="&#21322;&#23566;&#39636;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2303</span><span class="cn">&#32879;&#38651;</span></span>
+<span class="sc act" data-act="ts" data-code="3711" data-name="&#26085;&#26376;&#20809;" data-ind="&#21322;&#23566;&#39636;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">3711</span><span class="cn">&#26085;&#26376;&#20809;</span></span>
+<span class="sc act" data-act="ts" data-code="2344" data-name="&#33775;&#37030;&#38651;" data-ind="&#21322;&#23566;&#39636;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2344</span><span class="cn">&#33775;&#37030;&#38651;</span></span>
+<span class="sc act" data-act="ts" data-code="2368" data-name="&#37329;&#20687;&#38651;" data-ind="&#21322;&#23566;&#39636;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2368</span><span class="cn">&#37329;&#20687;&#38651;</span></span>
+<span class="sc act" data-act="ts" data-code="2449" data-name="&#20140;&#20803;&#38651;&#23376;" data-ind="&#21322;&#23566;&#39636;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2449</span><span class="cn">&#20140;&#20803;&#38651;&#23376;</span></span>
+<span class="sc act" data-act="ts" data-code="2408" data-name="&#21335;&#20126;&#31185;" data-ind="&#21322;&#23566;&#39636;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2408</span><span class="cn">&#21335;&#20126;&#31185;</span></span>
+<span class="sc act" data-act="ts" data-code="3034" data-name="&#32879;&#35424;" data-ind="&#21322;&#23566;&#39636;" data-type="mid" data-tw="1" data-on="1"><span class="cc">3034</span><span class="cn">&#32879;&#35424;</span><span class="cd" data-act="ds" data-code="3034">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="2379" data-name="&#29790;&#26161;" data-ind="&#21322;&#23566;&#39636;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2379</span><span class="cn">&#29790;&#26161;</span><span class="cd" data-act="ds" data-code="2379">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="2337" data-name="&#26106;&#23439;" data-ind="&#21322;&#23566;&#39636;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2337</span><span class="cn">&#26106;&#23439;</span><span class="cd" data-act="ds" data-code="2337">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="3035" data-name="&#26234;&#21407;" data-ind="&#21322;&#23566;&#39636;" data-type="mid" data-tw="1" data-on="1"><span class="cc">3035</span><span class="cn">&#26234;&#21407;</span><span class="cd" data-act="ds" data-code="3035">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="6770" data-name="&#21147;&#31309;&#38651;" data-ind="&#21322;&#23566;&#39636;" data-type="mid" data-tw="1" data-on="1"><span class="cc">6770</span><span class="cn">&#21147;&#31309;&#38651;</span><span class="cd" data-act="ds" data-code="6770">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="3443" data-name="&#21109;&#24847;" data-ind="&#21322;&#23566;&#39636;" data-type="mid" data-tw="1" data-on="1"><span class="cc">3443</span><span class="cn">&#21109;&#24847;</span><span class="cd" data-act="ds" data-code="3443">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="5274" data-name="&#20449;&#39498;" data-ind="&#21322;&#23566;&#39636;" data-type="mid" data-tw="1" data-on="1"><span class="cc">5274</span><span class="cn">&#20449;&#39498;</span><span class="cd" data-act="ds" data-code="5274">&times;</span></span>
+</div></div>
+<div class="ig" id="grp2"><div class="ih" data-act="ti" data-gi="2"><span class="in">&#24037;&#26989;&#27231;&#26800;</span><span class="ic" id="ic2">2/2</span></div><div class="ib" id="ib2">
+<span class="sc act" data-act="ts" data-code="2059" data-name="&#24029;&#28246;" data-ind="&#24037;&#26989;&#27231;&#26800;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2059</span><span class="cn">&#24029;&#28246;</span></span>
+<span class="sc act" data-act="ts" data-code="2049" data-name="&#19978;&#37504;" data-ind="&#24037;&#26989;&#27231;&#26800;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2049</span><span class="cn">&#19978;&#37504;</span><span class="cd" data-act="ds" data-code="2049">&times;</span></span>
+</div></div>
+<div class="ig" id="grp3"><div class="ih" data-act="ti" data-gi="3"><span class="in">&#24037;&#26989;&#38651;&#33126;</span><span class="ic" id="ic3">1/1</span></div><div class="ib" id="ib3">
+<span class="sc act" data-act="ts" data-code="2395" data-name="&#30740;&#33775;" data-ind="&#24037;&#26989;&#38651;&#33126;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2395</span><span class="cn">&#30740;&#33775;</span><span class="cd" data-act="ds" data-code="2395">&times;</span></span>
+</div></div>
+<div class="ig" id="grp4"><div class="ih" data-act="ti" data-gi="4"><span class="in">&#27773;&#36554;</span><span class="ic" id="ic4">1/1</span></div><div class="ib" id="ib4">
+<span class="sc act" data-act="ts" data-code="2207" data-name="&#21644;&#27888;&#36554;" data-ind="&#27773;&#36554;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2207</span><span class="cn">&#21644;&#27888;&#36554;</span></span>
+</div></div>
+<div class="ig" id="grp5"><div class="ih" data-act="ti" data-gi="5"><span class="in">&#29983;&#25216;&#37291;&#30274;</span><span class="ic" id="ic5">1/1</span></div><div class="ib" id="ib5">
+<span class="sc act" data-act="ts" data-code="6547" data-name="&#32654;&#26178;" data-ind="&#29983;&#25216;&#37291;&#30274;" data-type="mid" data-tw="1" data-on="1"><span class="cc">6547</span><span class="cn">&#32654;&#26178;</span><span class="cd" data-act="ds" data-code="6547">&times;</span></span>
+</div></div>
+<div class="ig" id="grp6"><div class="ih" data-act="ti" data-gi="6"><span class="in">&#30707;&#21270;</span><span class="ic" id="ic6">3/3</span></div><div class="ib" id="ib6">
+<span class="sc act" data-act="ts" data-code="1301" data-name="&#21488;&#22609;" data-ind="&#30707;&#21270;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">1301</span><span class="cn">&#21488;&#22609;</span></span>
+<span class="sc act" data-act="ts" data-code="1303" data-name="&#21335;&#20126;" data-ind="&#30707;&#21270;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">1303</span><span class="cn">&#21335;&#20126;</span></span>
+<span class="sc act" data-act="ts" data-code="6505" data-name="&#21488;&#22609;&#21270;" data-ind="&#30707;&#21270;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">6505</span><span class="cn">&#21488;&#22609;&#21270;</span></span>
+</div></div>
+<div class="ig" id="grp7"><div class="ih" data-act="ti" data-gi="7"><span class="in">&#x1F1FA;&#x1F1F8; &#32654;&#32929;ETF</span><span class="ic" id="ic7">11/11</span></div><div class="ib" id="ib7">
+<span class="sc act usc" data-act="ts" data-code="SPY" data-name="&#27161;&#26222;500" data-ind="&#32654;&#32929;ETF" data-type="mid" data-tw="0" data-on="1"><span class="cc">SPY</span><span class="cn">&#27161;&#26222;500</span><span class="cd" data-act="ds" data-code="SPY">&times;</span></span>
+<span class="sc act usc" data-act="ts" data-code="QQQ" data-name="&#37027;&#26031;&#36948;&#20811;" data-ind="&#32654;&#32929;ETF" data-type="mid" data-tw="0" data-on="1"><span class="cc">QQQ</span><span class="cn">&#37027;&#26031;&#36948;&#20811;</span><span class="cd" data-act="ds" data-code="QQQ">&times;</span></span>
+<span class="sc act usc" data-act="ts" data-code="IWM" data-name="&#23567;&#22411;&#32929;" data-ind="&#32654;&#32929;ETF" data-type="mid" data-tw="0" data-on="1"><span class="cc">IWM</span><span class="cn">&#23567;&#22411;&#32929;</span><span class="cd" data-act="ds" data-code="IWM">&times;</span></span>
+<span class="sc act usc" data-act="ts" data-code="VEU" data-name="&#20840;&#29699;ex-US" data-ind="&#32654;&#32929;ETF" data-type="mid" data-tw="0" data-on="1"><span class="cc">VEU</span><span class="cn">&#20840;&#29699;ex-US</span><span class="cd" data-act="ds" data-code="VEU">&times;</span></span>
+<span class="sc act usc" data-act="ts" data-code="EFA" data-name="&#24050;&#38283;&#30332;&#22283;&#38555;" data-ind="&#32654;&#32929;ETF" data-type="mid" data-tw="0" data-on="1"><span class="cc">EFA</span><span class="cn">&#24050;&#38283;&#30332;&#22283;&#38555;</span><span class="cd" data-act="ds" data-code="EFA">&times;</span></span>
+<span class="sc act usc" data-act="ts" data-code="EEM" data-name="&#26032;&#33288;&#24066;&#22580;" data-ind="&#32654;&#32929;ETF" data-type="mid" data-tw="0" data-on="1"><span class="cc">EEM</span><span class="cn">&#26032;&#33288;&#24066;&#22580;</span><span class="cd" data-act="ds" data-code="EEM">&times;</span></span>
+<span class="sc act usc" data-act="ts" data-code="TLT" data-name="&#38263;&#20661;20Y" data-ind="&#32654;&#32929;ETF" data-type="mid" data-tw="0" data-on="1"><span class="cc">TLT</span><span class="cn">&#38263;&#20661;20Y</span><span class="cd" data-act="ds" data-code="TLT">&times;</span></span>
+<span class="sc act usc" data-act="ts" data-code="IEF" data-name="&#20013;&#20661;7Y" data-ind="&#32654;&#32929;ETF" data-type="mid" data-tw="0" data-on="1"><span class="cc">IEF</span><span class="cn">&#20013;&#20661;7Y</span><span class="cd" data-act="ds" data-code="IEF">&times;</span></span>
+<span class="sc act usc" data-act="ts" data-code="GLD" data-name="&#40643;&#37329;" data-ind="&#32654;&#32929;ETF" data-type="mid" data-tw="0" data-on="1"><span class="cc">GLD</span><span class="cn">&#40643;&#37329;</span><span class="cd" data-act="ds" data-code="GLD">&times;</span></span>
+<span class="sc act usc" data-act="ts" data-code="SLV" data-name="&#30333;&#37504;" data-ind="&#32654;&#32929;ETF" data-type="mid" data-tw="0" data-on="1"><span class="cc">SLV</span><span class="cn">&#30333;&#37504;</span><span class="cd" data-act="ds" data-code="SLV">&times;</span></span>
+<span class="sc act usc" data-act="ts" data-code="VNQ" data-name="REIT" data-ind="&#32654;&#32929;ETF" data-type="mid" data-tw="0" data-on="1"><span class="cc">VNQ</span><span class="cn">REIT</span><span class="cd" data-act="ds" data-code="VNQ">&times;</span></span>
+</div></div>
+<div class="ig" id="grp8"><div class="ih" data-act="ti" data-gi="8"><span class="in">&#33322;&#36939;</span><span class="ic" id="ic8">6/6</span></div><div class="ib" id="ib8">
+<span class="sc act" data-act="ts" data-code="2615" data-name="&#33836;&#28023;" data-ind="&#33322;&#36939;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2615</span><span class="cn">&#33836;&#28023;</span><span class="cd" data-act="ds" data-code="2615">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="2603" data-name="&#38263;&#27054;" data-ind="&#33322;&#36939;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2603</span><span class="cn">&#38263;&#27054;</span><span class="cd" data-act="ds" data-code="2603">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="2609" data-name="&#38525;&#26126;" data-ind="&#33322;&#36939;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2609</span><span class="cn">&#38525;&#26126;</span><span class="cd" data-act="ds" data-code="2609">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="2610" data-name="&#33775;&#33322;" data-ind="&#33322;&#36939;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2610</span><span class="cn">&#33775;&#33322;</span><span class="cd" data-act="ds" data-code="2610">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="2618" data-name="&#38263;&#27054;&#33322;" data-ind="&#33322;&#36939;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2618</span><span class="cn">&#38263;&#27054;&#33322;</span><span class="cd" data-act="ds" data-code="2618">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="2645" data-name="&#38263;&#27054;&#33322;&#22826;" data-ind="&#33322;&#36939;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2645</span><span class="cn">&#38263;&#27054;&#33322;&#22826;</span><span class="cd" data-act="ds" data-code="2645">&times;</span></span>
+</div></div>
+<div class="ig" id="grp9"><div class="ih" data-act="ti" data-gi="9"><span class="in">&#37329;&#34701;</span><span class="ic" id="ic9">16/16</span></div><div class="ib" id="ib9">
+<span class="sc act" data-act="ts" data-code="2881" data-name="&#23500;&#37030;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2881</span><span class="cn">&#23500;&#37030;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="2882" data-name="&#22283;&#27888;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2882</span><span class="cn">&#22283;&#27888;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="2884" data-name="&#29577;&#23665;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2884</span><span class="cn">&#29577;&#23665;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="2885" data-name="&#20803;&#22823;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2885</span><span class="cn">&#20803;&#22823;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="2886" data-name="&#20806;&#35920;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2886</span><span class="cn">&#20806;&#35920;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="2887" data-name="&#21488;&#26032;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2887</span><span class="cn">&#21488;&#26032;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="2888" data-name="&#26032;&#20809;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2888</span><span class="cn">&#26032;&#20809;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="2891" data-name="&#20013;&#20449;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2891</span><span class="cn">&#20013;&#20449;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="2892" data-name="&#31532;&#19968;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2892</span><span class="cn">&#31532;&#19968;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="2883" data-name="&#38283;&#30332;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2883</span><span class="cn">&#38283;&#30332;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="2880" data-name="&#33775;&#21335;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2880</span><span class="cn">&#33775;&#21335;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="5880" data-name="&#21512;&#24235;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">5880</span><span class="cn">&#21512;&#24235;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="2890" data-name="&#27704;&#35920;&#37329;" data-ind="&#37329;&#34701;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2890</span><span class="cn">&#27704;&#35920;&#37329;</span></span>
+<span class="sc act" data-act="ts" data-code="2838" data-name="&#32879;&#37030;&#37504;" data-ind="&#37329;&#34701;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2838</span><span class="cn">&#32879;&#37030;&#37504;</span><span class="cd" data-act="ds" data-code="2838">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="5876" data-name="&#19978;&#21830;&#37504;" data-ind="&#37329;&#34701;" data-type="mid" data-tw="1" data-on="1"><span class="cc">5876</span><span class="cn">&#19978;&#21830;&#37504;</span><span class="cd" data-act="ds" data-code="5876">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="2823" data-name="&#20013;&#22781;" data-ind="&#37329;&#34701;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2823</span><span class="cn">&#20013;&#22781;</span><span class="cd" data-act="ds" data-code="2823">&times;</span></span>
+</div></div>
+<div class="ig" id="grp10"><div class="ih" data-act="ti" data-gi="10"><span class="in">&#37628;&#37941;</span><span class="ic" id="ic10">1/1</span></div><div class="ib" id="ib10">
+<span class="sc act" data-act="ts" data-code="2002" data-name="&#20013;&#37628;" data-ind="&#37628;&#37941;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2002</span><span class="cn">&#20013;&#37628;</span></span>
+</div></div>
+<div class="ig" id="grp11"><div class="ih" data-act="ti" data-gi="11"><span class="in">&#38651;&#20449;</span><span class="ic" id="ic11">3/3</span></div><div class="ib" id="ib11">
+<span class="sc act" data-act="ts" data-code="2412" data-name="&#20013;&#33775;&#38651;" data-ind="&#38651;&#20449;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2412</span><span class="cn">&#20013;&#33775;&#38651;</span></span>
+<span class="sc act" data-act="ts" data-code="3045" data-name="&#21488;&#28771;&#22823;" data-ind="&#38651;&#20449;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">3045</span><span class="cn">&#21488;&#28771;&#22823;</span></span>
+<span class="sc act" data-act="ts" data-code="4904" data-name="&#36960;&#20659;" data-ind="&#38651;&#20449;" data-type="mid" data-tw="1" data-on="1"><span class="cc">4904</span><span class="cn">&#36960;&#20659;</span><span class="cd" data-act="ds" data-code="4904">&times;</span></span>
+</div></div>
+<div class="ig" id="grp12"><div class="ih" data-act="ti" data-gi="12"><span class="in">&#38651;&#23376;&#35069;&#36896;</span><span class="ic" id="ic12">9/9</span></div><div class="ib" id="ib12">
+<span class="sc act" data-act="ts" data-code="2317" data-name="&#40251;&#28023;" data-ind="&#38651;&#23376;&#35069;&#36896;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2317</span><span class="cn">&#40251;&#28023;</span></span>
+<span class="sc act" data-act="ts" data-code="2382" data-name="&#24291;&#36948;" data-ind="&#38651;&#23376;&#35069;&#36896;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2382</span><span class="cn">&#24291;&#36948;</span></span>
+<span class="sc act" data-act="ts" data-code="2308" data-name="&#21488;&#36948;&#38651;" data-ind="&#38651;&#23376;&#35069;&#36896;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2308</span><span class="cn">&#21488;&#36948;&#38651;</span></span>
+<span class="sc act" data-act="ts" data-code="2301" data-name="&#20809;&#23542;&#31185;" data-ind="&#38651;&#23376;&#35069;&#36896;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2301</span><span class="cn">&#20809;&#23542;&#31185;</span></span>
+<span class="sc act" data-act="ts" data-code="2354" data-name="&#40251;&#28310;" data-ind="&#38651;&#23376;&#35069;&#36896;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2354</span><span class="cn">&#40251;&#28310;</span></span>
+<span class="sc act" data-act="ts" data-code="2360" data-name="&#33268;&#33538;" data-ind="&#38651;&#23376;&#35069;&#36896;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2360</span><span class="cn">&#33268;&#33538;</span></span>
+<span class="sc act" data-act="ts" data-code="4938" data-name="&#21644;&#30889;" data-ind="&#38651;&#23376;&#35069;&#36896;" data-type="mid" data-tw="1" data-on="1"><span class="cc">4938</span><span class="cn">&#21644;&#30889;</span><span class="cd" data-act="ds" data-code="4938">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="3231" data-name="&#32239;&#21109;" data-ind="&#38651;&#23376;&#35069;&#36896;" data-type="mid" data-tw="1" data-on="1"><span class="cc">3231</span><span class="cn">&#32239;&#21109;</span><span class="cd" data-act="ds" data-code="3231">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="2356" data-name="&#33521;&#26989;&#36948;" data-ind="&#38651;&#23376;&#35069;&#36896;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2356</span><span class="cn">&#33521;&#26989;&#36948;</span><span class="cd" data-act="ds" data-code="2356">&times;</span></span>
+</div></div>
+<div class="ig" id="grp13"><div class="ih" data-act="ti" data-gi="13"><span class="in">&#38651;&#23376;&#38646;&#32068;&#20214;</span><span class="ic" id="ic13">11/11</span></div><div class="ib" id="ib13">
+<span class="sc act" data-act="ts" data-code="3037" data-name="&#27427;&#33288;" data-ind="&#38651;&#23376;&#38646;&#32068;&#20214;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">3037</span><span class="cn">&#27427;&#33288;</span></span>
+<span class="sc act" data-act="ts" data-code="2383" data-name="&#21488;&#20809;&#38651;" data-ind="&#38651;&#23376;&#38646;&#32068;&#20214;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2383</span><span class="cn">&#21488;&#20809;&#38651;</span></span>
+<span class="sc act" data-act="ts" data-code="3653" data-name="&#20581;&#31574;" data-ind="&#38651;&#23376;&#38646;&#32068;&#20214;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">3653</span><span class="cn">&#20581;&#31574;</span></span>
+<span class="sc act" data-act="ts" data-code="3189" data-name="&#26223;&#30889;" data-ind="&#38651;&#23376;&#38646;&#32068;&#20214;" data-type="mid" data-tw="1" data-on="1"><span class="cc">3189</span><span class="cn">&#26223;&#30889;</span><span class="cd" data-act="ds" data-code="3189">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="3533" data-name="&#22025;&#28580;" data-ind="&#38651;&#23376;&#38646;&#32068;&#20214;" data-type="mid" data-tw="1" data-on="1"><span class="cc">3533</span><span class="cn">&#22025;&#28580;</span><span class="cd" data-act="ds" data-code="3533">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="2327" data-name="&#22283;&#24040;" data-ind="&#38651;&#23376;&#38646;&#32068;&#20214;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2327</span><span class="cn">&#22283;&#24040;</span><span class="cd" data-act="ds" data-code="2327">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="3017" data-name="&#22855;&#37584;" data-ind="&#38651;&#23376;&#38646;&#32068;&#20214;" data-type="mid" data-tw="1" data-on="1"><span class="cc">3017</span><span class="cn">&#22855;&#37584;</span><span class="cd" data-act="ds" data-code="3017">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="3044" data-name="&#20581;&#40718;" data-ind="&#38651;&#23376;&#38646;&#32068;&#20214;" data-type="mid" data-tw="1" data-on="1"><span class="cc">3044</span><span class="cn">&#20581;&#40718;</span><span class="cd" data-act="ds" data-code="3044">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="2492" data-name="&#33775;&#26032;&#31185;" data-ind="&#38651;&#23376;&#38646;&#32068;&#20214;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2492</span><span class="cn">&#33775;&#26032;&#31185;</span><span class="cd" data-act="ds" data-code="2492">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="3665" data-name="&#36031;&#32879;-KY" data-ind="&#38651;&#23376;&#38646;&#32068;&#20214;" data-type="mid" data-tw="1" data-on="1"><span class="cc">3665</span><span class="cn">&#36031;&#32879;-KY</span><span class="cd" data-act="ds" data-code="3665">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="8996" data-name="&#39640;&#21147;" data-ind="&#38651;&#23376;&#38646;&#32068;&#20214;" data-type="mid" data-tw="1" data-on="1"><span class="cc">8996</span><span class="cn">&#39640;&#21147;</span><span class="cd" data-act="ds" data-code="8996">&times;</span></span>
+</div></div>
+<div class="ig" id="grp14"><div class="ih" data-act="ti" data-gi="14"><span class="in">&#38651;&#33126;&#21608;&#37002;</span><span class="ic" id="ic14">4/4</span></div><div class="ib" id="ib14">
+<span class="sc act" data-act="ts" data-code="2357" data-name="&#33775;&#30889;" data-ind="&#38651;&#33126;&#21608;&#37002;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2357</span><span class="cn">&#33775;&#30889;</span></span>
+<span class="sc act" data-act="ts" data-code="2353" data-name="&#23439;&#30849;" data-ind="&#38651;&#33126;&#21608;&#37002;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2353</span><span class="cn">&#23439;&#30849;</span></span>
+<span class="sc act" data-act="ts" data-code="2324" data-name="&#20161;&#23542;" data-ind="&#38651;&#33126;&#21608;&#37002;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2324</span><span class="cn">&#20161;&#23542;</span><span class="cd" data-act="ds" data-code="2324">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="2377" data-name="&#24494;&#26143;" data-ind="&#38651;&#33126;&#21608;&#37002;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2377</span><span class="cn">&#24494;&#26143;</span><span class="cd" data-act="ds" data-code="2377">&times;</span></span>
+</div></div>
+<div class="ig" id="grp15"><div class="ih" data-act="ti" data-gi="15"><span class="in">&#38754;&#26495;</span><span class="ic" id="ic15">1/1</span></div><div class="ib" id="ib15">
+<span class="sc act" data-act="ts" data-code="2409" data-name="&#21451;&#36948;" data-ind="&#38754;&#26495;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2409</span><span class="cn">&#21451;&#36948;</span></span>
+</div></div>
+<div class="ig" id="grp16"><div class="ih" data-act="ti" data-gi="16"><span class="in">&#39135;&#21697;&#28040;&#36027;</span><span class="ic" id="ic16">3/3</span></div><div class="ib" id="ib16">
+<span class="sc act" data-act="ts" data-code="1216" data-name="&#32113;&#19968;&#20225;&#26989;" data-ind="&#39135;&#21697;&#28040;&#36027;" data-type="tw50" data-tw="1" data-on="1"><span class="cc">1216</span><span class="cn">&#32113;&#19968;&#20225;&#26989;</span></span>
+<span class="sc act" data-act="ts" data-code="2912" data-name="&#32113;&#19968;&#36229;" data-ind="&#39135;&#21697;&#28040;&#36027;" data-type="mid" data-tw="1" data-on="1"><span class="cc">2912</span><span class="cn">&#32113;&#19968;&#36229;</span><span class="cd" data-act="ds" data-code="2912">&times;</span></span>
+<span class="sc act" data-act="ts" data-code="1210" data-name="&#22823;&#25104;" data-ind="&#39135;&#21697;&#28040;&#36027;" data-type="mid" data-tw="1" data-on="1"><span class="cc">1210</span><span class="cn">&#22823;&#25104;</span><span class="cd" data-act="ds" data-code="1210">&times;</span></span>
+</div></div>
     <div class="cust">
       <input type="text" id="cusT" placeholder="2330 &#x6216; SPY" style="max-width:120px">
       <input type="text" id="cusN" placeholder="&#x540D;&#x7A31;" style="max-width:90px">
-      <select id="cusI" style="max-width:110px">
-<option value="\u5149\u5b78\u7cbe\u5bc6">光學精密</option>
-<option value="\u534a\u5c0e\u9ad4">半導體</option>
-<option value="\u5de5\u696d\u6a5f\u68b0">工業機械</option>
-<option value="\u5de5\u696d\u96fb\u8166">工業電腦</option>
-<option value="\u6c7d\u8eca">汽車</option>
-<option value="\u751f\u6280\u91ab\u7642">生技醫療</option>
-<option value="\u77f3\u5316">石化</option>
-<option value="\u7f8e\u80a1ETF">美股ETF</option>
-<option value="\u822a\u904b">航運</option>
-<option value="\u91d1\u878d">金融</option>
-<option value="\u92fc\u9435">鋼鐵</option>
-<option value="\u96fb\u4fe1">電信</option>
-<option value="\u96fb\u5b50\u88fd\u9020">電子製造</option>
-<option value="\u96fb\u5b50\u96f6\u7d44\u4ef6">電子零組件</option>
-<option value="\u96fb\u8166\u5468\u908a">電腦周邊</option>
-<option value="\u9762\u677f">面板</option>
-<option value="\u98df\u54c1\u6d88\u8cbb">食品消費</option>
-      </select>
+      <select id="cusI" style="max-width:110px"><option value="&#20809;&#23416;&#31934;&#23494;">&#20809;&#23416;&#31934;&#23494;</option>
+<option value="&#21322;&#23566;&#39636;">&#21322;&#23566;&#39636;</option>
+<option value="&#24037;&#26989;&#27231;&#26800;">&#24037;&#26989;&#27231;&#26800;</option>
+<option value="&#24037;&#26989;&#38651;&#33126;">&#24037;&#26989;&#38651;&#33126;</option>
+<option value="&#27773;&#36554;">&#27773;&#36554;</option>
+<option value="&#29983;&#25216;&#37291;&#30274;">&#29983;&#25216;&#37291;&#30274;</option>
+<option value="&#30707;&#21270;">&#30707;&#21270;</option>
+<option value="&#32654;&#32929;ETF">&#32654;&#32929;ETF</option>
+<option value="&#33322;&#36939;">&#33322;&#36939;</option>
+<option value="&#37329;&#34701;">&#37329;&#34701;</option>
+<option value="&#37628;&#37941;">&#37628;&#37941;</option>
+<option value="&#38651;&#20449;">&#38651;&#20449;</option>
+<option value="&#38651;&#23376;&#35069;&#36896;">&#38651;&#23376;&#35069;&#36896;</option>
+<option value="&#38651;&#23376;&#38646;&#32068;&#20214;">&#38651;&#23376;&#38646;&#32068;&#20214;</option>
+<option value="&#38651;&#33126;&#21608;&#37002;">&#38651;&#33126;&#21608;&#37002;</option>
+<option value="&#38754;&#26495;">&#38754;&#26495;</option>
+<option value="&#39135;&#21697;&#28040;&#36027;">&#39135;&#21697;&#28040;&#36027;</option></select>
       <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--mu);white-space:nowrap;cursor:pointer">
         <input type="checkbox" id="cusUS" style="width:14px;accent-color:var(--us)"> &#x7F8E;&#x80A1;
       </label>
@@ -170,15 +283,13 @@ tr:hover{background:var(--sf2)}
       <div class="fi"><label>&#x76F8;&#x95DC;&#x4FC2;&#x6578;&#x9580;&#x6CD5;</label><input type="number" id="corrT" value="0.75" step="0.05" min="0.3" max="1"></div>
     </div>
     <div class="ib2">
-      <b>&#x52D5;&#x80FD;</b>&#xFF1A;0.5&#xD7;z&#x2081;&#x2082;+0.3&#xD7;z&#x2086;+0.2&#xD7;z&#x2083;&#xFF08;&#x6708;&#x983B;&#xFF0C;&#x5404;&#x671F;&#x6CE2;&#x52D5;&#x7387;&#x6A19;&#x6E96;&#x5316;&#xFF09;<br>
-      <b>&#x53F0;&#x80A1;</b>&#xFF1A;&#x9031;&#x983B; OHLCV&#xFF0C;&#x7A97;&#x53E3;&#x5168;&#x90E8;&#x7D71;&#x4E00; 13 &#x9031;&#xFF08;Bias/&#x659C;&#x7387;/&#x91CF;&#x80FD;/K&#x68D2;&#xFF09;<br>
-      <b>&#x7F8E;&#x80A1; ETF</b>&#xFF1A;&#x65E5;&#x983B; OHLCV&#xFF0C;&#x7A97;&#x53E3;&#x5168;&#x90E8;&#x7D71;&#x4E00; 50 &#x65E5;&#xFF08;VWMA50d Bias/&#x659C;&#x7387;/&#x91CF;&#x80FD;/K&#x68D2;&#xFF09;<br>
-      <b>TS &#x9580;&#x6F3B;</b>&#xFF1A;R12 &gt; ^TNX&#xFF08;&#x7F8E;&#x50B310&#x5E74;&#x671F;&#x6B96;&#x5229;&#x7387;&#xFF09; + 0.5% &#x52D5;&#x614B;&#x5F35;&#x53E3;&#xFF0C;&#x5347;&#x606F;&#x5C0D;&#x61C9;&#x8ABF;&#x6574;
+      <b>&#x52D5;&#x80FD;</b>&#xFF1A;0.5z&#x2081;&#x2082;+0.3z&#x2086;+0.2z&#x2083;&#xFF08;&#x6708;&#x983B;&#x6CE2;&#x52D5;&#x7387;&#x6A19;&#x6E96;&#x5316;&#xFF09;<br>
+      <b>&#x53F0;&#x80A1;</b>&#xFF1A;&#x9031;&#x983B; OHLCV&#xFF0C;&#x7A97;&#x53E3;&#x7D71;&#x4E00; 13 &#x9031;&#xFF5C;
+      <b>&#x7F8E;&#x80A1; ETF</b>&#xFF1A;&#x65E5;&#x983B; OHLCV&#xFF0C;&#x7A97;&#x53E3;&#x7D71;&#x4E00; 50 &#x65E5;<br>
+      <b>TS &#x9580;&#x6F3B;</b>&#xFF1A;R12 &gt; ^TNX + 0.5% &#x52D5;&#x614B;&#x5F35;&#x53E3;
     </div>
   </div>
 </div>
-
-<!-- FETCH -->
 
 <div class="panel" id="panel-fetch">
   <div class="card">
@@ -188,41 +299,39 @@ tr:hover{background:var(--sf2)}
   </div>
   <div class="card">
     <div class="ct">&#x8CC7;&#x6599;&#x6293;&#x53D6;</div>
-    <div class="tnx-bar" id="tnxBar">
-      <span>&#x1F4B9; ^TNX &#x7F8E;&#x50B310Y&#xFF1A;</span>
+    <div class="tnx-bar">
+      <span>&#x1F4B9; ^TNX&#xFF1A;</span>
       <b id="tnxVal" style="font-family:monospace;color:var(--bl)">&#x5C1A;&#x672A;&#x6293;&#x53D6;</b>
       <span id="tnxThresh" style="color:var(--mu)"></span>
     </div>
     <div id="fetchStat" style="display:flex;flex-wrap:wrap;margin-bottom:8px"></div>
-    <button class="btw" id="btnFetch">&#x1F310; &#x6293;&#x53D6;&#x5168;&#x90E8;&#x8CC7;&#x6599; &#x2192; &#x81EA;&#x52D5;&#x5EFA;&#x5FEB;&#x53D6;</button>
+    <button class="btw" id="btnFetch">&#x1F310; &#x6293;&#x53D6;&#x5168;&#x90E8; &#x2192; &#x81EA;&#x52D5;&#x5EFA;&#x5FEB;&#x53D6;</button>
     <div class="log" id="fetchLog"></div>
     <div class="pw hidden" id="fetchProg"><div class="pf" id="fetchFill" style="width:0%"></div></div>
   </div>
   <div class="card">
-    <div class="ct">&#x8CC7;&#x6599;&#x5B58;&#x6A94; / &#x8F09;&#x5165;
+    <div class="ct">&#x5B58;&#x6A94; / &#x8F09;&#x5165;
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="bo sm" id="btnDlJson">&#x2B07; JSON&#xFF08;&#x5B8C;&#x6574;&#x5099;&#x4EFD;&#xFF09;</button>
-        <button class="bo sm" id="btnDlWeekly">&#x2B07; &#x9031;&#x983B; CSV</button>
+        <button class="bo sm" id="btnDlJson">&#x2B07; JSON</button>
+        <button class="bo sm" id="btnDlOHLCV">&#x2B07; OHLCV CSV</button>
         <button class="bo sm" id="btnDlMonthly">&#x2B07; &#x6708;&#x983B; CSV</button>
       </div>
     </div>
-    <div class="cs-bar"><span style="font-size:11px;font-weight:700" id="cacheTxt">&#x5FEB;&#x53D6;&#x72C0;&#x614B;&#xFF1A;&#x5C1A;&#x672A;&#x5EFA;&#x7ACB;</span></div>
-    <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <div class="cs-bar"><span style="font-size:11px;font-weight:700" id="cacheTxt">&#x5FEB;&#x53D6;&#xFF1A;&#x5C1A;&#x672A;&#x5EFA;&#x7ACB;</span></div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px">
       <input type="file" id="fileJson" accept=".json" style="display:none">
-      <button class="bo sm" id="btnUpJson">&#x2B06; &#x4E0A;&#x50B3; JSON &#x9084;&#x539F;&#x8CC7;&#x6599;</button>
-      <span style="font-size:10px;color:var(--mu)">&#x4E0A;&#x50B3;&#x5F8C;&#x81EA;&#x52D5;&#x91CD;&#x5EFA;&#x5FEB;&#x53D6;&#xFF0C;&#x53EF;&#x76F4;&#x63A5;&#x8A08;&#x7B97;&#x4FE1;&#x865F;/&#x56DE;&#x6E2C;</span>
+      <button class="bo sm" id="btnUpJson">&#x2B06; &#x4E0A;&#x50B3; JSON &#x9084;&#x539F;</button>
+      <span style="font-size:10px;color:var(--mu)">&#x4E0A;&#x50B3;&#x5F8C;&#x81EA;&#x52D5;&#x91CD;&#x5EFA;&#x5FEB;&#x53D6;</span>
     </div>
     <div class="log" id="dlLog"></div>
   </div>
 </div>
 
-<!-- SIGNAL -->
-
 <div class="panel" id="panel-signal">
   <div class="card">
-    <div class="ct">&#x1F4E1; &#x5373;&#x6642;&#x4FE1;&#x865F;&#xFF08;&#x6700;&#x65B0;&#x6708;&#x4EFD;&#xFF09;</div>
-    <div id="sigContent" style="color:var(--mu);font-size:12px">&#x8ACB;&#x5148;&#x5B8C;&#x6210;&#x8CC7;&#x6599;&#x6293;&#x53D6;&#x5F8C;&#x9EDE;&#x64CA;&#x300C;&#x8A08;&#x7B97;&#x4FE1;&#x865F;&#x300D;&#x3002;</div>
-    <button class="btw" id="btnSig" style="margin-top:10px">&#x25B6; &#x8A08;&#x7B97;&#x5373;&#x6642;&#x4FE1;&#x865F;</button>
+    <div class="ct">&#x1F4E1; &#x5373;&#x6642;&#x4FE1;&#x865F;</div>
+    <div id="sigContent" style="color:var(--mu);font-size:12px">&#x8ACB;&#x5148;&#x5B8C;&#x6210;&#x8CC7;&#x6599;&#x6293;&#x53D6;&#x3002;</div>
+    <button class="btw" id="btnSig" style="margin-top:10px">&#x25B6; &#x8A08;&#x7B97;&#x4FE1;&#x865F;</button>
   </div>
   <div class="card hidden" id="stCard">
     <div class="ct">&#x5168;&#x80A1;&#x6C60;&#x8A55;&#x5206;&#x6392;&#x884C;</div>
@@ -237,260 +346,173 @@ tr:hover{background:var(--sf2)}
   </div>
 </div>
 
-<!-- BACKTEST -->
-
 <div class="panel" id="panel-backtest">
   <div class="card">
     <div class="ct">&#x56DE;&#x6E2C;&#x8A2D;&#x5B9A;</div>
     <div class="g3">
-      <div class="fi"><label>&#x958B;&#x59CB; (YYYY-MM)</label><input type="text" id="btS" placeholder="&#x7559;&#x7A7A;=&#x6700;&#x65E9;&#x53EF;&#x7528;"></div>
-      <div class="fi"><label>&#x7D50;&#x675F; (YYYY-MM)</label><input type="text" id="btE" placeholder="&#x7559;&#x7A7A;=&#x6700;&#x65B0;"></div>
-      <div class="fi"><label>&#x6700;&#x591A;&#x6301;&#x80A1;&#x6578;</label><input type="number" id="btH" value="3" min="1" max="10"></div>
+      <div class="fi"><label>&#x958B;&#x59CB;</label><input type="text" id="btS" placeholder="YYYY-MM"></div>
+      <div class="fi"><label>&#x7D50;&#x675F;</label><input type="text" id="btE" placeholder="YYYY-MM"></div>
+      <div class="fi"><label>&#x6700;&#x591A;&#x6301;&#x80A1;</label><input type="number" id="btH" value="3" min="1" max="10"></div>
       <div class="fi"><label>&#x672C;&#x91D1;</label><input type="number" id="btCap" value="100000"></div>
       <div class="fi"><label>&#x4EA4;&#x6613;&#x6210;&#x672C; (%)</label><input type="number" id="btC" value="0.3" step="0.1"></div>
-      <div class="fi"><label>&#x73FE;&#x91D1;&#x5229;&#x7387;&#x8CBC;&#x6C34; (%)</label><input type="number" id="btSpread" value="0.5" step="0.1" title="^TNX + &#x6B64;&#x8CBC;&#x6C34; = TS&#x9580;&#x6F3B;"></div>
+      <div class="fi"><label>TNX &#x8CBC;&#x6C34; (%)</label><input type="number" id="btSpread" value="0.5" step="0.1"></div>
     </div>
     <button class="btw" id="btnBT" style="margin-top:8px">&#x25B6; &#x57F7;&#x884C;&#x56DE;&#x6E2C;</button>
     <div class="log" id="btLog"></div>
   </div>
   <div id="btRes" class="hidden">
     <div id="btMetrics" class="g3" style="gap:8px;margin-bottom:10px"></div>
-    <div class="cw"><div class="ct2">&#x6DE8;&#x5024;&#x66F2;&#x7DDA;&#xFF08;&#x5C0D;&#x6578;&#x523B;&#x5EA6;&#xFF09; vs TAIEX</div><canvas id="navC" height="260"></canvas></div>
+    <div class="cw"><div class="ct2">&#x6DE8;&#x5024;&#x66F2;&#x7DDA; vs TAIEX</div><canvas id="navC" height="260"></canvas></div>
     <div class="cw"><div class="ct2">&#x6700;&#x5927;&#x56DE;&#x64A4;</div><canvas id="ddC" height="140"></canvas></div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
-      <button class="bo sm" id="btnDlBt">&#x2B07; &#x4E0B;&#x8F09;&#x56DE;&#x6E2C;&#x6B77;&#x7A0B; CSV</button>
+      <button class="bo sm" id="btnDlBt">&#x2B07; &#x56DE;&#x6E2C;&#x6B77;&#x7A0B; CSV</button>
     </div>
     <div class="tw-wrap"><table><thead><tr>
-      <th>&#x63DB;&#x5009;&#x6708;</th><th>&#x6301;&#x5009;</th><th>&#x9580;&#x6F3B;&#x5229;&#x7387;</th><th>&#x6708;&#x5831;&#x916C;</th><th>&#x6DE8;&#x5024;</th><th>TAIEX&#x6DE8;&#x5024;</th><th>&#x8D85;&#x984D;</th>
+      <th>&#x63DB;&#x5009;&#x6708;</th><th>&#x6301;&#x5009;</th><th>&#x9580;&#x6F3B;%</th>
+      <th>&#x6708;&#x5831;&#x916C;</th><th>&#x6DE8;&#x5024;</th><th>TAIEX</th><th>&#x8D85;&#x984D;</th>
     </tr></thead><tbody id="btBody"></tbody></table></div>
   </div>
 </div>
-</div>
-<script>
-// Pool data: pure ASCII JS with \uXXXX escapes - no DOM dependency
-var POOL_INIT = [
-{c:"2330",n:"\u53f0\u7a4d\u96fb",ind:"\u534a\u5c0e\u9ad4",type:"tw50",on:true,tw:true},
-{c:"2454",n:"\u806f\u767c\u79d1",ind:"\u534a\u5c0e\u9ad4",type:"tw50",on:true,tw:true},
-{c:"2303",n:"\u806f\u96fb",ind:"\u534a\u5c0e\u9ad4",type:"tw50",on:true,tw:true},
-{c:"3711",n:"\u65e5\u6708\u5149",ind:"\u534a\u5c0e\u9ad4",type:"tw50",on:true,tw:true},
-{c:"2344",n:"\u83ef\u90a6\u96fb",ind:"\u534a\u5c0e\u9ad4",type:"tw50",on:true,tw:true},
-{c:"2368",n:"\u91d1\u50cf\u96fb",ind:"\u534a\u5c0e\u9ad4",type:"tw50",on:true,tw:true},
-{c:"2449",n:"\u4eac\u5143\u96fb\u5b50",ind:"\u534a\u5c0e\u9ad4",type:"tw50",on:true,tw:true},
-{c:"2408",n:"\u5357\u4e9e\u79d1",ind:"\u534a\u5c0e\u9ad4",type:"tw50",on:true,tw:true},
-{c:"3037",n:"\u6b23\u8208",ind:"\u96fb\u5b50\u96f6\u7d44\u4ef6",type:"tw50",on:true,tw:true},
-{c:"2383",n:"\u53f0\u5149\u96fb",ind:"\u96fb\u5b50\u96f6\u7d44\u4ef6",type:"tw50",on:true,tw:true},
-{c:"3653",n:"\u5065\u7b56",ind:"\u96fb\u5b50\u96f6\u7d44\u4ef6",type:"tw50",on:true,tw:true},
-{c:"2317",n:"\u9d3b\u6d77",ind:"\u96fb\u5b50\u88fd\u9020",type:"tw50",on:true,tw:true},
-{c:"2382",n:"\u5ee3\u9054",ind:"\u96fb\u5b50\u88fd\u9020",type:"tw50",on:true,tw:true},
-{c:"2308",n:"\u53f0\u9054\u96fb",ind:"\u96fb\u5b50\u88fd\u9020",type:"tw50",on:true,tw:true},
-{c:"2301",n:"\u5149\u5bf6\u79d1",ind:"\u96fb\u5b50\u88fd\u9020",type:"tw50",on:true,tw:true},
-{c:"2354",n:"\u9d3b\u6e96",ind:"\u96fb\u5b50\u88fd\u9020",type:"tw50",on:true,tw:true},
-{c:"2360",n:"\u81f4\u8302",ind:"\u96fb\u5b50\u88fd\u9020",type:"tw50",on:true,tw:true},
-{c:"2357",n:"\u83ef\u78a9",ind:"\u96fb\u8166\u5468\u908a",type:"tw50",on:true,tw:true},
-{c:"2353",n:"\u5b8f\u7881",ind:"\u96fb\u8166\u5468\u908a",type:"tw50",on:true,tw:true},
-{c:"2881",n:"\u5bcc\u90a6\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"2882",n:"\u570b\u6cf0\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"2884",n:"\u7389\u5c71\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"2885",n:"\u5143\u5927\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"2886",n:"\u5146\u8c50\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"2887",n:"\u53f0\u65b0\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"2888",n:"\u65b0\u5149\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"2891",n:"\u4e2d\u4fe1\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"2892",n:"\u7b2c\u4e00\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"2883",n:"\u958b\u767c\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"2880",n:"\u83ef\u5357\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"5880",n:"\u5408\u5eab\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"2890",n:"\u6c38\u8c50\u91d1",ind:"\u91d1\u878d",type:"tw50",on:true,tw:true},
-{c:"2412",n:"\u4e2d\u83ef\u96fb",ind:"\u96fb\u4fe1",type:"tw50",on:true,tw:true},
-{c:"3045",n:"\u53f0\u7063\u5927",ind:"\u96fb\u4fe1",type:"tw50",on:true,tw:true},
-{c:"1301",n:"\u53f0\u5851",ind:"\u77f3\u5316",type:"tw50",on:true,tw:true},
-{c:"1303",n:"\u5357\u4e9e",ind:"\u77f3\u5316",type:"tw50",on:true,tw:true},
-{c:"6505",n:"\u53f0\u5851\u5316",ind:"\u77f3\u5316",type:"tw50",on:true,tw:true},
-{c:"2002",n:"\u4e2d\u92fc",ind:"\u92fc\u9435",type:"tw50",on:true,tw:true},
-{c:"1216",n:"\u7d71\u4e00\u4f01\u696d",ind:"\u98df\u54c1\u6d88\u8cbb",type:"tw50",on:true,tw:true},
-{c:"3008",n:"\u5927\u7acb\u5149",ind:"\u5149\u5b78\u7cbe\u5bc6",type:"tw50",on:true,tw:true},
-{c:"2207",n:"\u548c\u6cf0\u8eca",ind:"\u6c7d\u8eca",type:"tw50",on:true,tw:true},
-{c:"2059",n:"\u5ddd\u6e56",ind:"\u5de5\u696d\u6a5f\u68b0",type:"tw50",on:true,tw:true},
-{c:"2409",n:"\u53cb\u9054",ind:"\u9762\u677f",type:"tw50",on:true,tw:true},
-{c:"3034",n:"\u806f\u8a60",ind:"\u534a\u5c0e\u9ad4",type:"mid",on:true,tw:true},
-{c:"2379",n:"\u745e\u6631",ind:"\u534a\u5c0e\u9ad4",type:"mid",on:true,tw:true},
-{c:"2337",n:"\u65fa\u5b8f",ind:"\u534a\u5c0e\u9ad4",type:"mid",on:true,tw:true},
-{c:"3035",n:"\u667a\u539f",ind:"\u534a\u5c0e\u9ad4",type:"mid",on:true,tw:true},
-{c:"6770",n:"\u529b\u7a4d\u96fb",ind:"\u534a\u5c0e\u9ad4",type:"mid",on:true,tw:true},
-{c:"3443",n:"\u5275\u610f",ind:"\u534a\u5c0e\u9ad4",type:"mid",on:true,tw:true},
-{c:"5274",n:"\u4fe1\u9a4a",ind:"\u534a\u5c0e\u9ad4",type:"mid",on:true,tw:true},
-{c:"3189",n:"\u666f\u78a9",ind:"\u96fb\u5b50\u96f6\u7d44\u4ef6",type:"mid",on:true,tw:true},
-{c:"3533",n:"\u5609\u6fa4",ind:"\u96fb\u5b50\u96f6\u7d44\u4ef6",type:"mid",on:true,tw:true},
-{c:"2327",n:"\u570b\u5de8",ind:"\u96fb\u5b50\u96f6\u7d44\u4ef6",type:"mid",on:true,tw:true},
-{c:"3017",n:"\u5947\u92d0",ind:"\u96fb\u5b50\u96f6\u7d44\u4ef6",type:"mid",on:true,tw:true},
-{c:"3044",n:"\u5065\u9f0e",ind:"\u96fb\u5b50\u96f6\u7d44\u4ef6",type:"mid",on:true,tw:true},
-{c:"2492",n:"\u83ef\u65b0\u79d1",ind:"\u96fb\u5b50\u96f6\u7d44\u4ef6",type:"mid",on:true,tw:true},
-{c:"3665",n:"\u8cbf\u806f-KY",ind:"\u96fb\u5b50\u96f6\u7d44\u4ef6",type:"mid",on:true,tw:true},
-{c:"8996",n:"\u9ad8\u529b",ind:"\u96fb\u5b50\u96f6\u7d44\u4ef6",type:"mid",on:true,tw:true},
-{c:"4938",n:"\u548c\u78a9",ind:"\u96fb\u5b50\u88fd\u9020",type:"mid",on:true,tw:true},
-{c:"3231",n:"\u7def\u5275",ind:"\u96fb\u5b50\u88fd\u9020",type:"mid",on:true,tw:true},
-{c:"2356",n:"\u82f1\u696d\u9054",ind:"\u96fb\u5b50\u88fd\u9020",type:"mid",on:true,tw:true},
-{c:"2324",n:"\u4ec1\u5bf6",ind:"\u96fb\u8166\u5468\u908a",type:"mid",on:true,tw:true},
-{c:"2377",n:"\u5fae\u661f",ind:"\u96fb\u8166\u5468\u908a",type:"mid",on:true,tw:true},
-{c:"2395",n:"\u7814\u83ef",ind:"\u5de5\u696d\u96fb\u8166",type:"mid",on:true,tw:true},
-{c:"2838",n:"\u806f\u90a6\u9280",ind:"\u91d1\u878d",type:"mid",on:true,tw:true},
-{c:"5876",n:"\u4e0a\u5546\u9280",ind:"\u91d1\u878d",type:"mid",on:true,tw:true},
-{c:"2823",n:"\u4e2d\u58fd",ind:"\u91d1\u878d",type:"mid",on:true,tw:true},
-{c:"2912",n:"\u7d71\u4e00\u8d85",ind:"\u98df\u54c1\u6d88\u8cbb",type:"mid",on:true,tw:true},
-{c:"1210",n:"\u5927\u6210",ind:"\u98df\u54c1\u6d88\u8cbb",type:"mid",on:true,tw:true},
-{c:"2615",n:"\u842c\u6d77",ind:"\u822a\u904b",type:"mid",on:true,tw:true},
-{c:"2603",n:"\u9577\u69ae",ind:"\u822a\u904b",type:"mid",on:true,tw:true},
-{c:"2609",n:"\u967d\u660e",ind:"\u822a\u904b",type:"mid",on:true,tw:true},
-{c:"2610",n:"\u83ef\u822a",ind:"\u822a\u904b",type:"mid",on:true,tw:true},
-{c:"2618",n:"\u9577\u69ae\u822a",ind:"\u822a\u904b",type:"mid",on:true,tw:true},
-{c:"2645",n:"\u9577\u69ae\u822a\u592a",ind:"\u822a\u904b",type:"mid",on:true,tw:true},
-{c:"4904",n:"\u9060\u50b3",ind:"\u96fb\u4fe1",type:"mid",on:true,tw:true},
-{c:"3406",n:"\u7389\u6676\u5149",ind:"\u5149\u5b78\u7cbe\u5bc6",type:"mid",on:true,tw:true},
-{c:"2049",n:"\u4e0a\u9280",ind:"\u5de5\u696d\u6a5f\u68b0",type:"mid",on:true,tw:true},
-{c:"6547",n:"\u7f8e\u6642",ind:"\u751f\u6280\u91ab\u7642",type:"mid",on:true,tw:true},
-{c:"SPY",n:"\u6a19\u666e500",ind:"\u7f8e\u80a1ETF",type:"mid",on:true,tw:false},
-{c:"QQQ",n:"\u90a3\u65af\u9054\u514b",ind:"\u7f8e\u80a1ETF",type:"mid",on:true,tw:false},
-{c:"IWM",n:"\u5c0f\u578b\u80a1",ind:"\u7f8e\u80a1ETF",type:"mid",on:true,tw:false},
-{c:"VEU",n:"\u5168\u7403ex-US",ind:"\u7f8e\u80a1ETF",type:"mid",on:true,tw:false},
-{c:"EFA",n:"\u5df2\u958b\u767c\u570b\u969b",ind:"\u7f8e\u80a1ETF",type:"mid",on:true,tw:false},
-{c:"EEM",n:"\u65b0\u8208\u5e02\u5834",ind:"\u7f8e\u80a1ETF",type:"mid",on:true,tw:false},
-{c:"TLT",n:"\u9577\u50b520Y",ind:"\u7f8e\u80a1ETF",type:"mid",on:true,tw:false},
-{c:"IEF",n:"\u4e2d\u50b57Y",ind:"\u7f8e\u80a1ETF",type:"mid",on:true,tw:false},
-{c:"GLD",n:"\u9ec3\u91d1",ind:"\u7f8e\u80a1ETF",type:"mid",on:true,tw:false},
-{c:"SLV",n:"\u767d\u9280",ind:"\u7f8e\u80a1ETF",type:"mid",on:true,tw:false},
-{c:"VNQ",n:"REIT",ind:"\u7f8e\u80a1ETF",type:"mid",on:true,tw:false}
-];
-
-// ── State
-var POOL=[], WEEKLY={}, MONTHLY={}, DAILY={}, BENCH_MONTHLY=[], TNX_MONTHLY=[];
+</div><script>
+// JS only handles interaction - pool chips already rendered as static HTML
+var WEEKLY={}, MONTHLY={}, DAILY={}, BENCH_MONTHLY=[], TNX_MONTHLY=[];
 var RAW_SCORES={}, BT_RESULT=null, CHART={};
 var CACHE_BUILT=false, CACHE_TS=null;
+var N_TW=13, N_US=50;
 
-// ── Helpers
 function $(i){return document.getElementById(i);}
 function gv(i){var e=$(i);return e?parseFloat(e.value)||0:0;}
 function sl(id,msg,ok){var e=$(id);if(!e)return;e.textContent=msg;e.style.color=ok===true?‘var(–gr)’:ok===false?‘var(–re)’:‘var(–mu)’;}
-function showL(t){$(‘loadEl’).classList.remove(‘hidden’);$(‘loadTxt’).textContent=t||‘載入中…’;}
+function showL(t){$(‘loadEl’).classList.remove(‘hidden’);$(‘loadTxt’).textContent=t||’…’;}
 function hideL(){$(‘loadEl’).classList.add(‘hidden’);}
-function showErr(m){var b=$(‘errBanner’);if(!b)return;b.style.display=‘block’;b.textContent=’⚠ ’+m;console.error(m);}
-function clearErr(){var b=$(‘errBanner’);if(b)b.style.display=‘none’;}
-function dlBlob(blob,name){var a=document.createElement(‘a’);a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);}
-function dlText(text,name,type){dlBlob(new Blob([text],{type:type||‘text/plain;charset=utf-8’}),name);}
+function dlBlob(b,n){var a=document.createElement(‘a’);a.href=URL.createObjectURL(b);a.download=n;document.body.appendChild(a);a.click();document.body.removeChild(a);}
+function dlText(t,n,ty){dlBlob(new Blob([t],{type:ty||‘text/plain;charset=utf-8’}),n);}
 
-// POOL is pre-initialized as POOL_INIT (see top of script)
-function loadPoolData(){try{POOL=POOL_INIT.slice();return POOL.length>0;}catch(e){showErr(“POOL init failed: “+e.message);return false;}}
+// Read pool state from DOM (chips are static HTML, JS reads them)
+function getEnabledStocks(){
+var chips=document.querySelectorAll(’[data-act=“ts”]’);
+var result=[];
+chips.forEach(function(el){
+if(el.dataset.on===‘1’){
+result.push({
+c:el.dataset.code,
+n:el.dataset.name,     // HTML entity decoded by browser
+ind:el.dataset.ind,    // HTML entity decoded by browser
+type:el.dataset.type,
+tw:el.dataset.tw===‘1’
+});
+}
+});
+return result;
+}
 
-// ── Tabs
-function initTabs(){
-var bar=$(‘tabBar’);if(!bar)return;
-bar.addEventListener(‘click’,function(e){
+// Tabs
+document.addEventListener(‘DOMContentLoaded’,function(){
+var bar=$(‘tabBar’);
+if(bar)bar.addEventListener(‘click’,function(e){
 var btn=e.target.closest(’.tab’);if(!btn||!btn.dataset.tab)return;
 document.querySelectorAll(’.tab’).forEach(function(t){t.classList.remove(‘active’);});
 document.querySelectorAll(’.panel’).forEach(function(p){p.classList.remove(‘active’);});
 btn.classList.add(‘active’);
 var p=$(‘panel-’+btn.dataset.tab);if(p)p.classList.add(‘active’);
 });
+
+// Pool interactions (event delegation on document for dynamically added chips too)
+document.addEventListener(‘click’,function(e){
+// Delete chip
+var ds=e.target.closest(’[data-act=“ds”]’);
+if(ds){e.stopPropagation();var chip=ds.closest(’[data-act=“ts”]’);if(chip&&chip.dataset.type!==‘tw50’){chip.remove();updCounts();}return;}
+// Toggle chip
+var ts=e.target.closest(’[data-act=“ts”]’);
+if(ts){
+var on=ts.dataset.on===‘1’;
+ts.dataset.on=on?‘0’:‘1’;
+ts.classList.toggle(‘act’,!on);
+updCounts();return;
+}
+// Toggle industry collapse
+var ti=e.target.closest(’[data-act=“ti”]’);
+if(ti){var ib=ti.nextElementSibling;if(ib)ib.classList.toggle(‘col’);}
+});
+
+// Select all / none
+var ba=$(‘btnAll’);if(ba)ba.addEventListener(‘click’,function(){
+document.querySelectorAll(’[data-act=“ts”]’).forEach(function(el){el.dataset.on=‘1’;el.classList.add(‘act’);});
+updCounts();
+});
+var bn=$(‘btnNone’);if(bn)bn.addEventListener(‘click’,function(){
+document.querySelectorAll(’[data-act=“ts”]’).forEach(function(el){el.dataset.on=‘0’;el.classList.remove(‘act’);});
+updCounts();
+});
+
+// Custom add
+var ba2=$(‘btnAdd’);if(ba2)ba2.addEventListener(‘click’,addCustom);
+
+// Fetch / signal / backtest / dl
+var bf=$(‘btnFetch’);if(bf)bf.addEventListener(‘click’,fetchAll);
+var bs=$(‘btnSig’);if(bs)bs.addEventListener(‘click’,calcSignal);
+var bb=$(‘btnBT’);if(bb)bb.addEventListener(‘click’,runBT);
+var bj=$(‘btnDlJson’);if(bj)bj.addEventListener(‘click’,dlJson);
+var bov=$(‘btnDlOHLCV’);if(bov)bov.addEventListener(‘click’,dlOHLCVCsv);
+var bm=$(‘btnDlMonthly’);if(bm)bm.addEventListener(‘click’,dlMonthlyCsv);
+var bu=$(‘btnUpJson’);if(bu)bu.addEventListener(‘click’,function(){$(‘fileJson’).click();});
+var fj=$(‘fileJson’);if(fj)fj.addEventListener(‘change’,upJson);
+var bbt=$(‘btnDlBt’);if(bbt)bbt.addEventListener(‘click’,dlBtCsv);
+});
+
+function updCounts(){
+// Recount per industry group
+var groups={};
+document.querySelectorAll(’[data-act=“ts”]’).forEach(function(el){
+var ind=el.dataset.ind;
+if(!groups[ind])groups[ind]={t:0,a:0};
+groups[ind].t++;
+if(el.dataset.on===‘1’)groups[ind].a++;
+});
+// Update counters - find ic elements by matching industry
+document.querySelectorAll(’.ih’).forEach(function(ih){
+var inEl=ih.querySelector(’.in’);
+var icEl=ih.querySelector(’.ic’);
+if(!inEl||!icEl)return;
+// Get industry name from the in element’s text content
+var indText=inEl.textContent.replace(‘🇺🇸 ‘,’’).trim();
+// Find matching group
+var found=null;
+Object.keys(groups).forEach(function(k){
+if(indText===k||inEl.innerHTML.indexOf(k)>=0)found=k;
+});
+if(found)icEl.textContent=groups[found].a+’/’+groups[found].t;
+});
 }
 
-// ── Build pool UI
-function buildPool(){
-try{
-var cont=$(‘poolCont’);if(!cont)return;
-if(!POOL.length){cont.innerHTML=’<span style="color:var(--re)">股池資料載入失敗，請重新整理頁面</span>’;return;}
-var grps={};
-POOL.forEach(function(s){if(!grps[s.ind])grps[s.ind]=[];grps[s.ind].push(s);});
-var sortedInds=Object.keys(grps).sort();
-var html=’’;
-sortedInds.forEach(function(ind,gi){
-var stocks=grps[ind];
-var ac=stocks.filter(function(s){return s.on;}).length;
-var isUs=(ind===‘美股ETF’);
-html+=’<div class="ig"><div class="ih" data-act="ti">’;
-html+=’<span class="in">’+(isUs?‘🇺🇸 ‘:’’)+ind+’</span>’;
-html+=’<span class="ic" id="ic'+gi+'">’+ac+’/’+stocks.length+’</span></div>’;
-html+=’<div class="ib">’;
-stocks.forEach(function(s){
-var usc=!s.tw;
-html+=’<span class="sc'+(usc?' usc':'')+(s.on?' act':'')+'" data-act="ts" data-code="'+s.c+'">’;
-html+=’<span class="cc">’+s.c+’</span><span class="cn">’+s.n+’</span>’;
-if(s.type!==‘tw50’)html+=’<span class="cd" data-act="ds" data-code="'+s.c+'">×</span>’;
-html+=’</span>’;
-});
-html+=’</div></div>’;
-});
-cont.innerHTML=html;
-clearErr();
-}catch(e){showErr(‘buildPool: ‘+e.message);console.error(e);}
-}
-function initPool(){
-var cont=$(‘poolCont’);if(!cont)return;
-cont.addEventListener(‘click’,function(e){
-var ds=e.target.closest(’[data-act=“ds”]’);
-if(ds){e.stopPropagation();delStock(ds.dataset.code);return;}
-var ts=e.target.closest(’[data-act=“ts”]’);
-if(ts){togStock(ts.dataset.code);return;}
-var ti=e.target.closest(’[data-act=“ti”]’);
-if(ti){var b=ti.nextElementSibling;if(b)b.classList.toggle(‘col’);}
-});
-var ba=$(‘btnAll’);if(ba)ba.addEventListener(‘click’,function(){POOL.forEach(function(s){s.on=true;});buildPool();});
-var bn=$(‘btnNone’);if(bn)bn.addEventListener(‘click’,function(){POOL.forEach(function(s){s.on=false;});buildPool();});
-var ba2=$(‘btnAdd’);if(ba2)ba2.addEventListener(‘click’,addCustom);
-}
-function togStock(code){
-var s=POOL.find(function(p){return p.c===code;});if(!s)return;
-s.on=!s.on;
-document.querySelectorAll(’[data-act=“ts”][data-code=”’+code+’”]’).forEach(function(el){
-el.classList.toggle(‘act’,s.on);
-});
-updCounts();
-}
-function delStock(code){
-var idx=POOL.findIndex(function(p){return p.c===code;});if(idx<0)return;
-if(POOL[idx].type===‘tw50’){showErr(‘台灣50不可刪除’);return;}
-POOL.splice(idx,1);buildPool();
-}
-function updCounts(){
-var grps={};
-POOL.forEach(function(s){if(!grps[s.ind])grps[s.ind]={t:0,a:0};grps[s.ind].t++;if(s.on)grps[s.ind].a++;});
-var sortedInds=Object.keys(grps).sort();
-sortedInds.forEach(function(ind,gi){
-var el=$(‘ic’+gi);if(el)el.textContent=grps[ind].a+’/’+grps[ind].t;
-});
-}
 function addCustom(){
-try{
 var raw=$(‘cusT’).value.trim().toUpperCase();
 var isUS=$(‘cusUS’)&&$(‘cusUS’).checked;
 var code=isUS?raw:raw.replace(’.TW’,’’);
-if(!code){showErr(‘請輸入股票代號’);return;}
-if(POOL.find(function(p){return p.c===code;})){showErr(‘已存在: ‘+code);return;}
+if(!code)return;
+if(document.querySelector(’[data-act=“ts”][data-code=”’+code+’”]’))return;
 var name=$(‘cusN’).value.trim()||code;
-var ind=$(‘cusI’).value||‘其他’;
-POOL.push({c:code,n:name,ind:ind,type:‘custom’,on:true,tw:!isUS});
+var ind=$(‘cusI’).value||‘other’;
+// Find the industry group body or create
+var grps=document.querySelectorAll(’.ih’);
+var targetIb=null;
+grps.forEach(function(ih){
+var inEl=ih.querySelector(’.in’);
+if(inEl&&inEl.textContent.indexOf(ind)>=0){targetIb=ih.nextElementSibling;}
+});
+var chip=document.createElement(‘span’);
+chip.className=‘sc act’+(isUS?’ usc’:’’);
+chip.dataset.act=‘ts’;chip.dataset.code=code;chip.dataset.name=name;
+chip.dataset.ind=ind;chip.dataset.type=‘mid’;chip.dataset.tw=isUS?‘0’:‘1’;chip.dataset.on=‘1’;
+chip.innerHTML=’<span class="cc">’+code+’</span><span class="cn">’+name+’</span><span class="cd" data-act="ds" data-code="'+code+'">×</span>’;
+if(targetIb){targetIb.appendChild(chip);}
+else{
+// Add to first group as fallback
+var firstIb=document.querySelector(’.ib’);
+if(firstIb)firstIb.appendChild(chip);
+}
 $(‘cusT’).value=’’;$(‘cusN’).value=’’;
-buildPool();clearErr();
-}catch(e){showErr(’addCustom: ’+e.message);}
-}
-
-// ── TNX rate
-function getTNXRate(yyyymm){
-if(!TNX_MONTHLY.length)return 0.04; // fallback 4%
-var best=null;
-TNX_MONTHLY.forEach(function(p){if(p.date<=yyyymm)best=p;});
-// TNX values on Yahoo are already in %, e.g. 4.25 = 4.25%
-return best?(best.c/100):0.04;
-}
-function getHurdle(yyyymm){
-var spread=(gv(‘btSpread’)||0.5)/100;
-return Math.max(0, getTNXRate(yyyymm)+spread);
-}
-function updateTNXDisplay(){
-if(!TNX_MONTHLY.length)return;
-var last=TNX_MONTHLY[TNX_MONTHLY.length-1];
-var rate=last.c;
-var hurdle=(rate/100+(gv(‘btSpread’)||0.5)/100)*100;
-var el=$(‘tnxVal’);if(el)el.textContent=rate.toFixed(2)+’% (’+last.date+’)’;
-var el2=$(‘tnxThresh’);if(el2)el2.textContent=‘→ TS門檻: ‘+hurdle.toFixed(2)+’%’;
+updCounts();
 }
 
 // ── Network
@@ -499,175 +521,137 @@ var p=$(‘proxyUrl’)?$(‘proxyUrl’).value.trim():’’;
 if(p&&!p.includes(‘url=’))p+=p.endsWith(’/’)?’?url=’:’/?url=’;
 return [p,‘https://api.allorigins.win/raw?url=’,‘https://api.codetabs.com/v1/proxy?quest=’].filter(Boolean);
 }
-async function fetchProxy(url,proxies){
-var lastErr;
+async function fp(url,proxies){
+var last;
 for(var i=0;i<proxies.length;i++){
 try{var r=await fetch(proxies[i]+encodeURIComponent(url));if(!r.ok)throw new Error(‘HTTP ‘+r.status);return r;}
-catch(e){lastErr=e;}
+catch(e){last=e;}
 }
-throw lastErr||new Error(‘所有Proxy失敗’);
+throw last||new Error(‘Proxy failed’);
 }
 function buildTicker(s){
-// s is a pool stock object or a string
-if(typeof s===‘string’)return s;
-if(!s.tw)return s.c; // US ETF or ^TNX, ^TWII
+if(!s.tw)return s.c;
 if(s.c.startsWith(’^’)||s.c.includes(’.’))return s.c;
 return s.c+’.TW’;
 }
-async function fetchYfMonthly(tkOrStock,proxies){
-var tk=buildTicker(tkOrStock);
-var r=await fetchProxy(‘https://query1.finance.yahoo.com/v8/finance/chart/’+tk+’?range=max&interval=1mo’,proxies);
-var j=await r.json();
-var ch=j&&j.chart&&j.chart.result&&j.chart.result[0];
-if(!ch||!ch.timestamp)throw new Error(‘無月頻資料’);
+async function fetchWeekly(s,prx){
+var r=await fp(‘https://query1.finance.yahoo.com/v8/finance/chart/’+buildTicker(s)+’?range=max&interval=1wk’,prx);
+var j=await r.json();var ch=j&&j.chart&&j.chart.result&&j.chart.result[0];
+if(!ch||!ch.timestamp)throw new Error(‘no data’);
+var out=[];
+ch.timestamp.forEach(function(ts,i){
+var q=ch.indicators.quote[0];var h=q.high[i],l=q.low[i],c=q.close[i],v=q.volume[i];
+if(c&&c>0&&h&&l&&v!=null)out.push({date:new Date(ts*1000).toISOString().slice(0,10),h:+h.toFixed(3),l:+l.toFixed(3),c:+c.toFixed(3),v:+v});
+});
+return out;
+}
+async function fetchDaily(s,prx){
+var r=await fp(‘https://query1.finance.yahoo.com/v8/finance/chart/’+buildTicker(s)+’?range=max&interval=1d’,prx);
+var j=await r.json();var ch=j&&j.chart&&j.chart.result&&j.chart.result[0];
+if(!ch||!ch.timestamp)throw new Error(‘no data’);
+var out=[];
+ch.timestamp.forEach(function(ts,i){
+var q=ch.indicators.quote[0];var h=q.high[i],l=q.low[i],c=q.close[i],v=q.volume[i];
+if(c&&c>0&&h&&l&&v!=null)out.push({date:new Date(ts*1000).toISOString().slice(0,10),h:+h.toFixed(3),l:+l.toFixed(3),c:+c.toFixed(3),v:+v});
+});
+return out;
+}
+async function fetchMonthly(tkOrS,prx){
+var tk=typeof tkOrS===‘string’?tkOrS:buildTicker(tkOrS);
+var r=await fp(‘https://query1.finance.yahoo.com/v8/finance/chart/’+tk+’?range=max&interval=1mo’,prx);
+var j=await r.json();var ch=j&&j.chart&&j.chart.result&&j.chart.result[0];
+if(!ch||!ch.timestamp)throw new Error(‘no data’);
 var out=[];
 ch.timestamp.forEach(function(ts,i){
 var adj=ch.indicators.adjclose&&ch.indicators.adjclose[0]?ch.indicators.adjclose[0].adjclose[i]:null;
-var cl=ch.indicators.quote[0].close[i];
-var c=adj!=null?adj:cl;
+var cl=ch.indicators.quote[0].close[i];var c=adj!=null?adj:cl;
 if(c&&c>0)out.push({date:new Date(ts*1000).toISOString().slice(0,7),c:+c.toFixed(4)});
 });
 var seen={};out.forEach(function(p){seen[p.date]=p;});
 return Object.values(seen).sort(function(a,b){return a.date.localeCompare(b.date);});
 }
-async function fetchYfWeekly(s,proxies){
-var tk=buildTicker(s);
-var r=await fetchProxy(‘https://query1.finance.yahoo.com/v8/finance/chart/’+tk+’?range=max&interval=1wk’,proxies);
-var j=await r.json();
-var ch=j&&j.chart&&j.chart.result&&j.chart.result[0];
-if(!ch||!ch.timestamp)throw new Error(‘無週頻資料’);
-var out=[];
-ch.timestamp.forEach(function(ts,i){
-var q=ch.indicators.quote[0];
-var h=q.high[i],l=q.low[i],c=q.close[i],v=q.volume[i];
-if(c&&c>0&&h&&l&&v!=null)out.push({date:new Date(ts*1000).toISOString().slice(0,10),h:+h.toFixed(3),l:+l.toFixed(3),c:+c.toFixed(3),v:+v});
-});
-return out;
-}
-async function fetchYfDaily(s,proxies){
-var tk=buildTicker(s);
-var r=await fetchProxy(‘https://query1.finance.yahoo.com/v8/finance/chart/’+tk+’?range=max&interval=1d’,proxies);
-var j=await r.json();
-var ch=j&&j.chart&&j.chart.result&&j.chart.result[0];
-if(!ch||!ch.timestamp)throw new Error(‘無日頻資料’);
-var out=[];
-ch.timestamp.forEach(function(ts,i){
-var q=ch.indicators.quote[0];
-var h=q.high[i],l=q.low[i],c=q.close[i],v=q.volume[i];
-if(c&&c>0&&h&&l&&v!=null)out.push({date:new Date(ts*1000).toISOString().slice(0,10),h:+h.toFixed(3),l:+l.toFixed(3),c:+c.toFixed(3),v:+v});
-});
-return out;
-}
 
-// ── Fetch all
-function initFetch(){var b=$(‘btnFetch’);if(b)b.addEventListener(‘click’,fetchAll);}
 async function fetchAll(){
-var proxies=buildProxies();
-var enabled=POOL.filter(function(s){return s.on;});
-var twStocks=enabled.filter(function(s){return s.tw;});
-var usStocks=enabled.filter(function(s){return !s.tw;});
-// Total: TW(weekly+monthly) + US(daily+monthly) + TWII + TNX
-var total=twStocks.length*2+usStocks.length*2+2;
-var done=0;
-function setProgress(label){
-$(‘loadTxt’).textContent=label;
-$(‘fetchFill’).style.width=((done/total)*100)+’%’;
-done++;
-}
-showL(‘準備抓取…’);
-$(‘fetchProg’).classList.remove(‘hidden’);
+var prx=buildProxies();
+var stocks=getEnabledStocks();
+var tw=stocks.filter(function(s){return s.tw;});
+var us=stocks.filter(function(s){return !s.tw;});
+var total=tw.length*2+us.length*2+2,done=0;
+function prog(lbl){$(‘loadTxt’).textContent=lbl;$(‘fetchFill’).style.width=((done++/total)*100)+’%’;}
+showL(’…’);$(‘fetchProg’).classList.remove(‘hidden’);
 var failed=[];
-// TW stocks: weekly + monthly
-for(var i=0;i<twStocks.length;i++){
-var s=twStocks[i];
-setProgress(‘TW週頻: ‘+s.c+’.TW (’+(i+1)+’/’+twStocks.length+’)’);
-try{WEEKLY[s.c]=await fetchYfWeekly(s,proxies);}catch(e){failed.push(s.c+’-W’);}
+for(var i=0;i<tw.length;i++){
+var s=tw[i];
+prog(‘TW Weekly: ‘+s.c+’ (’+(i+1)+’/’+tw.length+’)’);
+try{WEEKLY[s.c]=await fetchWeekly(s,prx);}catch(e){failed.push(s.c+’-W’);}
 await new Promise(function(r){setTimeout(r,350);});
-setProgress(‘TW月頻: ‘+s.c+’.TW’);
-try{MONTHLY[s.c]=await fetchYfMonthly(s,proxies);}catch(e){failed.push(s.c+’-M’);}
-await new Promise(function(r){setTimeout(r,350);});
-}
-// US ETFs: daily + monthly
-for(var i2=0;i2<usStocks.length;i2++){
-var s2=usStocks[i2];
-setProgress(‘US日頻: ‘+s2.c+’ (’+(i2+1)+’/’+usStocks.length+’)’);
-try{DAILY[s2.c]=await fetchYfDaily(s2,proxies);}catch(e){failed.push(s2.c+’-D’);}
-await new Promise(function(r){setTimeout(r,350);});
-setProgress(‘US月頻: ‘+s2.c);
-try{MONTHLY[s2.c]=await fetchYfMonthly(s2,proxies);}catch(e){failed.push(s2.c+’-M’);}
+prog(‘TW Monthly: ‘+s.c);
+try{MONTHLY[s.c]=await fetchMonthly(s,prx);}catch(e){failed.push(s.c+’-M’);}
 await new Promise(function(r){setTimeout(r,350);});
 }
-// TAIEX benchmark
-setProgress(‘基準: ^TWII’);
-try{BENCH_MONTHLY=await fetchYfMonthly(’^TWII’,proxies);}catch(e){failed.push(’^TWII’);}
+for(var i2=0;i2<us.length;i2++){
+var s2=us[i2];
+prog(‘US Daily: ‘+s2.c+’ (’+(i2+1)+’/’+us.length+’)’);
+try{DAILY[s2.c]=await fetchDaily(s2,prx);}catch(e){failed.push(s2.c+’-D’);}
 await new Promise(function(r){setTimeout(r,350);});
-// TNX yield
-setProgress(‘美債利率: ^TNX’);
+prog(‘US Monthly: ‘+s2.c);
+try{MONTHLY[s2.c]=await fetchMonthly(s2,prx);}catch(e){failed.push(s2.c+’-M’);}
+await new Promise(function(r){setTimeout(r,350);});
+}
+prog(’^TWII’);try{BENCH_MONTHLY=await fetchMonthly(’^TWII’,prx);}catch(e){failed.push(’^TWII’);}
+await new Promise(function(r){setTimeout(r,350);});
+prog(’^TNX’);
 try{
-var tnxRaw=await fetchYfMonthly(’^TNX’,proxies);
-// Forward-fill gaps
-TNX_MONTHLY=[];
-var lastVal=null;
-if(tnxRaw.length){
-var startDate=tnxRaw[0].date;
-var endDate=tnxRaw[tnxRaw.length-1].date;
-var cur=new Date(startDate+’-01’);
-var end=new Date(endDate+’-01’);
-var byDate={};tnxRaw.forEach(function(p){byDate[p.date]=p.c;});
+var raw=await fetchMonthly(’^TNX’,prx);
+TNX_MONTHLY=[];var last=null;
+if(raw.length){
+var byD={};raw.forEach(function(p){byD[p.date]=p.c;});
+var cur=new Date(raw[0].date+’-01’),end=new Date(raw[raw.length-1].date+’-01’);
 while(cur<=end){
 var m=cur.toISOString().slice(0,7);
-if(byDate[m]!=null)lastVal=byDate[m];
-if(lastVal!=null)TNX_MONTHLY.push({date:m,c:lastVal});
+if(byD[m]!=null)last=byD[m];
+if(last!=null)TNX_MONTHLY.push({date:m,c:last});
 cur.setMonth(cur.getMonth()+1);
 }
 }
-updateTNXDisplay();
+updTNXDisplay();
 }catch(e){failed.push(’^TNX’);}
-$(‘fetchFill’).style.width=‘100%’;
-$(‘fetchProg’).classList.add(‘hidden’);
-var ok=total-failed.length;
-sl(‘fetchLog’,‘✅ 完成 ‘+ok+’/’+total+(failed.length?’ | 失敗: ‘+failed.slice(0,8).join(’,’):’’),failed.length===0);
-updFetchStat();
-hideL();
-await buildCache();
+$(‘fetchFill’).style.width=‘100%’;$(‘fetchProg’).classList.add(‘hidden’);
+sl(‘fetchLog’,‘OK ‘+(total-failed.length)+’/’+total+(failed.length?’ fail:’+failed.slice(0,6).join(’,’):’’),failed.length===0);
+updFetchStat(stocks);hideL();
+await buildCache(stocks);
 }
-function updFetchStat(){
+
+function updTNXDisplay(){
+if(!TNX_MONTHLY.length)return;
+var last=TNX_MONTHLY[TNX_MONTHLY.length-1];
+var spread=gv(‘btSpread’)||0.5;
+var h=(last.c+spread).toFixed(2)+’%’;
+var el=$(‘tnxVal’);if(el)el.textContent=last.c.toFixed(2)+’% (’+last.date+’)’;
+var el2=$(‘tnxThresh’);if(el2)el2.textContent=‘TS: ‘+h;
+}
+function updFetchStat(stocks){
 var bar=$(‘fetchStat’);if(!bar)return;
-bar.innerHTML=POOL.filter(function(s){return s.on;}).map(function(s){
-var isUs=!s.tw;
-var hasData=isUs?(DAILY[s.c]&&DAILY[s.c].length>0&&MONTHLY[s.c]&&MONTHLY[s.c].length>0):(WEEKLY[s.c]&&WEEKLY[s.c].length>0&&MONTHLY[s.c]&&MONTHLY[s.c].length>0);
-var partial=MONTHLY[s.c];
-var bg=hasData?(isUs?‘var(–usd)’:‘var(–ted)’):partial?‘var(–yed)’:‘var(–sf2)’;
-var col=hasData?(isUs?‘var(–us)’:‘var(–te)’):partial?‘var(–ye)’:‘var(–mu)’;
-var bd=hasData?(isUs?‘var(–us)’:‘var(–te)’):partial?‘var(–ye)’:‘var(–bd)’;
+bar.innerHTML=(stocks||getEnabledStocks()).map(function(s){
+var ok=s.tw?(WEEKLY[s.c]&&MONTHLY[s.c]):(DAILY[s.c]&&MONTHLY[s.c]);
+var col=ok?(s.tw?‘var(–te)’:‘var(–us)’):‘var(–mu)’;
+var bg=ok?(s.tw?‘var(–ted)’:‘var(–usd)’):‘var(–sf2)’;
+var bd=ok?(s.tw?‘var(–te)’:‘var(–us)’):‘var(–bd)’;
 return ‘<span class="bdg" style="background:'+bg+';color:'+col+';border:1px solid '+bd+'">’+s.c+’</span>’;
 }).join(’’);
 }
 
-// ── Technical indicators: TW (13 weeks), US (50 days)
-// All 4 tech dimensions use SAME window: N_TW=13wk, N_US=50d
-var N_TW=13, N_US=50;
-
-// Generic VWMA
+// ── Technical indicators
 function calcVWMA(bars,n){
 if(bars.length<n)return null;
-var sl=bars.slice(-n),sp=0,sv=0;
-sl.forEach(function(b){sp+=b.c*b.v;sv+=b.v;});
-return sv>0?sp/sv:null;
+var sl=bars.slice(-n),sp=0,sv=0;sl.forEach(function(b){sp+=b.c*b.v;sv+=b.v;});return sv>0?sp/sv:null;
 }
-// Bias: (close - VWMA_N) / VWMA_N
-function calcBias(bars,N){
-var v=calcVWMA(bars,N);
-return v?(bars[bars.length-1].c-v)/v:null;
-}
-// Slope: linear slope of VWMA over last N bars, normalised
+function calcBias(bars,N){var v=calcVWMA(bars,N);return v?(bars[bars.length-1].c-v)/v:null;}
 function calcSlope(bars,N){
 if(bars.length<N+3)return null;
 var va=[];
 for(var i=bars.length-N;i<bars.length;i++){
-var sl=bars.slice(Math.max(0,i-N+1),i+1);
-var sp=0,sv=0;sl.forEach(function(b){sp+=b.c*b.v;sv+=b.v;});
-if(sv>0)va.push(sp/sv);
+var sl=bars.slice(Math.max(0,i-N+1),i+1);var sp=0,sv=0;sl.forEach(function(b){sp+=b.c*b.v;sv+=b.v;});if(sv>0)va.push(sp/sv);
 }
 if(va.length<Math.floor(N/2))return null;
 var n=va.length,sx=0,sy=0,sxy=0,sx2=0;
@@ -675,25 +659,17 @@ for(var j=0;j<n;j++){sx+=j;sy+=va[j];sxy+=j*va[j];sx2+=j*j;}
 var den=n*sx2-sx*sx;if(!den)return 0;
 return (n*sxy-sx*sy)/den/(va[0]||1);
 }
-// Volume confirmation: price-volume agreement over last N bars
 function calcVol(bars,N){
 if(bars.length<N+1)return null;
 var sl=bars.slice(-N),sc=[];
-for(var i=1;i<sl.length;i++){
-var pr=(sl[i].c-sl[i-1].c)/(sl[i-1].c||1);
-var vr=sl[i-1].v>0?sl[i].v/sl[i-1].v:1;
-sc.push((pr>=0?1:-1)*(pr>=0?(vr-1):(1-vr)));
-}
+for(var i=1;i<sl.length;i++){var pr=(sl[i].c-sl[i-1].c)/(sl[i-1].c||1);var vr=sl[i-1].v>0?sl[i].v/sl[i-1].v:1;sc.push((pr>=0?1:-1)*(pr>=0?(vr-1):(1-vr)));}
 return sc.length?sc.reduce(function(a,b){return a+b;},0)/sc.length:null;
 }
-// Kbar strength: avg (close-low)/(high-low) over last N bars
 function calcKbar(bars,N){
 if(bars.length<N)return null;
-var sl=bars.slice(-N);
-var v=sl.map(function(b){var r=b.h-b.l;return r>0?(b.c-b.l)/r:0.5;});
+var sl=bars.slice(-N);var v=sl.map(function(b){var r=b.h-b.l;return r>0?(b.c-b.l)/r:0.5;});
 return v.reduce(function(a,b){return a+b;},0)/v.length;
 }
-// Momentum z-score (monthly, same for all)
 function momZ(mo,idx,n){
 if(idx<n)return null;
 var pn=mo[idx-1].c,p0=mo[idx-n].c;if(!p0||p0<=0)return null;
@@ -709,83 +685,71 @@ var z12=momZ(mo,idx,12),z6=momZ(mo,idx,6),z3=momZ(mo,idx,3);
 if(z12===null||z6===null||z3===null)return null;
 return 0.5*z12+0.3*z6+0.2*z3;
 }
-function getMonthIdx(mo,yyyymm){
-for(var i=0;i<mo.length;i++){if(mo[i].date>yyyymm)return i;}
-return mo.length;
-}
+function getMonthIdx(mo,yyyymm){for(var i=0;i<mo.length;i++){if(mo[i].date>yyyymm)return i;}return mo.length;}
 
-// ── Build cache (auto after fetch, also after JSON restore)
-async function buildCache(){
-var enabled=POOL.filter(function(s){return s.on;});
-var withData=enabled.filter(function(s){
-return s.tw?(WEEKLY[s.c]&&MONTHLY[s.c]):(DAILY[s.c]&&MONTHLY[s.c]);
-});
+// ── Build cache
+async function buildCache(stocks){
+stocks=stocks||getEnabledStocks();
+var withData=stocks.filter(function(s){return s.tw?(WEEKLY[s.c]&&MONTHLY[s.c]):(DAILY[s.c]&&MONTHLY[s.c]);});
 if(!withData.length){updCacheSt();return;}
-showL(‘建立快取中…’);
-RAW_SCORES={};
+showL(‘Building cache…’);RAW_SCORES={};
 for(var si=0;si<withData.length;si++){
 var s=withData[si];
-$(‘loadTxt’).textContent=‘建快取: ‘+s.c+’ (’+(si+1)+’/’+withData.length+’)’;
-var mo=MONTHLY[s.c];
-var isUs=!s.tw;
-var bars=isUs?DAILY[s.c]:WEEKLY[s.c];
-var N=isUs?N_US:N_TW;
-if(!mo||!bars){continue;}
+$(‘loadTxt’).textContent=‘Cache: ‘+s.c+’ (’+(si+1)+’/’+withData.length+’)’;
+var mo=MONTHLY[s.c];var bars=s.tw?WEEKLY[s.c]:DAILY[s.c];var N=s.tw?N_TW:N_US;
+if(!mo||!bars)continue;
 RAW_SCORES[s.c]={};
 var allMo=mo.map(function(p){return p.date;});
 for(var mi=13;mi<allMo.length;mi++){
-var yyyymm=allMo[mi];
-var mIdx=getMonthIdx(mo,yyyymm);
-// Cut bars to this month-end
-var cutDate=yyyymm+’-31’;
-var barsCut=bars.filter(function(b){return b.date<=cutDate;});
+var yyyymm=allMo[mi];var mIdx=getMonthIdx(mo,yyyymm);
+var cut=bars.filter(function(b){return b.date<=yyyymm+’-31’;});
 var rm=rawMom(mo,mIdx);
-var rb=barsCut.length>=N?calcBias(barsCut,N):null;
-var rs=barsCut.length>=N+3?calcSlope(barsCut,N):null;
-var rv=barsCut.length>=N+1?calcVol(barsCut,N):null;
-var rk=barsCut.length>=N?calcKbar(barsCut,N):null;
+var rb=cut.length>=N?calcBias(cut,N):null;
+var rs=cut.length>=N+3?calcSlope(cut,N):null;
+var rv=cut.length>=N+1?calcVol(cut,N):null;
+var rk=cut.length>=N?calcKbar(cut,N):null;
 var pn=mo[mIdx-1]?mo[mIdx-1].c:null;
 var r12=mIdx>=13&&mo[mIdx-13]?pn/mo[mIdx-13].c-1:null;
-var r6 =mIdx>=7 &&mo[mIdx-7] ?pn/mo[mIdx-7].c-1:null;
-var r3 =mIdx>=4 &&mo[mIdx-4] ?pn/mo[mIdx-4].c-1:null;
+var r6=mIdx>=7&&mo[mIdx-7]?pn/mo[mIdx-7].c-1:null;
+var r3=mIdx>=4&&mo[mIdx-4]?pn/mo[mIdx-4].c-1:null;
 RAW_SCORES[s.c][yyyymm]={rm:rm,rb:rb,rs:rs,rv:rv,rk:rk,r12:r12,r6:r6,r3:r3};
 }
 if(si%5===4)await new Promise(function(r){setTimeout(r,0);});
 }
 CACHE_BUILT=true;CACHE_TS=new Date().toISOString();
-hideL();updCacheSt();
-updateTNXDisplay();
+hideL();updCacheSt();updTNXDisplay();
 }
 function updCacheSt(){
 var el=$(‘cacheTxt’);if(!el)return;
-if(!CACHE_BUILT){el.textContent=‘快取狀態：尚未建立’;el.style.color=‘var(–mu)’;return;}
+if(!CACHE_BUILT){el.textContent=‘Cache: not built’;el.style.color=‘var(–mu)’;return;}
 var n=Object.keys(RAW_SCORES).length;
-var dt=CACHE_TS?new Date(CACHE_TS).toLocaleTimeString(‘zh-TW’,{hour:‘2-digit’,minute:‘2-digit’}):’’;
-el.textContent=‘✅ 快取已建立 (’+n+‘支, ‘+dt+’) — 改權重即時生效’;
+var dt=new Date(CACHE_TS).toLocaleTimeString(‘zh-TW’,{hour:‘2-digit’,minute:‘2-digit’});
+el.textContent=‘Cache OK (’+n+’ stocks, ‘+dt+’) - change weights = instant recalc’;
 el.style.color=‘var(–gr)’;
 }
 
-// ── Cross-sectional z with cap
 function crossZ(arr,cap){
 cap=cap||2;
 var vals=arr.filter(function(v){return v!==null&&!isNaN(v);});
 if(vals.length<3)return arr.map(function(v){return v===null?null:0;});
 var mean=vals.reduce(function(a,b){return a+b;},0)/vals.length;
 var std=Math.sqrt(vals.reduce(function(a,b){return a+(b-mean)*(b-mean);},0)/vals.length)||1;
-return arr.map(function(v){
-if(v===null)return null;
-return Math.max(-cap,Math.min(cap,(v-mean)/std));
-});
+return arr.map(function(v){if(v===null)return null;return Math.max(-cap,Math.min(cap,(v-mean)/std));});
 }
 
-// ── Score from cache (instant, weight-sensitive)
+function getTNXRate(yyyymm){
+if(!TNX_MONTHLY.length)return 0.04;
+var best=null;TNX_MONTHLY.forEach(function(p){if(p.date<=yyyymm)best=p;});
+return best?(best.c/100):0.04;
+}
+function getHurdle(yyyymm){return Math.max(0,getTNXRate(yyyymm)+(gv(‘btSpread’)||0.5)/100);}
+
 function calcAllScores(yyyymm){
-var enabled=POOL.filter(function(s){return s.on&&RAW_SCORES[s.c]&&RAW_SCORES[s.c][yyyymm];});
-if(!enabled.length)return[];
-var wMom=gv(‘wMom’)/100,wBias=gv(‘wBias’)/100,wSlope=gv(‘wSlope’)/100;
-var wVol=gv(‘wVol’)/100,wKbar=gv(‘wKbar’)/100;
+var stocks=getEnabledStocks().filter(function(s){return RAW_SCORES[s.c]&&RAW_SCORES[s.c][yyyymm];});
+if(!stocks.length)return[];
+var wM=gv(‘wMom’)/100,wB=gv(‘wBias’)/100,wS=gv(‘wSlope’)/100,wV=gv(‘wVol’)/100,wK=gv(‘wKbar’)/100;
 var rMs=[],rBs=[],rSs=[],rVs=[],rKs=[];
-var infos=enabled.map(function(s){
+var infos=stocks.map(function(s){
 var raw=RAW_SCORES[s.c][yyyymm];
 rMs.push(raw.rm);rBs.push(raw.rb);rSs.push(raw.rs);rVs.push(raw.rv);rKs.push(raw.rk);
 return{s:s,raw:raw};
@@ -794,45 +758,33 @@ var zMs=crossZ(rMs,99),zBs=crossZ(rBs,2),zSs=crossZ(rSs,99),zVs=crossZ(rVs,2),zK
 return infos.map(function(d,i){
 var zm=zMs[i],zb=zBs[i],zs=zSs[i],zv=zVs[i],zk=zKs[i];
 var tw=0,tt=0;
-if(zm!==null){tw+=wMom*zm;tt+=wMom;}
-if(zb!==null){tw+=wBias*zb;tt+=wBias;}
-if(zs!==null){tw+=wSlope*zs;tt+=wSlope;}
-if(zv!==null){tw+=wVol*zv;tt+=wVol;}
-if(zk!==null){tw+=wKbar*zk;tt+=wKbar;}
-return{s:d.s,score:tt>0.1?tw/tt:null,zm:zm,zb:zb,zs:zs,zv:zv,zk:zk,
-r12:d.raw.r12,r6:d.raw.r6,r3:d.raw.r3};
+if(zm!==null){tw+=wM*zm;tt+=wM;}if(zb!==null){tw+=wB*zb;tt+=wB;}
+if(zs!==null){tw+=wS*zs;tt+=wS;}if(zv!==null){tw+=wV*zv;tt+=wV;}
+if(zk!==null){tw+=wK*zk;tt+=wK;}
+return{s:d.s,score:tt>0.1?tw/tt:null,zm:zm,zb:zb,zs:zs,zv:zv,zk:zk,r12:d.raw.r12,r6:d.raw.r6,r3:d.raw.r3};
 });
 }
 
-// ── Correlation (monthly returns)
 function calcCorr(c1,c2,yyyymm,n){
-n=n||12;
-var m1=MONTHLY[c1],m2=MONTHLY[c2];if(!m1||!m2)return 0;
-var i1=getMonthIdx(m1,yyyymm),i2=getMonthIdx(m2,yyyymm);
-var mi=Math.min(i1,i2);if(mi<n+1)return 0;
+n=n||12;var m1=MONTHLY[c1],m2=MONTHLY[c2];if(!m1||!m2)return 0;
+var i1=getMonthIdx(m1,yyyymm),i2=getMonthIdx(m2,yyyymm);var mi=Math.min(i1,i2);if(mi<n+1)return 0;
 var r1=[],r2=[];
 for(var i=mi-n;i<mi;i++){
-var a0=m1[i-1]?m1[i-1].c:null,a1=m1[i]?m1[i].c:null;
-var b0=m2[i-1]?m2[i-1].c:null,b1=m2[i]?m2[i].c:null;
+var a0=m1[i-1]?m1[i-1].c:null,a1=m1[i]?m1[i].c:null;var b0=m2[i-1]?m2[i-1].c:null,b1=m2[i]?m2[i].c:null;
 if(a0&&a1&&b0&&b1&&a0>0&&b0>0){r1.push(a1/a0-1);r2.push(b1/b0-1);}
 }
 if(r1.length<6)return 0;
-var m1a=r1.reduce(function(a,b){return a+b;},0)/r1.length;
-var m2a=r2.reduce(function(a,b){return a+b;},0)/r2.length;
+var m1a=r1.reduce(function(a,b){return a+b;},0)/r1.length;var m2a=r2.reduce(function(a,b){return a+b;},0)/r2.length;
 var num=0,d1=0,d2=0;
 r1.forEach(function(v,i){num+=(v-m1a)*(r2[i]-m2a);d1+=(v-m1a)*(v-m1a);d2+=(r2[i]-m2a)*(r2[i]-m2a);});
 return num/Math.sqrt((d1*d2)||1);
 }
 
-// ── Signal
-function initSig(){var b=$(‘btnSig’);if(b)b.addEventListener(‘click’,calcSignal);}
 function calcSignal(){
-try{
-if(!CACHE_BUILT){showErr(‘請先抓取資料建立快取’);return;}
-var enabled=POOL.filter(function(s){return s.on&&RAW_SCORES[s.c];});
-if(!enabled.length){showErr(‘無已建快取的資料’);return;}
-var mo=MONTHLY[enabled[0].c];
-var yyyymm=mo[mo.length-1].date;
+if(!CACHE_BUILT){alert(‘Please fetch data first’);return;}
+var stocks=getEnabledStocks().filter(function(s){return RAW_SCORES[s.c];});
+if(!stocks.length){alert(‘No cached data’);return;}
+var mo=MONTHLY[stocks[0].c];var yyyymm=mo[mo.length-1].date;
 var hurdle=getHurdle(yyyymm);
 var scores=calcAllScores(yyyymm);
 var valid=scores.filter(function(r){return r.score!==null;});
@@ -844,33 +796,29 @@ for(var i=0;i<tsPass.length&&sel.length<mh;i++){
 var cand=tsPass[i];
 if(sel.every(function(x){return Math.abs(calcCorr(cand.s.c,x.s.c,yyyymm))<ct;}))sel.push(cand);
 }
-renderSig(sel,valid.slice(-3).reverse(),valid,yyyymm,hurdle);clearErr();
-}catch(e){showErr(‘calcSignal: ‘+e.message);console.error(e);}
+renderSig(sel,valid.slice(-3).reverse(),valid,yyyymm,hurdle);
 }
 function renderSig(sel,wk,all,yyyymm,hurdle){
 var zf=function(v){return v!==null?(v>=0?’+’:’’)+v.toFixed(2):’-’;};
 var pf=function(v){return v!==null?(v>=0?’+’:’’)+(v*100).toFixed(1)+’%’:’-’;};
-var tnxRate=getTNXRate(yyyymm);
-var html=’<div style="font-size:11px;color:var(--mu);margin-bottom:9px">評分月份: <b style="color:var(--tw)">’+yyyymm+’</b> ｜ ^TNX: <b style="color:var(--bl)">’+(tnxRate*100).toFixed(2)+’%</b> ｜ TS門檻: <b style="color:var(--ye)">’+(hurdle*100).toFixed(2)+’%</b></div>’;
-html+=’<div style="font-size:12px;font-weight:700;color:var(--tw);margin-bottom:6px">▲ 最強’+sel.length+‘支（建議做多）</div><div class="sg">’;
+var tnx=getTNXRate(yyyymm);
+var html=’<div style="font-size:11px;color:var(--mu);margin-bottom:9px">Month: <b style="color:var(--tw)">’+yyyymm+’</b> | ^TNX: <b style="color:var(--bl)">’+(tnx*100).toFixed(2)+’%</b> | Hurdle: <b style="color:var(--ye)">’+(hurdle*100).toFixed(2)+’%</b></div>’;
+html+=’<div style="font-size:12px;font-weight:700;color:var(--tw);margin-bottom:6px">Top ‘+sel.length+’</div><div class="sg">’;
 sel.forEach(function(r,rk){
-var isUs=!r.s.tw;
-var col=isUs?‘var(–us)’:‘var(–tw)’;var rbg=isUs?‘var(–usd)’:‘var(–twd)’;
-html+=’<div class="scard"><div class="shdr"><div><div class="scode" style="color:'+col+'">’+r.s.c+’</div><div class="sname">’+r.s.n+’</div></div>’;
-html+=’<span class="srank" style="background:'+rbg+';color:'+col+';border:1px solid '+col+'">#’+(rk+1)+’</span></div>’;
+var isUs=!r.s.tw;var col=isUs?‘var(–us)’:‘var(–tw)’;var rbg=isUs?‘var(–usd)’:‘var(–twd)’;
+html+=’<div class="scard"><div class="shdr"><div><div class="scode" style="color:'+col+'">’+r.s.c+’</div><div class="sname">’+r.s.n+’</div></div><span class="srank" style="background:'+rbg+';color:'+col+';border:1px solid '+col+'">#’+(rk+1)+’</span></div>’;
 html+=’<div class="sscore">’+(r.score>=0?’+’:’’)+r.score.toFixed(2)+’</div><div class="sbars">’;
-[[‘動能’,r.zm,‘var(–tw)’],[‘Bias’,r.zb,‘var(–bl)’],[‘斜率’,r.zs,‘var(–te)’],[‘量能’,r.zv,‘var(–ye)’],[‘K棒’,r.zk,‘var(–ac)’]].forEach(function(b){
-if(b[1]===null)return;
-var w=Math.round(Math.min(100,Math.abs(b[1])*25));
-html+=’<div class="sbrow"><span style="width:28px">’+b[0]+’</span><div class="sbwrap"><div class="sbfill" style="width:'+w+'%;background:'+b[2]+'"></div></div><span style="width:36px;text-align:right;font-family:monospace">’+zf(b[1])+’</span></div>’;
+[[‘Mom’,r.zm,‘var(–tw)’],[‘Bias’,r.zb,‘var(–bl)’],[‘Slope’,r.zs,‘var(–te)’],[‘Vol’,r.zv,‘var(–ye)’],[‘Kbar’,r.zk,‘var(–ac)’]].forEach(function(b){
+if(b[1]===null)return;var w=Math.round(Math.min(100,Math.abs(b[1])*25));
+html+=’<div class="sbrow"><span style="width:32px">’+b[0]+’</span><div class="sbwrap"><div class="sbfill" style="width:'+w+'%;background:'+b[2]+'"></div></div><span style="width:36px;text-align:right;font-family:monospace">’+zf(b[1])+’</span></div>’;
 });
 html+=’</div><div style="margin-top:5px;font-size:10px;color:var(--mu);font-family:monospace">R12:’+pf(r.r12)+’ R6:’+pf(r.r6)+’ R3:’+pf(r.r3)+’</div></div>’;
 });
 html+=’</div>’;
-if(!sel.length)html+=’<div style="color:var(--ye);font-size:12px;margin-bottom:9px">⚠ 無符合條件標的，建議持現金</div>’;
-html+=’<div style="font-size:12px;font-weight:700;color:var(--re);margin:9px 0 6px">▼ 最弱3支（純觀察）</div><div class="sg">’;
+if(!sel.length)html+=’<div style="color:var(--ye);font-size:12px;margin-bottom:9px">No qualifying stocks - hold cash</div>’;
+html+=’<div style="font-size:12px;font-weight:700;color:var(--re);margin:9px 0 6px">Weakest 3</div><div class="sg">’;
 wk.forEach(function(r,rk){
-html+=’<div class="scard wk"><div class="shdr"><div><div class="scode">’+r.s.c+’</div><div class="sname">’+r.s.n+’</div></div><span class="srank">弱’+(rk+1)+’</span></div><div class="sscore" style="color:var(--re)">’+(r.score>=0?’+’:’’)+r.score.toFixed(2)+’</div></div>’;
+html+=’<div class="scard wk"><div class="shdr"><div><div class="scode">’+r.s.c+’</div><div class="sname">’+r.s.n+’</div></div><span class="srank">W’+(rk+1)+’</span></div><div class="sscore" style="color:var(--re)">’+(r.score>=0?’+’:’’)+r.score.toFixed(2)+’</div></div>’;
 });
 html+=’</div>’;
 $(‘sigContent’).innerHTML=html;
@@ -887,50 +835,37 @@ return ‘<tr><td class="mono" style="color:var(--mu)">’+(i+1)+’</td>’+
 ‘<td class="mono" style="font-weight:700;color:'+(isUs?'var(--us)':'var(--tw)')+'">’+r.s.c+’</td>’+
 ‘<td>’+r.s.n+’</td><td style="font-size:10px;color:var(--mu)">’+r.s.ind+’</td>’+
 ‘<td class="mono" style="font-weight:700;color:'+(r.score>=0?'var(--gr)':'var(--re)')+'">’+zf(r.score)+’</td>’+
-‘<td class="mono">’+zf(r.zm)+’</td><td class="mono">’+zf(r.zb)+’</td><td class="mono">’+zf(r.zs)+’</td>’+
-‘<td class="mono">’+zf(r.zv)+’</td><td class="mono">’+zf(r.zk)+’</td>’+
+‘<td class="mono">’+zf(r.zm)+’</td><td class="mono">’+zf(r.zb)+’</td><td class="mono">’+zf(r.zs)+’</td><td class="mono">’+zf(r.zv)+’</td><td class="mono">’+zf(r.zk)+’</td>’+
 ‘<td class="mono">’+pf(r.r12)+’</td><td class="mono">’+pf(r.r6)+’</td><td class="mono">’+pf(r.r3)+’</td>’+
-‘<td>’+(ts?’<span style="color:var(--gr)">✓</span>’:’<span style="color:var(--re)">✗</span>’)+’</td></tr>’;
+‘<td>’+(ts?’<span style="color:var(--gr)">V</span>’:’<span style="color:var(--re)">X</span>’)+’</td></tr>’;
 }).join(’’);
 }
 
-// ── Backtest
-function initBT(){var b=$(‘btnBT’);if(b)b.addEventListener(‘click’,runBT);}
 function runBT(){
-if(!CACHE_BUILT){showErr(‘請先抓取資料建立快取’);return;}
-sl(‘btLog’,‘回測計算中…’,null);showL(‘回測中…’);
+if(!CACHE_BUILT){alert(‘Please fetch data first’);return;}
+sl(‘btLog’,‘Calculating…’,null);showL(‘Backtesting…’);
 setTimeout(function(){
 try{
-var enabled=POOL.filter(function(s){return s.on&&RAW_SCORES[s.c];});
-if(enabled.length<3){showErr(‘至少3支股票有快取’);hideL();return;}
-var refMo=MONTHLY[enabled[0].c];
-var allMonths=refMo.map(function(p){return p.date;}).sort();
-var rawS=($(‘btS’).value||’’).trim().slice(0,7);
-var rawE=($(‘btE’).value||’’).trim().slice(0,7);
+var stocks=getEnabledStocks().filter(function(s){return RAW_SCORES[s.c];});
+if(stocks.length<3){alert(‘Need at least 3 stocks’);hideL();return;}
+var refMo=MONTHLY[stocks[0].c];
+var allM=refMo.map(function(p){return p.date;}).sort();
+var rawS=($(‘btS’).value||’’).trim().slice(0,7),rawE=($(‘btE’).value||’’).trim().slice(0,7);
 var MIN=14,cS=MIN;
-if(rawS){for(var i=MIN;i<allMonths.length;i++){if(allMonths[i]>=rawS){cS=i;break;}}}
-var cE=allMonths.length-2;
-if(rawE){for(var i2=allMonths.length-2;i2>=MIN;i2–){if(allMonths[i2]<=rawE){cE=i2;break;}}}
-if(cS>cE){showErr(‘區間無效’);hideL();return;}
+if(rawS){for(var i=MIN;i<allM.length;i++){if(allM[i]>=rawS){cS=i;break;}}}
+var cE=allM.length-2;
+if(rawE){for(var i2=allM.length-2;i2>=MIN;i2–){if(allM[i2]<=rawE){cE=i2;break;}}}
+if(cS>cE){alert(‘Invalid range’);hideL();return;}
 var INIT=gv(‘btCap’)||100000,COST=(gv(‘btC’)||0.3)/100;
 var ct=gv(‘corrT’)||0.75,mh=parseInt(($(‘btH’)||{value:‘3’}).value)||3;
-var nav=INIT,bNav=INIT;
-var records=[],holdings={CASH:1.0};
-function getBench(yyyymm){
-if(!BENCH_MONTHLY.length)return null;
-var best=null;BENCH_MONTHLY.forEach(function(p){if(p.date<=yyyymm)best=p;});
-return best?best.c:null;
-}
-function getMo(code,yyyymm){
-var m=MONTHLY[code];if(!m)return null;
-var best=null;m.forEach(function(p){if(p.date<=yyyymm)best=p;});
-return best?best.c:null;
-}
+var nav=INIT,bNav=INIT,records=[],holdings={CASH:1.0};
+function getBench(m){if(!BENCH_MONTHLY.length)return null;var best=null;BENCH_MONTHLY.forEach(function(p){if(p.date<=m)best=p;});return best?best.c:null;}
+function getMo(code,m){var mo=MONTHLY[code];if(!mo)return null;var best=null;mo.forEach(function(p){if(p.date<=m)best=p;});return best?best.c:null;}
 for(var idx=cS;idx<=cE;idx++){
-var sigM=allMonths[idx],nextM=allMonths[idx+1];if(!nextM)break;
+var sigM=allM[idx],nextM=allM[idx+1];if(!nextM)break;
 var hurdle=getHurdle(sigM);
-var scores=calcAllScores(sigM);
-var valid=scores.filter(function(r){return r.score!==null;});
+var sc2=calcAllScores(sigM);
+var valid=sc2.filter(function(r){return r.score!==null;});
 valid.sort(function(a,b){return b.score-a.score;});
 var tsP=valid.filter(function(r){return r.r12!==null&&r.r12>hurdle;});
 var sel=[];
@@ -939,14 +874,13 @@ var cand=tsP[j];
 if(sel.every(function(x){return Math.abs(calcCorr(cand.s.c,x.s.c,sigM))<ct;}))sel.push(cand);
 }
 var newH={};
-if(sel.length){var w=1/sel.length;sel.forEach(function(r){newH[r.s.c]=w;});}
-else newH.CASH=1.0;
+if(sel.length){var w=1/sel.length;sel.forEach(function(r){newH[r.s.c]=w;});}else newH.CASH=1.0;
 var allC=new Set(Object.keys(holdings).concat(Object.keys(newH)));
 var tv=0;allC.forEach(function(c){tv+=Math.abs((newH[c]||0)-(holdings[c]||0));});
-var pRet=0,cashRate=getTNXRate(sigM); // use TNX as cash rate too
+var pRet=0,cr=getTNXRate(sigM);
 Object.entries(holdings).forEach(function(kv){
 var c=kv[0],wt=kv[1];
-if(c===‘CASH’){pRet+=wt*(cashRate/12);return;}
+if(c===‘CASH’){pRet+=wt*(cr/12);return;}
 var p0=getMo(c,sigM),p1=getMo(c,nextM);
 if(p0&&p1&&p0>0)pRet+=wt*(p1/p0-1);
 });
@@ -956,11 +890,10 @@ if(b0&&b1&&b0>0)bNav*=(1+b1/b0-1);
 records.push({month:nextM,nav:nav,bNav:bNav,holdings:Object.assign({},newH),pRet:pRet,hurdle:hurdle});
 holdings=newH;
 }
-if(records.length<6){showErr(‘回測資料過少’);hideL();return;}
-BT_RESULT={records:records,initial:INIT};
-renderBT();
-sl(‘btLog’,‘✅ 完成，共’+records.length+‘個月 (’+records[0].month+’ ~ ‘+records[records.length-1].month+’)’,true);
-}catch(err){sl(‘btLog’,‘❌ ‘+err.message,false);console.error(err);}
+if(records.length<6){alert(‘Too few records’);hideL();return;}
+BT_RESULT={records:records,initial:INIT};renderBT();
+sl(‘btLog’,‘Done: ‘+records.length+’ months (’+records[0].month+’ - ‘+records[records.length-1].month+’)’,true);
+}catch(err){sl(‘btLog’,‘Error: ‘+err.message,false);console.error(err);}
 finally{hideL();}
 },80);
 }
@@ -971,30 +904,27 @@ var last=recs[recs.length-1],first=recs[0];
 var yrs=(new Date(last.month+’-01’)-new Date(first.month+’-01’))/(365.25*86400000);
 var tr=last.nav/init-1,cagr=yrs>0?Math.pow(1+Math.max(tr,-0.999),1/yrs)-1:0;
 var btr=last.bNav/init-1,bcagr=yrs>0?Math.pow(1+Math.max(btr,-0.999),1/yrs)-1:0;
-var pk=init,mdd=0;
-recs.forEach(function(r){if(r.nav>pk)pk=r.nav;var dd=(r.nav-pk)/pk;if(dd<mdd)mdd=dd;});
+var pk=init,mdd=0;recs.forEach(function(r){if(r.nav>pk)pk=r.nav;var dd=(r.nav-pk)/pk;if(dd<mdd)mdd=dd;});
 var rets=recs.map(function(r){return r.pRet;});
 var avg=rets.reduce(function(a,b){return a+b;},0)/rets.length;
 var std=Math.sqrt(rets.reduce(function(a,b){return a+(b-avg)*(b-avg);},0)/rets.length)*Math.sqrt(12);
 var sh=std>0?(cagr-0.015)/std:0;
 var fmt=function(v,p,pl){return(pl&&v>=0?’+’:’’)+(p?(v*100).toFixed(2)+’%’:v.toFixed(2));};
 $(‘btMetrics’).innerHTML=[
-{lb:‘動能策略’,co:‘tw’,rows:[[‘最終淨值’,’$’+Math.round(last.nav).toLocaleString(),‘wh’],[‘區間報酬’,fmt(tr,true,true),tr>=0?‘tg’:‘tr’],[‘CAGR’,fmt(cagr,true),’’],[‘最大回撤’,fmt(mdd,true),‘tr’],[‘Sharpe’,sh.toFixed(2),‘tg’]]},
-{lb:‘TAIEX B&H’,co:‘mu’,rows:[[‘區間報酬’,fmt(btr,true,true),btr>=0?‘tg’:‘tr’],[‘CAGR’,fmt(bcagr,true),’’],[‘CAGR超額’,fmt(cagr-bcagr,true,true),(cagr-bcagr)>=0?‘tg’:‘tr’]]},
+{lb:‘Strategy’,co:‘tw’,rows:[[‘Final’,’$’+Math.round(last.nav).toLocaleString(),‘wh’],[‘Return’,fmt(tr,true,true),tr>=0?‘tg’:‘tr’],[‘CAGR’,fmt(cagr,true),’’],[‘MDD’,fmt(mdd,true),‘tr’],[‘Sharpe’,sh.toFixed(2),‘tg’]]},
+{lb:‘TAIEX B&H’,co:‘mu’,rows:[[‘Return’,fmt(btr,true,true),btr>=0?‘tg’:‘tr’],[‘CAGR’,fmt(bcagr,true),’’],[‘Alpha’,fmt(cagr-bcagr,true,true),(cagr-bcagr)>=0?‘tg’:‘tr’]]},
 ].map(function(m){
-return ‘<div class="card" style="border-top:3px solid var(--'+m.co+')"><div class="ct">’+m.lb+’</div>’+
-m.rows.map(function(r){return ‘<div class="mr"><span>’+r[0]+’</span><span class="mv '+(r[2]||'')+'">’+r[1]+’</span></div>’;}).join(’’)+’</div>’;
+return ‘<div class="card" style="border-top:3px solid var(--'+m.co+')"><div class="ct">’+m.lb+’</div>’+m.rows.map(function(r){return ‘<div class="mr"><span>’+r[0]+’</span><span class="mv '+(r[2]||'')+'">’+r[1]+’</span></div>’;}).join(’’)+’</div>’;
 }).join(’’);
 if(CHART.n){CHART.n.destroy();CHART.d.destroy();}
 var labels=recs.map(function(r){return r.month;});
 var sc={x:{ticks:{color:’#6b7a99’,maxTicksLimit:12},grid:{color:’#1a2030’}},y:{ticks:{color:’#6b7a99’},grid:{color:’#1a2030’}}};
 var opt={responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:‘index’},animation:{duration:200},plugins:{legend:{labels:{color:’#6b7a99’,boxWidth:10,font:{size:11}}}}};
 CHART.n=new Chart($(‘navC’).getContext(‘2d’),{type:‘line’,data:{labels:labels,datasets:[
-{label:‘動能策略’,data:recs.map(function(r){return r.nav;}),borderColor:’#ff6b9d’,borderWidth:2.5,pointRadius:0},
+{label:‘Strategy’,data:recs.map(function(r){return r.nav;}),borderColor:’#ff6b9d’,borderWidth:2.5,pointRadius:0},
 {label:‘TAIEX’,data:recs.map(function(r){return r.bNav;}),borderColor:’#3d4a66’,borderWidth:1,pointRadius:0}
 ]},options:Object.assign({},opt,{scales:Object.assign({},sc,{y:Object.assign({},sc.y,{type:‘logarithmic’})})})});
-var mddData=[],pk2=init;
-recs.forEach(function(r){if(r.nav>pk2)pk2=r.nav;mddData.push((r.nav-pk2)/pk2*100);});
+var mddData=[],pk2=init;recs.forEach(function(r){if(r.nav>pk2)pk2=r.nav;mddData.push((r.nav-pk2)/pk2*100);});
 CHART.d=new Chart($(‘ddC’).getContext(‘2d’),{type:‘line’,data:{labels:labels,datasets:[
 {label:‘MDD’,data:mddData,borderColor:’#ff6b9d’,borderWidth:1,pointRadius:0,fill:true,backgroundColor:‘rgba(255,107,157,0.08)’}
 ]},options:Object.assign({},opt,{plugins:{legend:{display:false}},scales:sc})});
@@ -1003,9 +933,10 @@ var idx2=recs.length-1-ri,pb=idx2>0?recs[idx2-1].bNav:init;
 var bRet=r.bNav/pb-1,ex=r.pRet-bRet;
 var rc=r.pRet>=0?‘var(–gr)’:‘var(–re)’,ec=ex>=0?‘var(–gr)’:‘var(–re)’;
 var chips=Object.entries(r.holdings).map(function(kv){
-var isUs2=POOL.find(function(p){return p.c===kv[0]&&!p.tw;});
-var col=isUs2?‘var(–us)’:‘var(–tw)’;var bd=isUs2?‘var(–usd)’:‘var(–twd)’;
-return ‘<span style="background:'+bd+';color:'+col+';border:1px solid '+col+';padding:1px 6px;border-radius:3px;font-size:10px;font-family:monospace;margin:1px">’+kv[0]+(kv[1]<0.99?’ ‘+(kv[1]*100).toFixed(0)+’%’:’’)+’</span>’;
+var chip=document.querySelector(’[data-act=“ts”][data-code=”’+kv[0]+’”]’);
+var isUs=chip&&chip.dataset.tw===‘0’;
+var col=isUs?‘var(–us)’:‘var(–tw)’;var bg=isUs?‘var(–usd)’:‘var(–twd)’;
+return ‘<span style="background:'+bg+';color:'+col+';border:1px solid '+col+';padding:1px 6px;border-radius:3px;font-size:10px;font-family:monospace;margin:1px">’+kv[0]+(kv[1]<0.99?’ ‘+(kv[1]*100).toFixed(0)+’%’:’’)+’</span>’;
 }).join(’’);
 return ‘<tr><td class="mono" style="font-weight:700">’+r.month+’</td><td>’+chips+’</td>’+
 ‘<td class="mono" style="font-size:10px;color:var(--bl)">’+(r.hurdle*100).toFixed(1)+’%</td>’+
@@ -1016,57 +947,47 @@ return ‘<tr><td class="mono" style="font-weight:700">’+r.month+’</td><td>�
 }).join(’’);
 }
 
-// ── Download / Upload
-function initDL(){
-var bj=$(‘btnDlJson’);if(bj)bj.addEventListener(‘click’,dlJson);
-var bw=$(‘btnDlWeekly’);if(bw)bw.addEventListener(‘click’,dlWeeklyCsv);
-var bm=$(‘btnDlMonthly’);if(bm)bm.addEventListener(‘click’,dlMonthlyCsv);
-var bu=$(‘btnUpJson’);if(bu)bu.addEventListener(‘click’,function(){$(‘fileJson’).click();});
-var fj=$(‘fileJson’);if(fj)fj.addEventListener(‘change’,upJson);
-var bb=$(‘btnDlBt’);if(bb)bb.addEventListener(‘click’,dlBtCsv);
-}
 function dlJson(){
-if(!Object.keys(MONTHLY).length){sl(‘dlLog’,‘尚無資料可存檔’,false);return;}
+if(!Object.keys(MONTHLY).length){sl(‘dlLog’,‘No data’,false);return;}
 var obj={ts:new Date().toISOString(),WEEKLY:WEEKLY,MONTHLY:MONTHLY,DAILY:DAILY,BENCH_MONTHLY:BENCH_MONTHLY,TNX_MONTHLY:TNX_MONTHLY};
 dlBlob(new Blob([JSON.stringify(obj)],{type:‘application/json’}),‘tw_momentum_’+new Date().toISOString().slice(0,10)+’.json’);
-sl(‘dlLog’,‘✅ JSON 已下載’,true);
+sl(‘dlLog’,‘JSON downloaded’,true);
 }
-function dlWeeklyCsv(){
-if(!Object.keys(WEEKLY).length&&!Object.keys(DAILY).length){sl(‘dlLog’,‘尚無資料’,false);return;}
+function dlOHLCVCsv(){
 var rows=[‘type,code,date,high,low,close,volume’];
 Object.entries(WEEKLY).forEach(function(kv){kv[1].forEach(function(w){rows.push(‘W,’+kv[0]+’,’+w.date+’,’+w.h+’,’+w.l+’,’+w.c+’,’+w.v);});});
 Object.entries(DAILY).forEach(function(kv){kv[1].forEach(function(w){rows.push(‘D,’+kv[0]+’,’+w.date+’,’+w.h+’,’+w.l+’,’+w.c+’,’+w.v);});});
+if(!rows.length){sl(‘dlLog’,‘No OHLCV data’,false);return;}
 dlText(rows.join(’\n’),‘tw_ohlcv_’+new Date().toISOString().slice(0,10)+’.csv’,‘text/csv;charset=utf-8’);
-sl(‘dlLog’,‘✅ OHLCV CSV 已下載’,true);
+sl(‘dlLog’,‘OHLCV CSV downloaded’,true);
 }
 function dlMonthlyCsv(){
-if(!Object.keys(MONTHLY).length){sl(‘dlLog’,‘尚無月頻資料’,false);return;}
 var rows=[‘code,date,close’];
 Object.entries(MONTHLY).forEach(function(kv){kv[1].forEach(function(m){rows.push(kv[0]+’,’+m.date+’,’+m.c);});});
-if(BENCH_MONTHLY.length)BENCH_MONTHLY.forEach(function(m){rows.push(’^TWII,’+m.date+’,’+m.c);});
-if(TNX_MONTHLY.length)TNX_MONTHLY.forEach(function(m){rows.push(’^TNX,’+m.date+’,’+m.c);});
+BENCH_MONTHLY.forEach(function(m){rows.push(’^TWII,’+m.date+’,’+m.c);});
+TNX_MONTHLY.forEach(function(m){rows.push(’^TNX,’+m.date+’,’+m.c);});
+if(rows.length<2){sl(‘dlLog’,‘No monthly data’,false);return;}
 dlText(rows.join(’\n’),‘tw_monthly_’+new Date().toISOString().slice(0,10)+’.csv’,‘text/csv;charset=utf-8’);
-sl(‘dlLog’,‘✅ 月頻 CSV 已下載’,true);
+sl(‘dlLog’,‘Monthly CSV downloaded’,true);
 }
 async function upJson(e){
 var file=e.target.files[0];if(!file)return;
-sl(‘dlLog’,‘讀取 ‘+file.name+’…’,null);
+sl(‘dlLog’,‘Loading ‘+file.name+’…’,null);
 try{
 var text=await file.text();var obj=JSON.parse(text);
-if(!obj.MONTHLY){sl(‘dlLog’,‘格式錯誤：無 MONTHLY 欄位’,false);return;}
-WEEKLY=obj.WEEKLY||{};MONTHLY=obj.MONTHLY||{};
-DAILY=obj.DAILY||{};BENCH_MONTHLY=obj.BENCH_MONTHLY||[];
-TNX_MONTHLY=obj.TNX_MONTHLY||[];
-updFetchStat();updateTNXDisplay();
+if(!obj.MONTHLY){sl(‘dlLog’,‘Invalid: no MONTHLY field’,false);return;}
+WEEKLY=obj.WEEKLY||{};MONTHLY=obj.MONTHLY||{};DAILY=obj.DAILY||{};
+BENCH_MONTHLY=obj.BENCH_MONTHLY||[];TNX_MONTHLY=obj.TNX_MONTHLY||[];
+updFetchStat();updTNXDisplay();
 await buildCache();
-sl(‘dlLog’,‘✅ 載入完成！可直接計算信號/回測。’,true);
-}catch(err){sl(‘dlLog’,‘❌ ‘+err.message,false);}
+sl(‘dlLog’,‘Loaded! Ready to calculate.’,true);
+}catch(err){sl(‘dlLog’,‘Error: ‘+err.message,false);}
 e.target.value=’’;
 }
 function dlBtCsv(){
-if(!BT_RESULT){sl(‘btLog’,‘請先執行回測’,false);return;}
+if(!BT_RESULT){sl(‘btLog’,‘Run backtest first’,false);return;}
 var recs=BT_RESULT.records,init=BT_RESULT.initial;
-var rows=[‘換倉月,持倉,門檻利率%,月報酬%,淨值,TAIEX淨值,超額%’];
+var rows=[‘month,holdings,hurdle%,return%,nav,taiex,alpha%’];
 recs.forEach(function(r,i){
 var pb=i>0?recs[i-1].bNav:init;var ex=r.pRet-(r.bNav/pb-1);
 var hold=Object.entries(r.holdings).map(function(kv){return kv[0]+(kv[1]<0.99?’ ‘+(kv[1]*100).toFixed(0)+’%’:’’);}).join(’+’);
@@ -1074,35 +995,6 @@ rows.push([r.month,hold,(r.hurdle*100).toFixed(2),(r.pRet*100).toFixed(3),Math.r
 });
 dlText(rows.join(’\n’),‘tw_backtest_’+new Date().toISOString().slice(0,10)+’.csv’,‘text/csv;charset=utf-8’);
 }
-
-// ── Init: the critical sequence
-window.addEventListener(‘DOMContentLoaded’,function(){
-try{
-// Step 1: load pool data FIRST, before any DOM manipulation
-var ok=loadPoolData();
-if(!ok){
-showErr(‘股池載入失敗，請重新整理頁面’);
-return; // stop here, don’t proceed
-}
-// Step 2: wire up tabs
-initTabs();
-// Step 3: render pool (requires POOL to be loaded)
-buildPool();
-// Step 4: wire all event listeners
-initPool();
-initFetch();
-initSig();
-initBT();
-initDL();
-// Step 5: update status displays
-updCacheSt();
-clearErr();
-console.log(‘Init complete. POOL:’,POOL.length,‘stocks’);
-}catch(e){
-showErr(’初始化失敗: ’+e.message);
-console.error(‘Init error:’,e);
-}
-});
 </script>
 
 </body>
