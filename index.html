@@ -1262,11 +1262,21 @@ function runBTcore(maxHoldings, mode, config = {}) {
 
     // Helper: 獲取指定日期月份的價格資料
     const getMo = (code, date) => {
-        const mo = MONTHLY[code];
-        if (!mo) return null;
-        const best = mo.filter(p => p.date <= date).pop();
-        return best ? best.c : null;
-    };
+    const mo = MONTHLY[code];
+    if (!mo) return null;
+
+    const monthKey = date.slice(0, 7);
+
+    // ✅ 1. 先精準找月份
+    let found = mo.find(p => p.date.slice(0, 7) === monthKey);
+
+    // ✅ 2. fallback（避免整個炸掉）
+    if (!found) {
+        found = mo.filter(p => p.date <= date).pop();
+    }
+
+    return found ? found.c : null;
+};
 
     const getBench = (date) => {
         if (!BENCH_MONTHLY.length) return null;
