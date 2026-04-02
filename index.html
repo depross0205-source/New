@@ -1129,7 +1129,7 @@ async function calcSignal() {
     
     // 與已選中的標的檢查相關性
     for (var x of sel) {
-      if (Math.abs(calcCorr(cand.s.c, x.s.c, yyyymm)) >= ct) {
+      if (Math.abs(calcCorr(cand.s.c, x.s.c, signalMonth)) >= ct) {
         conflict = x.s.c;
         break;
       }
@@ -1275,13 +1275,14 @@ function runBTcore(maxHoldings, mode, config = {}) {
     };
 
     // 4. 主循環：逐月回測
-    for (let idx = startIndex; idx <= endIndex; idx++) {
-        const sigM = allMonths[idx];
-        const nextM = allMonths[idx + 1];
+   for (let idx = startIndex; idx <= endIndex; idx++) {
 
+    const signalMonth = allMonths[idx - 1];  // 👈 往前一格（關鍵）
+    const sigM = allMonths[idx];             // 買入時點（月底）
+    const nextM = allMonths[idx + 1];        // 賣出
         // --- A. 選股邏輯 ---
-        const hurdle = getHurdle(sigM);
-        const allSc = calcAllScores(sigM);
+        const hurdle = getHurdle(signalMonth);
+const allSc = calcAllScores(signalMonth);
         const validSc = allSc.filter(r => r.score !== null).sort((a, b) => b.score - a.score);
 
         // 多頭選股 (Long Selection)
@@ -1356,7 +1357,7 @@ function runBTcore(maxHoldings, mode, config = {}) {
         let periodRet = 0;
         let pureRet = 0;
         const stockRets = {};
-        const cashRate = getTNXRate(sigM) / 12;
+        const cashRate = getTNXRate(signalMonth) / 12;
 
         Object.entries(newHoldings).forEach(([code, weight]) => {
             let ret = 0;
