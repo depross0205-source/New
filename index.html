@@ -1218,12 +1218,11 @@ var refMo=MONTHLY[stocks[0].c],allM=refMo.map(function(p){return p.date;}).sort(
 var rawS=$(‘btS’)?($(‘btS’).value||’’).trim().slice(0,7):’’;
 var rawE=$(‘btE’)?($(‘btE’).value||’’).trim().slice(0,7):’’;
 
-// 修正：cS 指向的是「信號月」(買入參考)，cE 指向的是「最後一個可結算的信號月」
-// 因為表格都是月底數據，第一個月無法計算報酬（無前期數據）
-// 所以記錄會從 allM[cS+1] 開始有報酬率
+// cS = signal month index, cE = last settable signal month
+// First record will have month=allM[cS+1] because tables are month-end data
 var MIN=14,cS=MIN;
 if(rawS){for(var i=MIN;i<allM.length;i++){if(allM[i]>=rawS){cS=i;break;}}}
-var cE=allM.length-2; // 因為需要 idx+1 進行結算，所以最大到倒數第二個月
+var cE=allM.length-2;
 if(rawE){for(var i2=allM.length-2;i2>=MIN;i2–){if(allM[i2]<=rawE){cE=i2;break;}}}
 if(cS>cE)return null;
 
@@ -1239,13 +1238,9 @@ function getBench(m){if(!BENCH_MONTHLY.length)return null;var best=null;BENCH_MO
 function getMo(code,m){var mo=MONTHLY[code];if(!mo)return null;var best=null;mo.forEach(function(p){if(p.date<=m)best=p;});return best?best.c:null;}
 
 for(var idx=cS;idx<=cE;idx++){
-// sigM = 信號月（月底數據，用於建仓決策）
-// nextM = 結算月（下月底數據，計算該月報酬）
-// 報酬對應 nextM，因為表格都是月底數據
 var sigM=allM[idx],nextM=allM[idx+1];
 
 ```
-// 計算訊號：僅使用 sigM (月底) 可得的數據
 var hurdle=getHurdle(sigM),sc2=calcAllScores(sigM);
 var valid=sc2.filter(function(r){return r.score!==null;});
 valid.sort(function(a,b){return b.score-a.score;});
@@ -1286,12 +1281,10 @@ else{
   }
 }
 
-// 計算週轉成本
 var allC=Object.keys(holdings).concat(Object.keys(newH)),seen2={};
 allC.forEach(function(c){seen2[c]=true;});
 var tv=0;Object.keys(seen2).forEach(function(c){tv+=Math.abs((newH[c]||0)-(holdings[c]||0));});
 
-// 計算該月報酬：從 sigM(月底) 到 nextM(下月底)
 var pRet=0,cr=getTNXRate(sigM),stockRets={},pureRet=0;
 Object.keys(newH).forEach(function(c){
   var wt=newH[c];
@@ -1310,19 +1303,15 @@ var cost=(tv/2)*COST;
 pRet-=cost;
 nav*=(1+pRet);
 
-// 計算月底自然漂移後的權重
 var driftedH={};
 Object.keys(newH).forEach(function(c){
   driftedH[c]=newH[c]*(1+(stockRets[c]?stockRets[c].ret:0))/(1+pureRet);
 });
 
-// 大盤報酬對齊
 var b0=getBench(sigM),b1=getBench(nextM);
 if(b0&&b1&&b0>0)bNav*=(1+b1/b0-1);
 
 var hCopy={};Object.keys(newH).forEach(function(k){hCopy[k]=newH[k];});
-// 修正：記錄月份應為 nextM (結算月)，報酬對應該月的實現
-// 這樣第一個記錄為 allM[cS+1]，其報酬由 allM[cS] 和 allM[cS+1] 計算
 records.push({month:nextM,nav:nav,bNav:bNav,holdings:hCopy,pRet:pRet,hurdle:hurdle,stockRets:stockRets});
 holdings=driftedH;
 ```
