@@ -1277,9 +1277,11 @@ function runBTcore(maxHoldings, mode, config = {}) {
     // 4. 主循環：逐月回測
    for (let idx = startIndex; idx <= endIndex; idx++) {
 
-    const signalMonth = allMonths[idx - 1];  // 👈 往前一格（關鍵）
-    const sigM = allMonths[idx];             // 買入時點（月底）
-    const nextM = allMonths[idx + 1];        // 賣出
+const signalMonth = allMonths[idx - 1];
+
+getHurdle(signalMonth)
+calcAllScores(signalMonth)
+getTNXRate(signalMonth)
         // --- A. 選股邏輯 ---
         const hurdle = getHurdle(signalMonth);
 const allSc = calcAllScores(signalMonth);
