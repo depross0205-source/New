@@ -1209,122 +1209,111 @@ function renderST(all, hurdle, selectedCodes, rejectedMap) {
     + '<td>' + (ts ? '<span style="color:var(--gr)">Y</span>' : '<span style="color:var(--re)">N</span>') + '</td></tr>';
   }).join('');
 }
-function runBTcore(mh,mode){
-var stocks=getEnabledStocks().filter(function(s){return RAW_SCORES[s.c];});
-if(stocks.length<3)return null;
-var refMo=MONTHLY[stocks[0].c],allM=refMo.map(function(p){return p.date;}).sort();
+function runBTcore(mh, mode) {
+  var stocks = getEnabledStocks().filter(function(s) { return RAW_SCORES[s.c]; });
+  if (stocks.length < 3) return null;
+  var refMo = MONTHLY[stocks[0].c], allM = refMo.map(function(p) { return p.date; }).sort();
 
-var rawS=$(‘btS’)?($(‘btS’).value||’’).trim().slice(0,7):’’;
-var rawE=$(‘btE’)?($(‘btE’).value||’’).trim().slice(0,7):’’;
+  var rawS = $('btS') ? ($('btS').value || '').trim().slice(0, 7) : '';
+  var rawE = $('btE') ? ($('btE').value || '').trim().slice(0, 7) : '';
 
-// 修正：cS 指向的是「買入月份」，cE 指向的是「最後一個可結算的買入月份」
-var MIN=14,cS=MIN;
-if(rawS){for(var i=MIN;i<allM.length;i++){if(allM[i]>=rawS){cS=i;break;}}}
-var cE=allM.length-2; // 因為需要 idx+1 進行結算，所以最大到倒數第二個月
-if(rawE){for(var i2=allM.length-2;i2>=MIN;i2–){if(allM[i2]<=rawE){cE=i2;break;}}}
-if(cS>cE)return null;
+  var MIN = 14, cS = MIN;
+  if (rawS) { for (var i = MIN; i < allM.length; i++) { if (allM[i] >= rawS) { cS = i; break; } } }
+  var cE = allM.length - 2; 
+  if (rawE) { for (var i2 = allM.length - 2; i2 >= MIN; i2--) { if (allM[i2] <= rawE) { cE = i2; break; } } }
+  if (cS > cE) return null;
 
-var INIT=gv(‘btCap’)||100000,COST=(gv(‘btC’)||0.3)/100,ct=gv(‘corrT’)||0.75;
-var shortN=parseInt($(‘btSN’)?$(‘btSN’).value:‘0’)||0;
-var capModeEl=document.querySelector(‘input[name=“capMode”]:checked’);
-var capMode=capModeEl?capModeEl.value:‘neutral’;
-var shortTSF=!!($(‘btSTSF’)&&$(‘btSTSF’).checked);
+  var INIT = gv('btCap') || 100000, COST = (gv('btC') || 0.3) / 100, ct = gv('corrT') || 0.75;
+  var shortN = parseInt($('btSN') ? $('btSN').value : '0') || 0;
+  var capModeEl = document.querySelector('input[name="capMode"]:checked');
+  var capMode = capModeEl ? capModeEl.value : 'neutral';
+  var shortTSF = !!($('btSTSF') && $('btSTSF').checked);
 
-var nav=INIT,bNav=INIT,records=[],holdings={CASH:1.0};
+  var nav = INIT, bNav = INIT, records = [], holdings = { CASH: 1.0 };
 
-function getBench(m){if(!BENCH_MONTHLY.length)return null;var best=null;BENCH_MONTHLY.forEach(function(p){if(p.date<=m)best=p;});return best?best.c:null;}
-function getMo(code,m){var mo=MONTHLY[code];if(!mo)return null;var best=null;mo.forEach(function(p){if(p.date<=m)best=p;});return best?best.c:null;}
+  function getBench(m) { if (!BENCH_MONTHLY.length) return null; var best = null; BENCH_MONTHLY.forEach(function(p) { if (p.date <= m) best = p; }); return best ? best.c : null; }
+  function getMo(code, m) { var mo = MONTHLY[code]; if (!mo) return null; var best = null; mo.forEach(function(p) { if (p.date <= m) best = p; }); return best ? best.c : null; }
 
-for(var idx=cS;idx<=cE;idx++){
-// sigM = 買入當月 (Yahoo日期戳記為該月初)
-// nextM = 結算當月 (Yahoo日期戳記為下月初)
-var sigM=allM[idx],nextM=allM[idx+1];
+  for (var idx = cS; idx <= cE; idx++) {
+    var sigM = allM[idx], nextM = allM[idx + 1];
 
-```
-// 計算訊號：僅使用 sigM (即當月初/上月底) 可得的數據
-var hurdle=getHurdle(sigM),sc2=calcAllScores(sigM);
-var valid=sc2.filter(function(r){return r.score!==null;});
-valid.sort(function(a,b){return b.score-a.score;});
+    var hurdle = getHurdle(sigM), sc2 = calcAllScores(sigM);
+    var valid = sc2.filter(function(r) { return r.score !== null; });
+    valid.sort(function(a, b) { return b.score - a.score; });
 
-var tsP=valid.filter(function(r){return r.r12!==null&&r.r12>hurdle;});
-var sel=[];
-for(var j=0;j<tsP.length&&sel.length<mh;j++){
-  var cand=tsP[j];
-  if(sel.every(function(x){return Math.abs(calcCorr(cand.s.c,x.s.c,sigM))<ct;}))sel.push(cand);
-}
+    var tsP = valid.filter(function(r) { return r.r12 !== null && r.r12 > hurdle; });
+    var sel = [];
+    for (var j = 0; j < tsP.length && sel.length < mh; j++) {
+      var cand = tsP[j];
+      if (sel.every(function(x) { return Math.abs(calcCorr(cand.s.c, x.s.c, sigM)) < ct; })) sel.push(cand);
+    }
 
-var selS=[];
-if(shortN>0&&sel.length>0){
-  var longMap={};sel.forEach(function(r){longMap[r.s.c]=1;});
-  var sCands=valid.filter(function(r){return !longMap[r.s.c];});
-  if(shortTSF)sCands=sCands.filter(function(r){return r.r12!==null&&r.r12<0;});
-  sCands.sort(function(a,b){return a.score-b.score;});
-  for(var ks=0;ks<sCands.length&&selS.length<shortN;ks++){
-    var cS2=sCands[ks];
-    if(selS.every(function(x){return Math.abs(calcCorr(cS2.s.c,x.s.c,sigM))<ct;}))selS.push(cS2);
+    var selS = [];
+    if (shortN > 0 && sel.length > 0) {
+      var longMap = {}; sel.forEach(function(r) { longMap[r.s.c] = 1; });
+      var sCands = valid.filter(function(r) { return !longMap[r.s.c]; });
+      if (shortTSF) sCands = sCands.filter(function(r) { return r.r12 !== null && r.r12 < 0; });
+      sCands.sort(function(a, b) { return a.score - b.score; });
+      for (var ks = 0; ks < sCands.length && selS.length < shortN; ks++) {
+        var cS2 = sCands[ks];
+        if (selS.every(function(x) { return Math.abs(calcCorr(cS2.s.c, x.s.c, sigM)) < ct; })) selS.push(cS2);
+      }
+    }
+
+    var newH = {};
+    if (!sel.length) { newH = { CASH: 1.0 }; }
+    else {
+      var is1330 = capMode === '1330';
+      var lScale = is1330 ? 1.0 : 0.5, sScale = is1330 ? 0.3 : 0.5;
+      if (mode === 'rank' && sel.length) {
+        var ldenom = sel.length * (sel.length + 1) / 2;
+        sel.forEach(function(r, i) { newH[r.s.c] = lScale * (sel.length - i) / ldenom; });
+      } else { var lw = lScale / sel.length; sel.forEach(function(r) { newH[r.s.c] = lw; }); }
+      if (selS.length) {
+        if (mode === 'rank') {
+          var sdenom = selS.length * (selS.length + 1) / 2;
+          selS.forEach(function(r, i) { newH[r.s.c] = -sScale * (selS.length - i) / sdenom; });
+        } else { var sw = sScale / selS.length; selS.forEach(function(r) { newH[r.s.c] = -sw; }); }
+      }
+    }
+
+    var allC = Object.keys(holdings).concat(Object.keys(newH)), seen2 = {};
+    allC.forEach(function(c) { seen2[c] = true; });
+    var tv = 0; Object.keys(seen2).forEach(function(c) { tv += Math.abs((newH[c] || 0) - (holdings[c] || 0)); });
+
+    var pRet = 0, cr = getTNXRate(sigM), stockRets = {}, pureRet = 0;
+    Object.keys(newH).forEach(function(c) {
+      var wt = newH[c];
+      if (c === 'CASH') {
+        var r_cash = cr / 12; pRet += wt * r_cash; pureRet += wt * r_cash;
+        stockRets.CASH = { ret: r_cash, w: wt }; return;
+      }
+      var p0 = getMo(c, sigM), p1 = getMo(c, nextM);
+      if (p0 && p1 && p0 > 0) {
+        var r_stock = p1 / p0 - 1; pRet += wt * r_stock; pureRet += wt * r_stock;
+        stockRets[c] = { ret: r_stock, w: wt };
+      } else { stockRets[c] = { ret: 0, w: wt }; }
+    });
+
+    var cost = (tv / 2) * COST;
+    pRet -= cost;
+    nav *= (1 + pRet);
+
+    var driftedH = {};
+    Object.keys(newH).forEach(function(c) {
+      driftedH[c] = newH[c] * (1 + (stockRets[c] ? stockRets[c].ret : 0)) / (1 + pureRet);
+    });
+
+    var b0 = getBench(sigM), b1 = getBench(nextM);
+    if (b0 && b1 && b0 > 0) bNav *= (1 + b1 / b0 - 1);
+
+    var hCopy = {}; Object.keys(newH).forEach(function(k) { hCopy[k] = newH[k]; });
+    records.push({ month: nextM, nav: nav, bNav: bNav, holdings: hCopy, pRet: pRet, hurdle: hurdle, stockRets: stockRets });
+    holdings = driftedH;
   }
+  return records.length >= 6 ? records : null;
 }
 
-var newH={};
-if(!sel.length){newH={CASH:1.0};}
-else{
-  var is1330=capMode==='1330';
-  var lScale=is1330?1.0:0.5,sScale=is1330?0.3:0.5;
-  if(mode==='rank'&&sel.length){
-    var ldenom=sel.length*(sel.length+1)/2;
-    sel.forEach(function(r,i){newH[r.s.c]=lScale*(sel.length-i)/ldenom;});
-  }else{var lw=lScale/sel.length;sel.forEach(function(r){newH[r.s.c]=lw;});}
-  if(selS.length){
-    if(mode==='rank'){
-      var sdenom=selS.length*(selS.length+1)/2;
-      selS.forEach(function(r,i){newH[r.s.c]=-sScale*(selS.length-i)/sdenom;});
-    }else{var sw=sScale/selS.length;selS.forEach(function(r){newH[r.s.c]=-sw;});}
-  }
-}
-
-// 計算週轉成本
-var allC=Object.keys(holdings).concat(Object.keys(newH)),seen2={};
-allC.forEach(function(c){seen2[c]=true;});
-var tv=0;Object.keys(seen2).forEach(function(c){tv+=Math.abs((newH[c]||0)-(holdings[c]||0));});
-
-// 計算該月報酬：從 sigM(月初) 到 nextM(下月初)
-var pRet=0,cr=getTNXRate(sigM),stockRets={},pureRet=0;
-Object.keys(newH).forEach(function(c){
-  var wt=newH[c];
-  if(c==='CASH'){
-    var r_cash=cr/12; pRet+=wt*r_cash; pureRet+=wt*r_cash;
-    stockRets.CASH={ret:r_cash,w:wt}; return;
-  }
-  var p0=getMo(c,sigM),p1=getMo(c,nextM);
-  if(p0&&p1&&p0>0){
-    var r_stock=p1/p0-1; pRet+=wt*r_stock; pureRet+=wt*r_stock;
-    stockRets[c]={ret:r_stock,w:wt};
-  }else{ stockRets[c]={ret:0,w:wt}; }
-});
-
-var cost=(tv/2)*COST;
-pRet-=cost;
-nav*=(1+pRet);
-
-// 計算月底自然飄移後的權重
-var driftedH={};
-Object.keys(newH).forEach(function(c){
-  driftedH[c]=newH[c]*(1+(stockRets[c]?stockRets[c].ret:0))/(1+pureRet);
-});
-
-// 大盤報酬對齊
-var b0=getBench(sigM),b1=getBench(nextM);
-if(b0&&b1&&b0>0)bNav*=(1+b1/b0-1);
-
-var hCopy={};Object.keys(newH).forEach(function(k){hCopy[k]=newH[k];});
-// 重要修正：將資料標記為 nextM (結算月)，因為表格都是月底數據，第一個月無前期報酬
-records.push({month:nextM,nav:nav,bNav:bNav,holdings:hCopy,pRet:pRet,hurdle:hurdle,stockRets:stockRets});
-holdings=driftedH;
-```
-
-}
-return records.length>=6?records:null;
-}
 
 function kpi(records,init){
   var last=records[records.length-1];
