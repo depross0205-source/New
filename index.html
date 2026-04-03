@@ -1231,9 +1231,13 @@ function runBTcore(mh, mode) {
   var stocks = getEnabledStocks().filter(function(s) { return RAW_SCORES[s.c]; });
   if (stocks.length < 3) return null;
 
-  var refMo = MONTHLY[stocks[0].c];
+    var refMo = MONTHLY[stocks[0].c];
   if (!refMo) return null;
-  var allM = refMo.map(function(p) { return p.date; }).sort();
+  var _thisM = new Date().toISOString().slice(0, 7);
+  var allM = refMo.map(function(p) { return p.date; })
+                  .filter(function(m) { return m < _thisM; })
+                  .sort();
+
 
   // 取得 UI 設定的起訖日期
   var rawS = $('btS') ? ($('btS').value || '').trim().slice(0, 7) : '';
