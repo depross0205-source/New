@@ -828,7 +828,19 @@ async function smartFetch(s, type) {
     }
 }
 
+function deriveMontlyFromBars(bars){
+  if(!bars||!bars.length)return[];
+  var byMonth={};
+  bars.forEach(function(b){
+    var m=b.date.slice(0,7);
+    byMonth[m]=b.c;
+  });
+  return Object.keys(byMonth).sort().map(function(m){
+    return{date:m,c:byMonth[m]};
+  });
+}
 function mergeArr(existing,newData){
+
   var map={};
   (existing||[]).forEach(function(d){map[d.date]=d;});
   (newData||[]).forEach(function(d){map[d.date]=d;});
@@ -859,13 +871,14 @@ async function fetchUpdate(){
     var s=toFetch[i];var isMissing=missing.indexOf(s)>=0;
     $('loadTxt').textContent=(isMissing?'[NEW] ':'[UPD] ')+s.c+' ('+(i+1)+'/'+toFetch.length+')';
     try{
-      if(s.tw){
+          if(s.tw){
         WEEKLY[s.c]=mergeArr(WEEKLY[s.c],await fetchOHLCV(s,'1wk',prx));
-        MONTHLY[s.c]=mergeArr(MONTHLY[s.c],await fetchMonthly(s,prx));
+        MONTHLY[s.c]=deriveMontlyFromBars(WEEKLY[s.c]);
       }else{
         DAILY[s.c]=mergeArr(DAILY[s.c],await fetchOHLCV(s,'1d',prx));
-        MONTHLY[s.c]=mergeArr(MONTHLY[s.c],await fetchMonthly(s,prx));
+        MONTHLY[s.c]=deriveMontlyFromBars(DAILY[s.c]);
       }
+
     }catch(e){failed.push(s.c);}
     await new Promise(function(r){setTimeout(r,350);});
   }
@@ -915,17 +928,15 @@ async function fetchAll(){
     var s=tw[i];prog('TW wk: '+s.c+' ('+(i+1)+'/'+tw.length+')');
     try{WEEKLY[s.c]=await fetchOHLCV(s,'1wk',prx);}catch(e){failed.push(s.c+'-W');}
     await new Promise(function(r){setTimeout(r,350);});
-    prog('TW mo: '+s.c);
-    try{MONTHLY[s.c]=await fetchMonthly(s,prx);}catch(e){failed.push(s.c+'-M');}
-    await new Promise(function(r){setTimeout(r,350);});
+        prog('TW mo: '+s.c);
+    try{MONTHLY[s.c]=deriveMontlyFromBars(WEEKLY[s.c]);}catch(e){failed.push(s.c+'-M');}
   }
   for(var i2=0;i2<us.length;i2++){
     var s2=us[i2];prog('US day: '+s2.c+' ('+(i2+1)+'/'+us.length+')');
     try{DAILY[s2.c]=await fetchOHLCV(s2,'1d',prx);}catch(e){failed.push(s2.c+'-D');}
     await new Promise(function(r){setTimeout(r,350);});
-    prog('US mo: '+s2.c);
-    try{MONTHLY[s2.c]=await fetchMonthly(s2,prx);}catch(e){failed.push(s2.c+'-M');}
-    await new Promise(function(r){setTimeout(r,350);});
+        prog('US mo: '+s2.c);
+    try{MONTHLY[s2.c]=deriveMontlyFromBars(DAILY[s2.c]);}catch(e){failed.push(s2.c+'-M');}
   }
   prog('^TWII');
   try{BENCH_MONTHLY=await fetchMonthly('^TWII',prx);}catch(e){failed.push('^TWII');}
@@ -1129,7 +1140,7 @@ async function calcSignal() {
     
     // 與已選中的標的檢查相關性
     for (var x of sel) {
-      if (Math.abs(calcCorr(cand.s.c, x.s.c, signalMonth)) >= ct) {
+      if (Math.abs(calcCorr(cand.s.c, x.s.c, yyyymm)) >= ct) {
         conflict = x.s.c;
         break;
       }
@@ -1209,212 +1220,158 @@ function renderST(all, hurdle, selectedCodes, rejectedMap) {
     + '<td>' + (ts ? '<span style="color:var(--gr)">Y</span>' : '<span style="color:var(--re)">N</span>') + '</td></tr>';
   }).join('');
 }
-/**
- * 純淨版 Backtest 核心邏輯
- * @param {number} maxHoldings - 最大持股數 (mh)
- * @param {string} mode - 權重模式 ('rank' 或 'equal')
- * @param {Object} config - 外部傳入的參數設定
- */
-function runBTcore(maxHoldings, mode, config = {}) {
-    // 1. 初始化與參數設定 (預設值由 config 提供)
-    const {
-        initCap = 100000,
-        costRate = 0.003,      // 交易手續費
-        corrThreshold = 0.75, // 相關係數門檻
-        shortCount = 0,       // 空頭個數
-        capMode = 'neutral',  // 'neutral' 或 '1330'
-        shortTSF = false      // 空頭是否過濾負動能
-    } = config;
 
-    const enabledStocks = getEnabledStocks().filter(s => RAW_SCORES[s.c]);
-    if (enabledStocks.length < 3) return null;
+function runBTcore(mh, mode) {
+  // 檢查是否有選取股票與快取資料
+  var stocks = getEnabledStocks().filter(function(s) { return RAW_SCORES[s.c]; });
+  if (stocks.length < 3) return null;
 
-    const referenceMo = MONTHLY[enabledStocks[0].c];
-    const allMonths = referenceMo.map(p => p.date).sort();
+  var refMo = MONTHLY[stocks[0].c];
+  if (!refMo) return null;
+  var allM = refMo.map(function(p) { return p.date; }).sort();
 
-    // 2. 決定回測起訖索引
-    const rawS = config.startDate || '';
-    const rawE = config.endDate || '';
-    const MIN_PERIOD = 14;
+  // 取得 UI 設定的起訖日期
+  var rawS = $('btS') ? ($('btS').value || '').trim().slice(0, 7) : '';
+  var rawE = $('btE') ? ($('btE').value || '').trim().slice(0, 7) : '';
 
-    let startIndex = MIN_PERIOD;
-    if (rawS) {
-        const found = allMonths.findIndex((m, i) => i >= MIN_PERIOD && m >= rawS);
-        if (found !== -1) startIndex = found;
+  // 設定計算索引：需保留足夠月份計算動量 (MIN=14)
+  var MIN = 14, cS = MIN;
+  if (rawS) {
+    for (var i = MIN; i < allM.length; i++) {
+      if (allM[i] >= rawS) { cS = i; break; }
     }
+  }
 
-    let endIndex = allMonths.length - 2;
-    if (rawE) {
-        for (let i = allMonths.length - 2; i >= MIN_PERIOD; i--) {
-            if (allMonths[i] <= rawE) {
-                endIndex = i;
-                break;
-            }
-        }
+  // 因為需要 idx+1 進行月底結算，cE 最大只能到倒數第二個月
+  var cE = allM.length - 2;
+  if (rawE) {
+    for (var i2 = allM.length - 2; i2 >= MIN; i2--) {
+      if (allM[i2] <= rawE) { cE = i2; break; }
     }
-    if (startIndex > endIndex) return null;
+  }
 
-    // 3. 狀態變數初始化
-    let nav = initCap;
-    let bNav = initCap;
-    let holdings = { CASH: 1.0 };
-    const records = [];
+  // 若資料區間不足，回傳 null 讓 runBT 顯示「資料不足」
+  if (cS > cE) {
+    console.warn("回測區間不足: cS=" + cS + ", cE=" + cE);
+    return null;
+  }
 
-    // Helper: 獲取指定日期月份的價格資料
-    const getMo = (code, date) => {
-    const mo = MONTHLY[code];
+  var INIT = gv('btCap') || 100000, COST = (gv('btC') || 0.3) / 100, ct = gv('corrT') || 0.75;
+  var shortN = parseInt($('btSN') ? $('btSN').value : '0') || 0;
+  var capModeEl = document.querySelector('input[name="capMode"]:checked');
+  var capMode = capModeEl ? capModeEl.value : 'neutral';
+  var shortTSF = !!($('btSTSF') && $('btSTSF').checked);
+
+  var nav = INIT, bNav = INIT, records = [], holdings = { CASH: 1.0 };
+
+  function getBench(m) {
+    if (!BENCH_MONTHLY.length) return null;
+    var best = null;
+    BENCH_MONTHLY.forEach(function(p) { if (p.date <= m) best = p; });
+    return best ? best.c : null;
+  }
+
+  function getMo(code, m) {
+    var mo = MONTHLY[code];
     if (!mo) return null;
+    var best = null;
+    mo.forEach(function(p) { if (p.date <= m) best = p; });
+    return best ? best.c : null;
+  }
 
-    const monthKey = date.slice(0, 7);
+  // 開始回測迴圈
+  for (var idx = cS; idx <= cE; idx++) {
+    var sigM = allM[idx], nextM = allM[idx+1];
 
-    // ✅ 1. 先精準找月份
-    let found = mo.find(p => p.date.slice(0, 7) === monthKey);
+    // 1. 計算訊號 (使用該月初資料)
+    var hurdle = getHurdle(sigM), sc2 = calcAllScores(sigM);
+    var valid = sc2.filter(function(r) { return r.score !== null; });
+    valid.sort(function(a, b) { return b.score - a.score; });
 
-    // ✅ 2. fallback（避免整個炸掉）
-    if (!found) {
-        found = mo.filter(p => p.date <= date).pop();
+    // 2. 選取多單標的 (TS 濾網 + 相關性)
+    var tsP = valid.filter(function(r) { return r.r12 !== null && r.r12 > hurdle; });
+    var sel = [];
+    for (var j = 0; j < tsP.length && sel.length < mh; j++) {
+      var cand = tsP[j];
+      if (sel.every(function(x) { return Math.abs(calcCorr(cand.s.c, x.s.c, sigM)) < ct; })) {
+        sel.push(cand);
+      }
     }
 
-    return found ? found.c : null;
-};
-
-    const getBench = (date) => {
-        if (!BENCH_MONTHLY.length) return null;
-        const best = BENCH_MONTHLY.filter(p => p.date <= date).pop();
-        return best ? best.c : null;
-    };
-
-    // 4. 主循環：逐月回測
-   for (let idx = startIndex; idx <= endIndex; idx++) {
-
-const signalMonth = allMonths[idx - 1];
-
-getHurdle(signalMonth)
-calcAllScores(signalMonth)
-getTNXRate(signalMonth)
-        // --- A. 選股邏輯 ---
-        const hurdle = getHurdle(signalMonth);
-const allSc = calcAllScores(signalMonth);
-        const validSc = allSc.filter(r => r.score !== null).sort((a, b) => b.score - a.score);
-
-        // 多頭選股 (Long Selection)
-        const tsP = validSc.filter(r => r.r12 !== null && r.r12 > hurdle);
-        const selectedLong = [];
-        for (const cand of tsP) {
-            if (selectedLong.length >= maxHoldings) break;
-            const isUncorrelated = selectedLong.every(x => 
-                Math.abs(calcCorr(cand.s.c, x.s.c, sigM)) < corrThreshold
-            );
-            if (isUncorrelated) selectedLong.push(cand);
+    // 3. 選取空單標的 (選配)
+    var selS = [];
+    if (shortN > 0 && sel.length > 0) {
+      var longMap = {}; sel.forEach(function(r) { longMap[r.s.c] = 1; });
+      var sCands = valid.filter(function(r) { return !longMap[r.s.c]; });
+      if (shortTSF) sCands = sCands.filter(function(r) { return r.r12 !== null && r.r12 < 0; });
+      sCands.sort(function(a, b) { return a.score - b.score; });
+      for (var ks = 0; ks < sCands.length && selS.length < shortN; ks++) {
+        var candS = sCands[ks];
+        if (selS.every(function(x) { return Math.abs(calcCorr(candS.s.c, x.s.c, sigM)) < ct; })) {
+          selS.push(candS);
         }
-
-        // 空頭選股 (Short Selection)
-        const selectedShort = [];
-        if (shortCount > 0 && selectedLong.length > 0) {
-            const longCodes = new Set(selectedLong.map(r => r.s.c));
-            let sCands = validSc.filter(r => !longCodes.has(r.s.c));
-            if (shortTSF) sCands = sCands.filter(r => r.r12 !== null && r.r12 < 0);
-            sCands.sort((a, b) => a.score - b.score);
-
-            for (const cand of sCands) {
-                if (selectedShort.length >= shortCount) break;
-                const isUncorrelated = selectedShort.every(x => 
-                    Math.abs(calcCorr(cand.s.c, x.s.c, sigM)) < corrThreshold
-                );
-                if (isUncorrelated) selectedShort.push(cand);
-            }
-        }
-
-        // --- B. 權重分配 ---
-        const newHoldings = {};
-        if (selectedLong.length === 0) {
-            newHoldings.CASH = 1.0;
-        } else {
-            const is1330 = (capMode === '1330');
-            const lScale = is1330 ? 1.0 : 0.5;
-            const sScale = is1330 ? 0.3 : 0.5;
-
-            // 多頭權重
-            if (mode === 'rank') {
-                const lDenom = (selectedLong.length * (selectedLong.length + 1)) / 2;
-                selectedLong.forEach((r, i) => {
-                    newHoldings[r.s.c] = (lScale * (selectedLong.length - i)) / lDenom;
-                });
-            } else {
-                const lw = lScale / selectedLong.length;
-                selectedLong.forEach(r => newHoldings[r.s.c] = lw);
-            }
-
-            // 空頭權重
-            if (selectedShort.length > 0) {
-                if (mode === 'rank') {
-                    const sDenom = (selectedShort.length * (selectedShort.length + 1)) / 2;
-                    selectedShort.forEach((r, i) => {
-                        newHoldings[r.s.c] = -sScale * (selectedShort.length - i) / sDenom;
-                    });
-                } else {
-                    const sw = sScale / selectedShort.length;
-                    selectedShort.forEach(r => newHoldings[r.s.c] = -sw);
-                }
-            }
-        }
-
-        // --- C. 績效與成本計算 ---
-        const allCodes = new Set([...Object.keys(holdings), ...Object.keys(newHoldings)]);
-        let turnover = 0;
-        allCodes.forEach(c => {
-            turnover += Math.abs((newHoldings[c] || 0) - (holdings[c] || 0));
-        });
-
-        let periodRet = 0;
-        let pureRet = 0;
-        const stockRets = {};
-        const cashRate = getTNXRate(signalMonth) / 12;
-
-        Object.entries(newHoldings).forEach(([code, weight]) => {
-            let ret = 0;
-            if (code === 'CASH') {
-                ret = cashRate;
-            } else {
-                const p0 = getMo(code, sigM);
-                const p1 = getMo(code, nextM);
-                ret = (p0 && p1 && p0 > 0) ? (p1 / p0 - 1) : 0;
-            }
-            periodRet += weight * ret;
-            pureRet += weight * ret;
-            stockRets[code] = { ret, w: weight };
-        });
-
-        // 扣除手續費 (單邊計算，成交量/2 * 費率)
-        periodRet -= (turnover / 2) * costRate;
-        nav *= (1 + periodRet);
-
-        // 持倉漂移計算 (Drift)
-        const driftedHoldings = {};
-        Object.keys(newHoldings).forEach(c => {
-            driftedHoldings[c] = newHoldings[c] * (1 + (stockRets[c]?.ret || 0)) / (1 + pureRet);
-        });
-
-        // 基準回報
-        const b0 = getBench(sigM);
-        const b1 = getBench(nextM);
-        if (b0 && b1 && b0 > 0) bNav *= (1 + (b1 / b0 - 1));
-
-        // 儲存紀錄
-        records.push({
-            month: nextM,
-            nav: nav,
-            bNav: bNav,
-            holdings: { ...driftedHoldings },
-            pRet: periodRet,
-            hurdle: hurdle,
-            stockRets: stockRets
-        });
-
-        holdings = driftedHoldings;
+      }
     }
 
-    return records.length >= 6 ? records : null;
+    // 4. 配置權重與計算週轉成本
+    var newH = {};
+    if (!sel.length) { newH = { CASH: 1.0 }; }
+    else {
+      var is1330 = capMode === '1330';
+      var lScale = is1330 ? 1.0 : 0.5, sScale = is1330 ? 0.3 : 0.5;
+      if (mode === 'rank') {
+        var ldenom = sel.length * (sel.length + 1) / 2;
+        sel.forEach(function(r, i) { newH[r.s.c] = lScale * (sel.length - i) / ldenom; });
+      } else {
+        var lw = lScale / sel.length;
+        sel.forEach(function(r) { newH[r.s.c] = lw; });
+      }
+      if (selS.length) {
+        var sdenom = mode === 'rank' ? selS.length * (selS.length + 1) / 2 : selS.length;
+        selS.forEach(function(r, i) {
+          newH[r.s.c] = -sScale * (mode === 'rank' ? (selS.length - i) / sdenom : 1 / sdenom);
+        });
+      }
+    }
+
+    var allC = Object.keys(holdings).concat(Object.keys(newH)), seen2 = {};
+    allC.forEach(function(c) { seen2[c] = true; });
+    var tv = 0;
+    Object.keys(seen2).forEach(function(c) { tv += Math.abs((newH[c] || 0) - (holdings[c] || 0)); });
+
+    // 5. 計算本月報酬 (sigM 到 nextM)
+    var pRet = 0, cr = getTNXRate(sigM), stockRets = {}, pureRet = 0;
+    Object.keys(newH).forEach(function(c) {
+      var wt = newH[c];
+      if (c === 'CASH') {
+        var r_c = cr / 12; pRet += wt * r_c; pureRet += wt * r_c;
+        stockRets.CASH = { ret: r_c, w: wt }; return;
+      }
+      var p0 = getMo(c, sigM), p1 = getMo(c, nextM);
+      if (p0 && p1 && p0 > 0) {
+        var r_s = p1 / p0 - 1; pRet += wt * r_s; pureRet += wt * r_s;
+        stockRets[c] = { ret: r_s, w: wt };
+      } else { stockRets[c] = { ret: 0, w: wt }; }
+    });
+
+    pRet -= (tv / 2) * COST;
+    nav *= (1 + pRet);
+
+    // 6. 計算月底權重飄移
+    var driftedH = {};
+    Object.keys(newH).forEach(function(c) {
+      driftedH[c] = newH[c] * (1 + (stockRets[c] ? stockRets[c].ret : 0)) / (1 + pureRet);
+    });
+
+    var b0 = getBench(sigM), b1 = getBench(nextM);
+    if (b0 && b1 && b0 > 0) bNav *= (1 + b1 / b0 - 1);
+
+    var hCopy = {}; Object.keys(newH).forEach(function(k) { hCopy[k] = newH[k]; });
+    records.push({ month: sigM, nav: nav, bNav: bNav, holdings: hCopy, pRet: pRet, hurdle: hurdle, stockRets: stockRets });
+    holdings = driftedH;
+  }
+
+  return records.length >= 6 ? records : null;
 }
 
 function kpi(records,init){
