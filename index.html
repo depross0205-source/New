@@ -660,18 +660,12 @@ async function loadFromDB() {
     request.onsuccess = async () => {
       const res = request.result;
       if (res) {
-                WEEKLY = res.WEEKLY || {};
+                        WEEKLY = res.WEEKLY || {};
+        MONTHLY = res.MONTHLY || {};
         DAILY = res.DAILY || {};
         BENCH_MONTHLY = res.BENCH_MONTHLY || [];
         TNX_MONTHLY = res.TNX_MONTHLY || [];
-        // 從 WEEKLY/DAILY 重新推導 MONTHLY，捨棄舊的偏移版本
-        MONTHLY = res.MONTHLY || {};
-        Object.keys(WEEKLY).forEach(function(c){
-          if(WEEKLY[c]&&WEEKLY[c].length)MONTHLY[c]=deriveMontlyFromBars(WEEKLY[c],true);
-        });
-        Object.keys(DAILY).forEach(function(c){
-          if(DAILY[c]&&DAILY[c].length)MONTHLY[c]=deriveMontlyFromBars(DAILY[c],false);
-        });
+
         updFetchStat();
         updTNX();
         await buildCache();
@@ -880,10 +874,11 @@ async function fetchUpdate(){
     try{
                 if(s.tw){
         WEEKLY[s.c]=mergeArr(WEEKLY[s.c],await fetchOHLCV(s,'1wk',prx));
-        MONTHLY[s.c]=deriveMontlyFromBars(WEEKLY[s.c]);
+        MONTHLY[s.c]=mergeArr(MONTHLY[s.c],await fetchMonthly(s,prx));
+
       }else{
         DAILY[s.c]=mergeArr(DAILY[s.c],await fetchOHLCV(s,'1d',prx));
-        MONTHLY[s.c]=deriveMontlyFromBars(DAILY[s.c]);
+        MONTHLY[s.c]=mergeArr(MONTHLY[s.c],await fetchMonthly(s2,prx));
 
       }
 
@@ -937,7 +932,7 @@ async function fetchAll(){
     try{WEEKLY[s.c]=await fetchOHLCV(s,'1wk',prx);}catch(e){failed.push(s.c+'-W');}
     await new Promise(function(r){setTimeout(r,350);});
            prog('TW mo: '+s.c);
-            try{MONTHLY[s.c]=deriveMontlyFromBars(WEEKLY[s.c]);}catch(e){failed.push(s.c+'-M');}
+           try{MONTHLY[s.c]=await fetchMonthly(s,prx);}catch(e){failed.push(s.c+'-M');}
 
   }
   for(var i2=0;i2<us.length;i2++){
@@ -945,7 +940,8 @@ async function fetchAll(){
     try{DAILY[s2.c]=await fetchOHLCV(s2,'1d',prx);}catch(e){failed.push(s2.c+'-D');}
     await new Promise(function(r){setTimeout(r,350);});
            prog('US mo: '+s2.c);
-        try{MONTHLY[s2.c]=deriveMontlyFromBars(DAILY[s2.c]);}catch(e){failed.push(s2.c+'-M');}
+           try{MONTHLY[s2.c]=await fetchMonthly(s2,prx);}catch(e){failed.push(s2.c+'-M');}
+
   }
   prog('^TWII');
   try{BENCH_MONTHLY=await fetchMonthly('^TWII',prx);}catch(e){failed.push('^TWII');}
