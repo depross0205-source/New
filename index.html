@@ -660,14 +660,22 @@ async function loadFromDB() {
     request.onsuccess = async () => {
       const res = request.result;
       if (res) {
-        WEEKLY = res.WEEKLY || {};
-        MONTHLY = res.MONTHLY || {};
+                WEEKLY = res.WEEKLY || {};
         DAILY = res.DAILY || {};
         BENCH_MONTHLY = res.BENCH_MONTHLY || [];
         TNX_MONTHLY = res.TNX_MONTHLY || [];
+        // 從 WEEKLY/DAILY 重新推導 MONTHLY，捨棄舊的偏移版本
+        MONTHLY = res.MONTHLY || {};
+        Object.keys(WEEKLY).forEach(function(c){
+          if(WEEKLY[c]&&WEEKLY[c].length)MONTHLY[c]=deriveMontlyFromBars(WEEKLY[c],true);
+        });
+        Object.keys(DAILY).forEach(function(c){
+          if(DAILY[c]&&DAILY[c].length)MONTHLY[c]=deriveMontlyFromBars(DAILY[c],false);
+        });
         updFetchStat();
         updTNX();
         await buildCache();
+
         sl('dlLog', '從資料庫恢復成功 (' + res.ts.slice(0, 16).replace('T', ' ') + ')', true);
         resolve(true);
       } else {
@@ -828,11 +836,13 @@ async function smartFetch(s, type) {
     }
 }
 
-function deriveMontlyFromBars(bars){
+function deriveMontlyFromBars(bars,isTW){
   if(!bars||!bars.length)return[];
   var byMonth={};
   bars.forEach(function(b){
-    var m=b.date.slice(0,7);
+    var d=new Date(b.date);
+    if(isTW)d.setDate(d.getDate()+4); // 週一+4=週五，跨月時正確歸屬
+    var m=d.toISOString().slice(0,7);
     byMonth[m]=b.c;
   });
   return Object.keys(byMonth).sort().map(function(m){
@@ -871,12 +881,12 @@ async function fetchUpdate(){
     var s=toFetch[i];var isMissing=missing.indexOf(s)>=0;
     $('loadTxt').textContent=(isMissing?'[NEW] ':'[UPD] ')+s.c+' ('+(i+1)+'/'+toFetch.length+')';
     try{
-          if(s.tw){
+                if(s.tw){
         WEEKLY[s.c]=mergeArr(WEEKLY[s.c],await fetchOHLCV(s,'1wk',prx));
-        MONTHLY[s.c]=deriveMontlyFromBars(WEEKLY[s.c]);
+        MONTHLY[s.c]=deriveMontlyFromBars(WEEKLY[s.c],true);
       }else{
         DAILY[s.c]=mergeArr(DAILY[s.c],await fetchOHLCV(s,'1d',prx));
-        MONTHLY[s.c]=deriveMontlyFromBars(DAILY[s.c]);
+        MONTHLY[s.c]=deriveMontlyFromBars(DAILY[s.c],false);
       }
 
     }catch(e){failed.push(s.c);}
@@ -928,15 +938,16 @@ async function fetchAll(){
     var s=tw[i];prog('TW wk: '+s.c+' ('+(i+1)+'/'+tw.length+')');
     try{WEEKLY[s.c]=await fetchOHLCV(s,'1wk',prx);}catch(e){failed.push(s.c+'-W');}
     await new Promise(function(r){setTimeout(r,350);});
-        prog('TW mo: '+s.c);
-    try{MONTHLY[s.c]=deriveMontlyFromBars(WEEKLY[s.c]);}catch(e){failed.push(s.c+'-M');}
+           prog('TW mo: '+s.c);
+    try{MONTHLY[s.c]=deriveMontlyFromBars(WEEKLY[s.c],true);}catch(e){failed.push(s.c+'-M');} 
   }
   for(var i2=0;i2<us.length;i2++){
     var s2=us[i2];prog('US day: '+s2.c+' ('+(i2+1)+'/'+us.length+')');
     try{DAILY[s2.c]=await fetchOHLCV(s2,'1d',prx);}catch(e){failed.push(s2.c+'-D');}
     await new Promise(function(r){setTimeout(r,350);});
-        prog('US mo: '+s2.c);
-    try{MONTHLY[s2.c]=deriveMontlyFromBars(DAILY[s2.c]);}catch(e){failed.push(s2.c+'-M');}
+           prog('US mo: '+s2.c);
+    try{MONTHLY[s2.c]=deriveMontlyFromBars(DAILY[s2.c],false);}catch(e){failed.push(s2.c+'-M');}
+
   }
   prog('^TWII');
   try{BENCH_MONTHLY=await fetchMonthly('^TWII',prx);}catch(e){failed.push('^TWII');}
