@@ -1281,19 +1281,23 @@ function runBTcore(mh, mode) {
   }
 
   function getMo(code, m) {
-    var mo = MONTHLY[code];
-    if (!mo) return null;
-    var best = null;
-    mo.forEach(function(p) { if (p.date <= m) best = p; });
-    return best ? best.c : null;
-  }
+  var mo = MONTHLY[code];
+  if (!mo) return null;
+
+  var found = mo.find(function(p) {
+    return p.date === m;
+  });
+
+  return found ? found.c : null;
+}
 
   // 開始回測迴圈
   for (var idx = cS; idx <= cE; idx++) {
-    var sigM = allM[idx], nextM = allM[idx+1];
+    var tradeM = allM[idx];      // 本月報酬
+var signalM = allM[idx-1];   // 上月決策
 
     // 1. 計算訊號 (使用該月初資料)
-    var hurdle = getHurdle(sigM), sc2 = calcAllScores(sigM);
+    var hurdle = getHurdle(signalM), sc2 = calcAllScores(signalM);
     var valid = sc2.filter(function(r) { return r.score !== null; });
     valid.sort(function(a, b) { return b.score - a.score; });
 
@@ -1302,7 +1306,7 @@ function runBTcore(mh, mode) {
     var sel = [];
     for (var j = 0; j < tsP.length && sel.length < mh; j++) {
       var cand = tsP[j];
-      if (sel.every(function(x) { return Math.abs(calcCorr(cand.s.c, x.s.c, sigM)) < ct; })) {
+      if (sel.every(function(x) { return Math.abs(calcCorr(cand.s.c, x.s.c, signalM)) < ct; })) {
         sel.push(cand);
       }
     }
@@ -1316,7 +1320,7 @@ function runBTcore(mh, mode) {
       sCands.sort(function(a, b) { return a.score - b.score; });
       for (var ks = 0; ks < sCands.length && selS.length < shortN; ks++) {
         var candS = sCands[ks];
-        if (selS.every(function(x) { return Math.abs(calcCorr(candS.s.c, x.s.c, sigM)) < ct; })) {
+        if (selS.every(function(x) { return Math.abs(calcCorr(candS.s.c, x.s.c, signalM)) < ct; })) {
           selS.push(candS);
         }
       }
