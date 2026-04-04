@@ -1360,7 +1360,7 @@ var signalM = allM[idx-1];   // 上月決策
         var r_c = cr / 12; pRet += wt * r_c; pureRet += wt * r_c;
         stockRets.CASH = { ret: r_c, w: wt }; return;
       }
-      var p0 = getMo(c, signalM), p1 = getMo(c, nextM);
+      var p0 = getMo(c, signalM), p1 = getMo(c, tradeM);
       if (p0 && p1 && p0 > 0) {
         var r_s = p1 / p0 - 1; pRet += wt * r_s; pureRet += wt * r_s;
         stockRets[c] = { ret: r_s, w: wt };
@@ -1376,11 +1376,11 @@ var signalM = allM[idx-1];   // 上月決策
       driftedH[c] = newH[c] * (1 + (stockRets[c] ? stockRets[c].ret : 0)) / (1 + pureRet);
     });
 
-    var b0 = getBench(signalM), b1 = getBench(nextM);
+    var b0 = getBench(signalM), b1 = getBench(tradeM);
     if (b0 && b1 && b0 > 0) bNav *= (1 + b1 / b0 - 1);
 
     var hCopy = {}; Object.keys(newH).forEach(function(k) { hCopy[k] = newH[k]; });
-        records.push({ month: nextM, nav: nav, bNav: bNav, holdings: hCopy, pRet: pRet, hurdle: hurdle, stockRets: stockRets });
+        records.push({ month: tradeM, nav: nav, bNav: bNav, holdings: hCopy, pRet: pRet, hurdle: hurdle, stockRets: stockRets });
 
     holdings = driftedH;
   }
