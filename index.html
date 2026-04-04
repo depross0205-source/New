@@ -1352,15 +1352,15 @@ var signalM = allM[idx-1];   // 上月決策
     var tv = 0;
     Object.keys(seen2).forEach(function(c) { tv += Math.abs((newH[c] || 0) - (holdings[c] || 0)); });
 
-    // 5. 計算本月報酬 (sigM 到 nextM)
-    var pRet = 0, cr = getTNXRate(sigM), stockRets = {}, pureRet = 0;
+    // 5. 計算本月報酬 
+    var pRet = 0, cr = getTNXRate(signalM), stockRets = {}, pureRet = 0;
     Object.keys(newH).forEach(function(c) {
       var wt = newH[c];
       if (c === 'CASH') {
         var r_c = cr / 12; pRet += wt * r_c; pureRet += wt * r_c;
         stockRets.CASH = { ret: r_c, w: wt }; return;
       }
-      var p0 = getMo(c, sigM), p1 = getMo(c, nextM);
+      var p0 = getMo(c, signalM), p1 = getMo(c, nextM);
       if (p0 && p1 && p0 > 0) {
         var r_s = p1 / p0 - 1; pRet += wt * r_s; pureRet += wt * r_s;
         stockRets[c] = { ret: r_s, w: wt };
@@ -1376,7 +1376,7 @@ var signalM = allM[idx-1];   // 上月決策
       driftedH[c] = newH[c] * (1 + (stockRets[c] ? stockRets[c].ret : 0)) / (1 + pureRet);
     });
 
-    var b0 = getBench(sigM), b1 = getBench(nextM);
+    var b0 = getBench(signalM), b1 = getBench(nextM);
     if (b0 && b1 && b0 > 0) bNav *= (1 + b1 / b0 - 1);
 
     var hCopy = {}; Object.keys(newH).forEach(function(k) { hCopy[k] = newH[k]; });
