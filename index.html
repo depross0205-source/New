@@ -1253,24 +1253,13 @@ function runBTcore(mh, mode) {
   var lagEl = document.querySelector('input[name="lagMode"]:checked');
   var LAG = lagEl ? parseInt(lagEl.value) : 1;
 
-  var dataStart = '1900-01';
-  stocks.forEach(function(s) {
-    var mo = MONTHLY[s.c];
-    if (mo && mo.length > 14) {
-      var firstValid = mo[14].date;
-      if (firstValid > dataStart) dataStart = firstValid;
-    }
-  });
-
-  var MIN = 14, cS = MIN + LAG;
-  for (var i = MIN + LAG; i < allM.length; i++) {
-    if (allM[i] >= dataStart) { cS = i; break; }
-  }
+    var MIN = 14, cS = MIN + LAG;
   if (rawS) {
-    for (var ii = cS; ii < allM.length; ii++) {
-      if (allM[ii] >= rawS) { cS = ii; break; }
+    for (var i = MIN + LAG; i < allM.length; i++) {
+      if (allM[i] >= rawS) { cS = i; break; }
     }
   }
+
 
   var dataEnd = allM[allM.length - 1];
   stocks.forEach(function(s) {
