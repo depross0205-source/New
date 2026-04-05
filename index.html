@@ -1298,14 +1298,13 @@ function runBTcore(mh, mode) {
     return best ? best.c : null;
   }
     function getMo(code, m) {
-    var mo = MONTHLY[code]; if (!mo) return null;
-    // 只接受精確該月的收盤，不用前值填補
-    for (var i = mo.length - 1; i >= 0; i--) {
-      if (mo[i].date === m) return mo[i].c;
-    }
-    return null;
+  var mo = MONTHLY[code]; if (!mo) return null;
+  var best = null;
+  for (var i = mo.length - 1; i >= 0; i--) {
+    if (mo[i].date <= m) { best = mo[i].c; break; }
   }
-
+  return best;
+}
 
     for (var idx = cS; idx <= cE; idx++) {
     var sigM   = allM[idx];
