@@ -1315,7 +1315,8 @@ function runBTcore(mh, mode) {
     var hurdle = getHurdle(scoreM);
     var sc2 = calcAllScores(scoreM);
     var valid = sc2.filter(function(r) { return r.score !== null; });
-    valid.sort(function(a, b) { return b.score - a.score; });
+    valid.sort(function() { return Math.random() - 0.5; });
+
 
     if (valid.length < 5) {
       var b0x = getBench(prevM), b1x = getBench(sigM);
