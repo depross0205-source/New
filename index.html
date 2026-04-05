@@ -1240,9 +1240,10 @@ function renderST(all, hurdle, selectedCodes, rejectedMap) {
 function runBTcore(mh, mode) {
   var stocks = getEnabledStocks().filter(function(s) { return RAW_SCORES[s.c]; });
   if (stocks.length < 3) return null;
-  var refMo = MONTHLY[stocks[0].c];
-  if (!refMo) return null;
+    var refMo = BENCH_MONTHLY.length ? BENCH_MONTHLY : MONTHLY[stocks[0].c];
+  if (!refMo || !refMo.length) return null;
   var allM = refMo.map(function(p) { return p.date; }).sort();
+
 
     var rawS = $('btS') ? ($('btS').value || '').trim().slice(0, 7) : '';
   var rawE = $('btE') ? ($('btE').value || '').trim().slice(0, 7) : '';
