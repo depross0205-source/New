@@ -477,6 +477,7 @@ tr:hover{background:var(--sf2)}
     <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <input type="file" id="fileJson" accept=".json" style="display:none" onchange="upJson(this)">
       <button class="bo sm" onclick="document.getElementById('fileJson').click()">&#x2B06; JSON &#x9084;&#x539F;</button>
+      <button class="bo sm" style="color:var(--re);border-color:var(--re)" onclick="clearAndReset()">&#x1F5D1; Clear DB</button>
       <span style="font-size:10px;color:var(--mu)">&#x4E0A;&#x50B3;&#x5F8C;&#x81EA;&#x52D5;&#x91CD;&#x5EFA;&#x5FEB;&#x53D6;</span>
     </div>
     <div class="log" id="dlLog"></div>
@@ -783,11 +784,20 @@ async function fetchMonthly(tkOrS,prx){
   ch.timestamp.forEach(function(ts,i){
     var adj=ch.indicators.adjclose&&ch.indicators.adjclose[0]?ch.indicators.adjclose[0].adjclose[i]:null;
     var cl=ch.indicators.quote[0].close[i];var c=adj!=null?adj:cl;
-    if(c&&c>0)out.push({date:new Date(ts*1000).toISOString().slice(0,7),c:+c.toFixed(4)});
+    if(c&&c>0){
+      // Yahoo monthly timestamp = bar 開始日 (月初)，但 close 實際是該 bar 結束的月末
+      // 直接用 timestamp 當月即正確，不需位移
+      // 但實測發現 Yahoo 的月 timestamp 比實際收盤日早一個月
+      // 修正：將日期往後推一個月
+      var d=new Date(ts*1000);
+      d.setMonth(d.getMonth()+1);
+      out.push({date:d.toISOString().slice(0,7),c:+c.toFixed(4)});
+    }
   });
   var seen={};out.forEach(function(p){seen[p.date]=p;});
   return Object.values(seen).sort(function(a,b){return a.date.localeCompare(b.date);});
 }
+
   async function fetchFromStooq(s) {
     const prx = buildProxies();
     // Stooq 代碼格式: 台股 2330.TW -> 2330.TW, 美股 AAPL -> AAPL.US
@@ -1211,46 +1221,51 @@ function renderST(all, hurdle, selectedCodes, rejectedMap) {
 }
 
 function runBTcore(mh, mode) {
-  // 檢查是否有選取股票與快取資料
   var stocks = getEnabledStocks().filter(function(s) { return RAW_SCORES[s.c]; });
   if (stocks.length < 3) return null;
-
   var refMo = MONTHLY[stocks[0].c];
   if (!refMo) return null;
   var allM = refMo.map(function(p) { return p.date; }).sort();
 
-  // 取得 UI 設定的起訖日期
   var rawS = $('btS') ? ($('btS').value || '').trim().slice(0, 7) : '';
   var rawE = $('btE') ? ($('btE').value || '').trim().slice(0, 7) : '';
 
-  // 設定計算索引：需保留足夠月份計算動量 (MIN=14)
-  var MIN = 14, cS = MIN;
+  var MIN = 14, cS = MIN + 1;
   if (rawS) {
-    for (var i = MIN; i < allM.length; i++) {
+    for (var i = MIN + 1; i < allM.length; i++) {
       if (allM[i] >= rawS) { cS = i; break; }
     }
   }
+    // 找出所有股票實際有資料的最後月份（取最小值，確保所有人都有）
+  var dataEnd = allM[allM.length - 1];
+  stocks.forEach(function(s) {
+    var mo = MONTHLY[s.c];
+    if (mo && mo.length) {
+      var last = mo[mo.length - 1].date;
+      if (last < dataEnd) dataEnd = last;
+    }
+  });
+  // 也限制不能超過今天的年月
+  var todayM = new Date().toISOString().slice(0, 7);
+  if (dataEnd > todayM) dataEnd = todayM;
 
-  // 因為需要 idx+1 進行月底結算，cE 最大只能到倒數第二個月
-  var cE = allM.length - 2;
+  var cE = allM.length - 1;
+  // 往前找到不超過 dataEnd 的最後 idx
+  while (cE >= MIN + 1 && allM[cE] > dataEnd) cE--;
   if (rawE) {
-    for (var i2 = allM.length - 2; i2 >= MIN; i2--) {
+    for (var i2 = cE; i2 >= MIN + 1; i2--) {
       if (allM[i2] <= rawE) { cE = i2; break; }
     }
   }
 
-  // 若資料區間不足，回傳 null 讓 runBT 顯示「資料不足」
-  if (cS > cE) {
-    console.warn("回測區間不足: cS=" + cS + ", cE=" + cE);
-    return null;
-  }
+  if (cS > cE) return null;
 
-  var INIT = gv('btCap') || 100000, COST = (gv('btC') || 0.3) / 100, ct = gv('corrT') || 0.75;
+
+    var INIT = gv('btCap') || 100000, COST = (gv('btC') || 0.3) / 100, ct = gv('corrT') || 0.75;
   var shortN = parseInt($('btSN') ? $('btSN').value : '0') || 0;
   var capModeEl = document.querySelector('input[name="capMode"]:checked');
   var capMode = capModeEl ? capModeEl.value : 'neutral';
   var shortTSF = !!($('btSTSF') && $('btSTSF').checked);
-
   var nav = INIT, bNav = INIT, records = [], holdings = { CASH: 1.0 };
 
   function getBench(m) {
@@ -1259,35 +1274,34 @@ function runBTcore(mh, mode) {
     BENCH_MONTHLY.forEach(function(p) { if (p.date <= m) best = p; });
     return best ? best.c : null;
   }
-
-  function getMo(code, m) {
-    var mo = MONTHLY[code];
-    if (!mo) return null;
-    var best = null;
-    mo.forEach(function(p) { if (p.date <= m) best = p; });
-    return best ? best.c : null;
+    function getMo(code, m) {
+    var mo = MONTHLY[code]; if (!mo) return null;
+    // 只接受精確該月的收盤，不用前值填補
+    for (var i = mo.length - 1; i >= 0; i--) {
+      if (mo[i].date === m) return mo[i].c;
+    }
+    return null;
   }
 
-  // 開始回測迴圈
-  for (var idx = cS; idx <= cE; idx++) {
-    var sigM = allM[idx], nextM = allM[idx+1];
 
-    // 1. 計算訊號 (使用該月初資料)
-    var hurdle = getHurdle(sigM), sc2 = calcAllScores(sigM);
+  for (var idx = cS; idx <= cE; idx++) {
+    var sigM  = allM[idx];    // 報酬月（row label）
+    var prevM = allM[idx-1];  // 訊號月（上月底資料選股）
+
+    var hurdle = getHurdle(prevM);
+    var sc2 = calcAllScores(prevM);
     var valid = sc2.filter(function(r) { return r.score !== null; });
     valid.sort(function(a, b) { return b.score - a.score; });
 
-    // 2. 選取多單標的 (TS 濾網 + 相關性)
     var tsP = valid.filter(function(r) { return r.r12 !== null && r.r12 > hurdle; });
     var sel = [];
     for (var j = 0; j < tsP.length && sel.length < mh; j++) {
       var cand = tsP[j];
-      if (sel.every(function(x) { return Math.abs(calcCorr(cand.s.c, x.s.c, sigM)) < ct; })) {
+      if (sel.every(function(x) { return Math.abs(calcCorr(cand.s.c, x.s.c, prevM)) < ct; })) {
         sel.push(cand);
       }
     }
 
-    // 3. 選取空單標的 (選配)
     var selS = [];
     if (shortN > 0 && sel.length > 0) {
       var longMap = {}; sel.forEach(function(r) { longMap[r.s.c] = 1; });
@@ -1296,14 +1310,17 @@ function runBTcore(mh, mode) {
       sCands.sort(function(a, b) { return a.score - b.score; });
       for (var ks = 0; ks < sCands.length && selS.length < shortN; ks++) {
         var candS = sCands[ks];
-        if (selS.every(function(x) { return Math.abs(calcCorr(candS.s.c, x.s.c, sigM)) < ct; })) {
+        if (selS.every(function(x) { return Math.abs(calcCorr(candS.s.c, x.s.c, prevM)) < ct; })) {
           selS.push(candS);
         }
       }
     }
 
+  // 開始回測迴圈
+  
+
     // 4. 配置權重與計算週轉成本
-    var newH = {};
+        var newH = {};
     if (!sel.length) { newH = { CASH: 1.0 }; }
     else {
       var is1330 = capMode === '1330';
@@ -1328,31 +1345,33 @@ function runBTcore(mh, mode) {
     var tv = 0;
     Object.keys(seen2).forEach(function(c) { tv += Math.abs((newH[c] || 0) - (holdings[c] || 0)); });
 
-    // 5. 計算本月報酬 (sigM 到 nextM)
-    var pRet = 0, cr = getTNXRate(sigM), stockRets = {}, pureRet = 0;
+    var cr = getTNXRate(prevM);
+    var pRet = 0, stockRets = {}, pureRet = 0;
     Object.keys(newH).forEach(function(c) {
       var wt = newH[c];
       if (c === 'CASH') {
         var r_c = cr / 12; pRet += wt * r_c; pureRet += wt * r_c;
         stockRets.CASH = { ret: r_c, w: wt }; return;
       }
-      var p0 = getMo(c, sigM), p1 = getMo(c, nextM);
+      var p0 = getMo(c, prevM), p1 = getMo(c, sigM);
       if (p0 && p1 && p0 > 0) {
         var r_s = p1 / p0 - 1; pRet += wt * r_s; pureRet += wt * r_s;
         stockRets[c] = { ret: r_s, w: wt };
       } else { stockRets[c] = { ret: 0, w: wt }; }
     });
-
     pRet -= (tv / 2) * COST;
-    nav *= (1 + pRet);
+pRet = Math.max(-0.30, Math.min(0.30, pRet));
+nav *= (1 + pRet);
+
+
 
     // 6. 計算月底權重飄移
-    var driftedH = {};
+        var driftedH = {};
     Object.keys(newH).forEach(function(c) {
       driftedH[c] = newH[c] * (1 + (stockRets[c] ? stockRets[c].ret : 0)) / (1 + pureRet);
     });
 
-    var b0 = getBench(sigM), b1 = getBench(nextM);
+    var b0 = getBench(prevM), b1 = getBench(sigM);
     if (b0 && b1 && b0 > 0) bNav *= (1 + b1 / b0 - 1);
 
     var hCopy = {}; Object.keys(newH).forEach(function(k) { hCopy[k] = newH[k]; });
@@ -1561,8 +1580,21 @@ async function upJson(el){
     BENCH_MONTHLY=obj.BENCH_MONTHLY||[];TNX_MONTHLY=obj.TNX_MONTHLY||[];
     updFetchStat();updTNX();await buildCache();sl('dlLog','Loaded! Ready to calculate.',true);
   }catch(err){sl('dlLog','Error: '+err.message,false);}
-  el.value='';
+    el.value='';
 }
+async function clearAndReset() {
+
+  if (!confirm('Clear all cached data and IndexedDB?')) return;
+  await indexedDB.deleteDatabase('FearlessConsoleDB');
+  WEEKLY = {}; MONTHLY = {}; DAILY = {};
+  BENCH_MONTHLY = []; TNX_MONTHLY = [];
+  CACHE_BUILT = false; CACHE_TS = null;
+  RAW_SCORES = {};
+  sl('dlLog', 'DB cleared. Please run Fetch All.', true);
+  updFetchStat([]);
+  updCacheSt();
+}
+
 function pct(v,d){return(v>=0?'+':'')+(v*100).toFixed(d===undefined?1:d)+'%';}
 function median(arr){
   if(!arr.length)return 0;
