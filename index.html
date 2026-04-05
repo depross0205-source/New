@@ -124,8 +124,7 @@ tr:hover{background:var(--sf2)}
         <button class="bo sm" style="color:var(--tw);border-color:var(--tw)" onclick="selectTW(false)">台股全停</button>
       </div>
     </div>
- 
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">[US] US-ETF</span><span class="ic" id="ic0">11/11</span></div><div class="ib" id="ib0">
+ <div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">[US] US-ETF</span><span class="ic" id="ic0">11/11</span></div><div class="ib" id="ib0">
 <span class="sc act usc" onclick="toggleStock('SPY')" data-code="SPY" data-type="mid" data-tw="0" data-on="1"><span class="cc">SPY</span><span class="cn">SPY500</span><span class="cd" onclick="event.stopPropagation();deleteStock('SPY')">&times;</span></span>
 <span class="sc act usc" onclick="toggleStock('QQQ')" data-code="QQQ" data-type="mid" data-tw="0" data-on="1"><span class="cc">QQQ</span><span class="cn">NasdaqETF</span><span class="cd" onclick="event.stopPropagation();deleteStock('QQQ')">&times;</span></span>
 <span class="sc act usc" onclick="toggleStock('IWM')" data-code="IWM" data-type="mid" data-tw="0" data-on="1"><span class="cc">IWM</span><span class="cn">SmallCap</span><span class="cd" onclick="event.stopPropagation();deleteStock('IWM')">&times;</span></span>
@@ -359,6 +358,7 @@ tr:hover{background:var(--sf2)}
 <span class="sc act" onclick="toggleStock('9904')" data-code="9904" data-type="mid" data-tw="1" data-on="1"><span class="cc">9904</span><span class="cn">&#x5BF6;&#x6210;</span><span class="cd" onclick="event.stopPropagation();deleteStock('9904')">&times;</span></span>
 <span class="sc act" onclick="toggleStock('2903')" data-code="2903" data-type="mid" data-tw="1" data-on="1"><span class="cc">2903</span><span class="cn">&#x9060;&#x767E;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2903')">&times;</span></span>
 </div></div>
+
     <div class="cust">
       <input type="text" id="cusT" placeholder="2330 or SPY" style="max-width:120px">
       <input type="text" id="cusN" placeholder="Name" style="max-width:90px">
@@ -706,6 +706,40 @@ function switchTab(name,el){
   if(el)el.classList.add('active');
   var p=$('panel-'+name);if(p)p.classList.add('active');
 }
+  function toggleGroup(ibId, turnOn) {
+  var ib = document.getElementById(ibId);
+  if (!ib) return;
+  ib.querySelectorAll('[data-code]').forEach(function(el) {
+    el.dataset.on = turnOn ? '1' : '0';
+    turnOn ? el.classList.add('act') : el.classList.remove('act');
+  });
+  updCountByIb(ib);
+}
+function initGroupToggles() {
+  document.querySelectorAll('.ih').forEach(function(ih) {
+    var ib = ih.nextElementSibling;
+    if (!ib || !ib.classList.contains('ib')) return;
+    var ibId = ib.id;
+    if (!ibId) return;
+    var wrap = document.createElement('span');
+    wrap.style.cssText = 'display:inline-flex;align-items:center;gap:3px;margin-right:6px';
+    var b1 = document.createElement('button');
+    b1.className = 'bo sm';
+    b1.style.cssText = 'padding:1px 5px;font-size:10px;color:var(--gr);border-color:var(--gr)';
+    b1.textContent = '\u5168';
+    b1.onclick = function(e) { e.stopPropagation(); toggleGroup(ibId, true); };
+    var b2 = document.createElement('button');
+    b2.className = 'bo sm';
+    b2.style.cssText = 'padding:1px 5px;font-size:10px;color:var(--re);border-color:var(--re)';
+    b2.textContent = '\u505c';
+    b2.onclick = function(e) { e.stopPropagation(); toggleGroup(ibId, false); };
+    wrap.appendChild(b1);
+    wrap.appendChild(b2);
+    var ic = ih.querySelector('.ic');
+    ih.insertBefore(wrap, ic);
+  });
+}
+
 function toggleStock(code){
   var el=document.querySelector('[data-code="'+code+'"]');if(!el)return;
   var on=el.dataset.on==='1';el.dataset.on=on?'0':'1';el.classList.toggle('act',!on);updCount(el);
@@ -1326,15 +1360,29 @@ function runBTcore(mh, mode) {
       continue;
     }
 
-    var tsP = valid.filter(function(r) { return r.r12 !== null && r.r12 > hurdle; });
-
+       var DEFENSIVE = ['TLT','GLD'];
+    var tsP = valid.filter(function(r) {
+      return r.r12 !== null && r.r12 > hurdle && DEFENSIVE.indexOf(r.s.c) === -1;
+    });
+    tsP.sort(function(a, b) { return b.score - a.score; });
     var sel = [];
     for (var j = 0; j < tsP.length && sel.length < mh; j++) {
       var cand = tsP[j];
-           if (sel.every(function(x) { return Math.abs(calcCorr(cand.s.c, x.s.c, scoreM)) < ct; })) {
+      if (sel.every(function(x) { return Math.abs(calcCorr(cand.s.c, x.s.c, scoreM)) < ct; })) {
         sel.push(cand);
       }
     }
+    var slots = Math.min(mh - sel.length, Math.floor(mh / 2));
+    if (slots > 0) {
+      var defCands = sc2.filter(function(r) {
+        return DEFENSIVE.indexOf(r.s.c) !== -1 && r.r12 !== null && r.r12 > hurdle + 0.01;
+      }).sort(function(a, b) { return b.r12 - a.r12; });
+      for (var jd = 0; jd < defCands.length && slots > 0; jd++) {
+        sel.push(defCands[jd]);
+        slots--;
+      }
+    }
+ 
 
     var selS = [];
     if (shortN > 0 && sel.length > 0) {
@@ -1775,8 +1823,9 @@ function dlBtCsv(){
 }
 
 // === 自動讀取邏輯 ===
-window.onload = async () => {
-  const hasData = await loadFromDB();
+window.onload = async function() {
+  initGroupToggles();
+  var hasData = await loadFromDB();
   if (!hasData) {
     console.log('No local data found in IndexedDB.');
   }
