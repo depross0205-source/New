@@ -478,6 +478,8 @@ tr:hover{background:var(--sf2)}
       <input type="file" id="fileJson" accept=".json" style="display:none" onchange="upJson(this)">
       <button class="bo sm" onclick="document.getElementById('fileJson').click()">&#x2B06; JSON &#x9084;&#x539F;</button>
       <button class="bo sm" style="color:var(--re);border-color:var(--re)" onclick="clearAndReset()">&#x1F5D1; Clear DB</button>
+<button class="bo sm" style="color:var(--ye);border-color:var(--ye)" onclick="debugDataLen()">&#x1F50D; Debug</button>
+
       <span style="font-size:10px;color:var(--mu)">&#x4E0A;&#x50B3;&#x5F8C;&#x81EA;&#x52D5;&#x91CD;&#x5EFA;&#x5FEB;&#x53D6;</span>
     </div>
     <div class="log" id="dlLog"></div>
@@ -1647,6 +1649,22 @@ async function clearAndReset() {
   updFetchStat([]);
   updCacheSt();
 }
+  function debugDataLen() {
+  var keys = Object.keys(MONTHLY);
+  var msg = 'MONTHLY stocks: ' + keys.length;
+  if (keys.length) {
+    msg += '\n' + keys[0] + ': ' + MONTHLY[keys[0]].length + ' months';
+    msg += '\n' + keys[keys.length-1] + ': ' + MONTHLY[keys[keys.length-1]].length + ' months';
+  }
+  msg += '\nBENCH: ' + BENCH_MONTHLY.length + ' months';
+  msg += '\nRAW_SCORES keys: ' + Object.keys(RAW_SCORES).length;
+  if (Object.keys(RAW_SCORES).length) {
+    var k = Object.keys(RAW_SCORES)[0];
+    msg += '\n' + k + ' score months: ' + Object.keys(RAW_SCORES[k]).length;
+  }
+  alert(msg);
+}
+
 
 function pct(v,d){return(v>=0?'+':'')+(v*100).toFixed(d===undefined?1:d)+'%';}
 function median(arr){
