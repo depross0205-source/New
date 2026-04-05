@@ -1097,7 +1097,7 @@ function calcAllScores(yyyymm){
     var idx=mo.findIndex(function(p){return p.date===yyyymm;});
     return idx>=13;
   });
-  if(stocks.length<10)return[];
+  if(stocks.length<5)return[];
 
   var wM=gv('wMom')/100,wB=gv('wBias')/100,wS=gv('wSlope')/100,wV=gv('wVol')/100,wK=gv('wKbar')/100;
   var rMs=[],rBs=[],rSs=[],rVs=[],rKs=[];
@@ -1325,7 +1325,7 @@ function runBTcore(mh, mode) {
     var valid = sc2.filter(function(r) { return r.score !== null; });
     valid.sort(function(a, b) { return b.score - a.score; });
 
-    if (valid.length < 10) {
+    if (valid.length < 5) {
       var b0x = getBench(prevM), b1x = getBench(sigM);
       if (b0x && b1x && b0x > 0) bNav *= (1 + b1x / b0x - 1);
       records.push({ month: sigM, nav: nav, bNav: bNav, holdings: { CASH: 1.0 }, pRet: 0, hurdle: hurdle, stockRets: {} });
