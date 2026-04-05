@@ -1406,7 +1406,6 @@ function runBTcore(mh, mode) {
       } else { stockRets[c] = { ret: 0, w: wt }; }
     });
     pRet -= (tv / 2) * COST;
-pRet = Math.max(-0.30, Math.min(0.30, pRet));
 nav *= (1 + pRet);
 
 
