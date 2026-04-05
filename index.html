@@ -544,11 +544,22 @@ tr:hover{background:var(--sf2)}
           <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl5" style="width:13px;accent-color:var(--tw)"> 5Y</label>
         </div>
       </div>
-      <div class="fi"><label>Skip Month</label>
+            <div class="fi"><label>Skip Month</label>
         <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer">
           <input type="checkbox" id="btSkipMo" style="width:14px;accent-color:var(--tw)"> &#x8DF3;&#x904E;&#x6700;&#x8FD1;1&#x6708;
         </label>
       </div>
+      <div class="fi"><label>Signal Lag</label>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="lagMode" id="lagT1" value="1" checked style="width:14px;accent-color:var(--tw)"> t-1
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="lagMode" id="lagT2" value="2" style="width:14px;accent-color:var(--tw)"> t-2
+          </label>
+        </div>
+      </div>
+
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btw" onclick="runBT()" style="flex:1">&#x25B6; &#x57F7;&#x884C;&#x56DE;&#x6E2C;</button>
@@ -1080,8 +1091,14 @@ function getTNXRate(yyyymm){
 }
 function getHurdle(yyyymm){return Math.max(0,getTNXRate(yyyymm)+(gv('btSpread')||0.5)/100);}
 function calcAllScores(yyyymm){
-  var stocks=getEnabledStocks().filter(function(s){return RAW_SCORES[s.c]&&RAW_SCORES[s.c][yyyymm];});
-  if(!stocks.length)return[];
+  var stocks=getEnabledStocks().filter(function(s){
+    var mo=MONTHLY[s.c];
+    if(!mo)return false;
+    var idx=mo.findIndex(function(p){return p.date===yyyymm;});
+    return idx>=13;
+  });
+  if(stocks.length<10)return[];
+
   var wM=gv('wMom')/100,wB=gv('wBias')/100,wS=gv('wSlope')/100,wV=gv('wVol')/100,wK=gv('wKbar')/100;
   var rMs=[],rBs=[],rSs=[],rVs=[],rKs=[];
   var infos=stocks.map(function(s){
@@ -1227,16 +1244,31 @@ function runBTcore(mh, mode) {
   if (!refMo) return null;
   var allM = refMo.map(function(p) { return p.date; }).sort();
 
-  var rawS = $('btS') ? ($('btS').value || '').trim().slice(0, 7) : '';
+    var rawS = $('btS') ? ($('btS').value || '').trim().slice(0, 7) : '';
   var rawE = $('btE') ? ($('btE').value || '').trim().slice(0, 7) : '';
 
-  var MIN = 14, cS = MIN + 1;
+  var lagEl = document.querySelector('input[name="lagMode"]:checked');
+  var LAG = lagEl ? parseInt(lagEl.value) : 1;
+
+  var dataStart = '1900-01';
+  stocks.forEach(function(s) {
+    var mo = MONTHLY[s.c];
+    if (mo && mo.length > 14) {
+      var firstValid = mo[14].date;
+      if (firstValid > dataStart) dataStart = firstValid;
+    }
+  });
+
+  var MIN = 14, cS = MIN + LAG;
+  for (var i = MIN + LAG; i < allM.length; i++) {
+    if (allM[i] >= dataStart) { cS = i; break; }
+  }
   if (rawS) {
-    for (var i = MIN + 1; i < allM.length; i++) {
-      if (allM[i] >= rawS) { cS = i; break; }
+    for (var ii = cS; ii < allM.length; ii++) {
+      if (allM[ii] >= rawS) { cS = ii; break; }
     }
   }
-    // 找出所有股票實際有資料的最後月份（取最小值，確保所有人都有）
+
   var dataEnd = allM[allM.length - 1];
   stocks.forEach(function(s) {
     var mo = MONTHLY[s.c];
@@ -1245,18 +1277,17 @@ function runBTcore(mh, mode) {
       if (last < dataEnd) dataEnd = last;
     }
   });
-  // 也限制不能超過今天的年月
   var todayM = new Date().toISOString().slice(0, 7);
   if (dataEnd > todayM) dataEnd = todayM;
 
   var cE = allM.length - 1;
-  // 往前找到不超過 dataEnd 的最後 idx
-  while (cE >= MIN + 1 && allM[cE] > dataEnd) cE--;
+  while (cE >= MIN + LAG && allM[cE] > dataEnd) cE--;
   if (rawE) {
-    for (var i2 = cE; i2 >= MIN + 1; i2--) {
+    for (var i2 = cE; i2 >= MIN + LAG; i2--) {
       if (allM[i2] <= rawE) { cE = i2; break; }
     }
   }
+
 
   if (cS > cE) return null;
 
@@ -1284,20 +1315,30 @@ function runBTcore(mh, mode) {
   }
 
 
-  for (var idx = cS; idx <= cE; idx++) {
-    var sigM  = allM[idx];    // 報酬月（row label）
-    var prevM = allM[idx-1];  // 訊號月（上月底資料選股）
+    for (var idx = cS; idx <= cE; idx++) {
+    var sigM   = allM[idx];
+    var prevM  = allM[idx-1];
+    var scoreM = allM[idx-LAG];
 
-    var hurdle = getHurdle(prevM);
-    var sc2 = calcAllScores(prevM);
+    var hurdle = getHurdle(scoreM);
+    var sc2 = calcAllScores(scoreM);
     var valid = sc2.filter(function(r) { return r.score !== null; });
     valid.sort(function(a, b) { return b.score - a.score; });
 
+    if (valid.length < 10) {
+      var b0x = getBench(prevM), b1x = getBench(sigM);
+      if (b0x && b1x && b0x > 0) bNav *= (1 + b1x / b0x - 1);
+      records.push({ month: sigM, nav: nav, bNav: bNav, holdings: { CASH: 1.0 }, pRet: 0, hurdle: hurdle, stockRets: {} });
+      holdings = { CASH: 1.0 };
+      continue;
+    }
+
     var tsP = valid.filter(function(r) { return r.r12 !== null && r.r12 > hurdle; });
+
     var sel = [];
     for (var j = 0; j < tsP.length && sel.length < mh; j++) {
       var cand = tsP[j];
-      if (sel.every(function(x) { return Math.abs(calcCorr(cand.s.c, x.s.c, prevM)) < ct; })) {
+           if (sel.every(function(x) { return Math.abs(calcCorr(cand.s.c, x.s.c, scoreM)) < ct; })) {
         sel.push(cand);
       }
     }
@@ -1310,7 +1351,8 @@ function runBTcore(mh, mode) {
       sCands.sort(function(a, b) { return a.score - b.score; });
       for (var ks = 0; ks < sCands.length && selS.length < shortN; ks++) {
         var candS = sCands[ks];
-        if (selS.every(function(x) { return Math.abs(calcCorr(candS.s.c, x.s.c, prevM)) < ct; })) {
+                    if (selS.every(function(x) { return Math.abs(calcCorr(candS.s.c, x.s.c, scoreM)) < ct; })) {
+ 
           selS.push(candS);
         }
       }
@@ -1340,12 +1382,22 @@ function runBTcore(mh, mode) {
       }
     }
 
+        var totalW = 0;
+    Object.keys(newH).forEach(function(c) { totalW += newH[c]; });
+    var cashW = 1.0 - totalW;
+    if (cashW > 0.001) newH['CASH'] = cashW;
+    if (Math.abs(totalW - 1) > 0.02 && cashW <= 0.001) { console.warn('Weight error:', totalW); }
+
+    var maxW = Object.keys(newH).reduce(function(a,c){return Math.max(a,newH[c]);},0);
+    if (idx < cS + 12) console.log(sigM, 'scoreM:', scoreM, 'pool:', valid.length, 'pos:', Object.keys(newH).length, 'maxW:', maxW.toFixed(2));
+
     var allC = Object.keys(holdings).concat(Object.keys(newH)), seen2 = {};
     allC.forEach(function(c) { seen2[c] = true; });
     var tv = 0;
     Object.keys(seen2).forEach(function(c) { tv += Math.abs((newH[c] || 0) - (holdings[c] || 0)); });
 
-    var cr = getTNXRate(prevM);
+    var cr = getTNXRate(scoreM);
+
     var pRet = 0, stockRets = {}, pureRet = 0;
     Object.keys(newH).forEach(function(c) {
       var wt = newH[c];
