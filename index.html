@@ -1360,7 +1360,7 @@ function runBTcore(mh, mode) {
       continue;
     }
 
-       var DEFENSIVE = ['TLT','GLD'];
+       var DEFENSIVE = ['TLT','GLD','SGOV'];
     var tsP = valid.filter(function(r) {
       return r.r12 !== null && r.r12 > hurdle && DEFENSIVE.indexOf(r.s.c) === -1;
     });
@@ -1372,17 +1372,20 @@ function runBTcore(mh, mode) {
         sel.push(cand);
       }
     }
-    var slots = Math.min(mh - sel.length, Math.floor(mh / 2));
+        var slots = mh - sel.length;
     if (slots > 0) {
       var defCands = sc2.filter(function(r) {
-        return DEFENSIVE.indexOf(r.s.c) !== -1 && r.r12 !== null && r.r12 > hurdle + 0.01;
+        if (r.r12 === null) return false;
+        if (r.s.c === 'SGOV') return r.r12 > 0;
+        return (r.s.c === 'TLT' || r.s.c === 'GLD') && r.r12 > hurdle + 0.01;
       }).sort(function(a, b) { return b.r12 - a.r12; });
       for (var jd = 0; jd < defCands.length && slots > 0; jd++) {
         sel.push(defCands[jd]);
         slots--;
       }
     }
- 
+
+
 
     var selS = [];
     if (shortN > 0 && sel.length > 0) {
