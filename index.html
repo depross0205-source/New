@@ -908,10 +908,9 @@ async function fetchUpdate(){
   var thisMonth=new Date().toISOString().slice(0,7);
   var missing=[],stale=[];
   stocks.forEach(function(s){
-        if(s.tw){
-      if(!WEEKLY[s.c]||!WEEKLY[s.c].length||!MONTHLY[s.c]||!MONTHLY[s.c].length||!DAILY[s.c]||!DAILY[s.c].length){missing.push(s);return;}
+    if(s.tw){
+      if(!WEEKLY[s.c]||!WEEKLY[s.c].length||!MONTHLY[s.c]||!MONTHLY[s.c].length){missing.push(s);return;}
       if(WEEKLY[s.c][WEEKLY[s.c].length-1].date<twCut)stale.push(s);
-
     }else{
       if(!DAILY[s.c]||!DAILY[s.c].length||!MONTHLY[s.c]||!MONTHLY[s.c].length){missing.push(s);return;}
       if(DAILY[s.c][DAILY[s.c].length-1].date<usCut)stale.push(s);
@@ -926,12 +925,10 @@ async function fetchUpdate(){
     var s=toFetch[i];var isMissing=missing.indexOf(s)>=0;
     $('loadTxt').textContent=(isMissing?'[NEW] ':'[UPD] ')+s.c+' ('+(i+1)+'/'+toFetch.length+')';
     try{
-            if(s.tw){
+      if(s.tw){
         WEEKLY[s.c]=mergeArr(WEEKLY[s.c],await fetchOHLCV(s,'1wk',prx));
         MONTHLY[s.c]=mergeArr(MONTHLY[s.c],await fetchMonthly(s,prx));
-        DAILY[s.c]=mergeArr(DAILY[s.c],await fetchOHLCV(s,'1d',prx));
       }else{
-
         DAILY[s.c]=mergeArr(DAILY[s.c],await fetchOHLCV(s,'1d',prx));
         MONTHLY[s.c]=mergeArr(MONTHLY[s.c],await fetchMonthly(s,prx));
       }
@@ -977,23 +974,18 @@ async function fetchUpdate(){
 async function fetchAll(){
   var prx=buildProxies();var stocks=getEnabledStocks();
   var tw=stocks.filter(function(s){return s.tw;}),us=stocks.filter(function(s){return !s.tw;});
-    var total=tw.length*3+us.length*2+2,done=0;
-
+  var total=tw.length*2+us.length*2+2,done=0;
   function prog(lbl){$('loadTxt').textContent=lbl;$('fetchFill').style.width=((done++/total)*100)+'%';}
   showL('Preparing...');$('fetchProg').classList.remove('hidden');var failed=[];
   for(var i=0;i<tw.length;i++){
     var s=tw[i];prog('TW wk: '+s.c+' ('+(i+1)+'/'+tw.length+')');
     try{WEEKLY[s.c]=await fetchOHLCV(s,'1wk',prx);}catch(e){failed.push(s.c+'-W');}
     await new Promise(function(r){setTimeout(r,350);});
-        prog('TW mo: '+s.c);
+    prog('TW mo: '+s.c);
     try{MONTHLY[s.c]=await fetchMonthly(s,prx);}catch(e){failed.push(s.c+'-M');}
-    await new Promise(function(r){setTimeout(r,350);});
-    prog('TW day: '+s.c);
-    try{DAILY[s.c]=await fetchOHLCV(s,'1d',prx);}catch(e){failed.push(s.c+'-D');}
     await new Promise(function(r){setTimeout(r,350);});
   }
   for(var i2=0;i2<us.length;i2++){
-
     var s2=us[i2];prog('US day: '+s2.c+' ('+(i2+1)+'/'+us.length+')');
     try{DAILY[s2.c]=await fetchOHLCV(s2,'1d',prx);}catch(e){failed.push(s2.c+'-D');}
     await new Promise(function(r){setTimeout(r,350);});
@@ -1348,23 +1340,11 @@ function runBTcore(mh, mode) {
     BENCH_MONTHLY.forEach(function(p) { if (p.date <= m) best = p; });
     return best ? best.c : null;
   }
-  function getMo(code, m) {
-  if (DAILY[code] && DAILY[code].length) {
+    function getMo(code, m) {
+  var isUS = !!(document.querySelector('[data-code="'+code+'"][data-tw="0"]'));
+  if (isUS && DAILY[code] && DAILY[code].length) {
     var daily = DAILY[code];
-    var cutoff;
-    if (m.length === 7) {
-      var isUS = !!(document.querySelector('[data-code="'+code+'"][data-tw="0"]'));
-      if (isUS) {
-        cutoff = m + '-31';
-      } else {
-        var d = new Date(m + '-01');
-        d.setMonth(d.getMonth() - 1);
-        cutoff = d.toISOString().slice(0, 7) + '-31';
-      }
-    } else {
-      cutoff = m;
-    }
-
+    var cutoff = m + '-31';
     var best = null;
     for (var i = daily.length - 1; i >= 0; i--) {
       if (daily[i].date <= cutoff) { best = daily[i].c; break; }
