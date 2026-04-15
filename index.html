@@ -1,112 +1,104 @@
-/*************************************************
- LPPL Risk Engine V1
- 支援：
- - Yahoo Finance 抓資料
- - 上傳資料
- - LPPL + 風險分數
-*************************************************/
-
-// ==============================
-// 工具函數
-// ==============================
-
-function SMA(arr, n){
-  let res = []
-  for(let i=0;i<arr.length;i++){
-    if(i < n-1) res.push(null)
-    else{
-      let sum = 0
-      for(let j=0;j<n;j++) sum += arr[i-j]
-      res.push(sum/n)
-    }
-  }
-  return res
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>LPPL Risk Engine</title>
+<style>
+body{
+  font-family: Arial;
+  background:#111;
+  color:#eee;
+  padding:20px;
 }
+button{
+  padding:10px;
+  margin-top:10px;
+}
+.card{
+  margin-top:20px;
+  padding:15px;
+  background:#222;
+  border-radius:10px;
+}
+.big{
+  font-size:32px;
+  font-weight:bold;
+}
+</style>
+</head>
 
-function ROC(arr, n){
-  return arr.map((v,i)=>{
-    if(i < n) return 0
-    return (v - arr[i-n]) / arr[i-n]
+<body>
+
+<h2>LPPL 風險引擎</h2>
+
+<select id="symbol">
+  <option value="^GSPC">S&P500</option>
+  <option value="^TWII">台股加權</option>
+</select>
+
+<br>
+<button onclick="run()">執行風險分析</button>
+
+<div class="card">
+  <div>Risk Score</div>
+  <div id="score" class="big">-</div>
+
+  <div>Exposure</div>
+  <div id="exposure" class="big">-</div>
+
+  <div>Regime</div>
+  <div id="regime" class="big">-</div>
+</div>
+
+<script>
+
+// ================= 工具 =================
+
+function SMA(arr,n){
+  return arr.map((_,i)=>{
+    if(i<n) return null
+    return arr.slice(i-n,i).reduce((a,b)=>a+b,0)/n
   })
 }
 
-function STD(arr, n){
-  let res = []
-  for(let i=0;i<arr.length;i++){
-    if(i < n) res.push(null)
-    else{
-      let slice = arr.slice(i-n, i)
-      let mean = slice.reduce((a,b)=>a+b,0)/n
-      let variance = slice.reduce((a,b)=>a+(b-mean)**2,0)/n
-      res.push(Math.sqrt(variance))
-    }
-  }
-  return res
+function ROC(arr,n){
+  return arr.map((v,i)=> i<n?0:(v-arr[i-n])/arr[i-n])
 }
 
-// ==============================
-// 📥 Yahoo資料擷取
-// ==============================
+// ================= Yahoo =================
 
-async function getYahooData(symbol){
+async function getYahoo(symbol){
 
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=5y&interval=1d`
 
   const res = await fetch(url)
   const json = await res.json()
 
-  const result = json.chart.result[0]
-  const timestamps = result.timestamp
-  const quote = result.indicators.quote[0]
+  const r = json.chart.result[0]
 
   let data = []
 
-  for(let i=0;i<timestamps.length;i++){
-    data.push({
-      date: new Date(timestamps[i]*1000).toISOString().slice(0,10),
-      open: quote.open[i],
-      high: quote.high[i],
-      low: quote.low[i],
-      close: quote.close[i]
-    })
+  for(let i=0;i<r.timestamp.length;i++){
+    data.push(r.indicators.quote[0].close[i])
   }
 
-  return data.filter(d => d.close != null)
+  return data.filter(v=>v!=null)
 }
 
-// ==============================
-// 📥 上傳資料轉換
-// ==============================
-
-function normalizeUploadData(data){
-  return data.map(d => ({
-    date: d.date,
-    open: +d.open,
-    high: +d.high,
-    low: +d.low,
-    close: +d.close
-  }))
-}
-
-// ==============================
-// LPPL Fit（簡化版）
-// ==============================
+// ================= LPPL =================
 
 function computeError(price, tc, m, w){
 
-  let err = 0
+  let err=0
 
   for(let t=0;t<price.length;t++){
-
     let dt = tc - t
-    if(dt <= 0) return Infinity
+    if(dt<=0) return Infinity
 
-    let pred =
-      Math.log(price[0]) +
-      Math.pow(dt, m) *
-      (1 + Math.cos(w * Math.log(dt)))
+    let pred = Math.log(price[0]) +
+      Math.pow(dt,m)*(1+Math.cos(w*Math.log(dt)))
 
-    err += Math.abs(Math.log(price[t]) - pred)
+    err += Math.abs(Math.log(price[t])-pred)
   }
 
   return err
@@ -114,19 +106,19 @@ function computeError(price, tc, m, w){
 
 function fitLPPL(price){
 
-  let best = null
+  let best=null
 
-  for(let tcShift=10; tcShift<=60; tcShift+=5){
+  for(let tcShift=10;tcShift<=60;tcShift+=10){
 
     let tc = price.length + tcShift
 
-    for(let m=0.2; m<0.9; m+=0.1){
-      for(let w=6; w<=12; w+=1){
+    for(let m=0.2;m<0.9;m+=0.2){
+      for(let w=6;w<=12;w+=2){
 
-        let error = computeError(price, tc, m, w)
+        let e = computeError(price,tc,m,w)
 
-        if(!best || error < best.error){
-          best = { tc, m, w, error, len: price.length }
+        if(!best || e<best.error){
+          best = {tc,m,w,error:e,len:price.length}
         }
       }
     }
@@ -135,146 +127,79 @@ function fitLPPL(price){
   return best
 }
 
+function lpplScore(fit){
 
-function isValidLPPL(fit){
+  let d = fit.tc - fit.len
 
-  if(!fit) return false
+  let score_tc = 100*Math.exp(-d/30)
+  let score_m = (1-fit.m)*100
 
-  if(fit.m <= 0 || fit.m >= 1) return false
-  if(fit.w < 6 || fit.w > 13) return false
-
-  let days = fit.tc - fit.len
-
-  if(days < 5 || days > 60) return false
-
-  return true
+  return 0.6*score_tc + 0.4*score_m
 }
 
+function multiLPPL(price){
 
-function calcLPPLScore(fit){
-
-  let days = fit.tc - fit.len
-
-  let score_tc = 100 * Math.exp(-days / 30)
-  let score_m  = (1 - fit.m) * 100
-
-  return 0.6 * score_tc + 0.4 * score_m
+  let f = fitLPPL(price.slice(-240))
+  return lpplScore(f)
 }
 
-// ==============================
-// 多窗口LPPL
-// ==============================
+// ================= 風險 =================
 
-function multiLPPL(close){
+function slopeRisk(price){
 
-  let w60  = close.slice(-60)
-  let w120 = close.slice(-120)
-  let w240 = close.slice(-240)
+  let ma20=SMA(price,20)
+  let ma60=SMA(price,60)
 
-  let f60  = fitLPPL(w60)
-  let f120 = fitLPPL(w120)
-  let f240 = fitLPPL(w240)
+  let s20=ma20.at(-1)-ma20.at(-5)
+  let s60=ma60.at(-1)-ma60.at(-5)
 
-  let s60  = isValidLPPL(f60)  ? calcLPPLScore(f60)  : 0
-  let s120 = isValidLPPL(f120) ? calcLPPLScore(f120) : 0
-  let s240 = isValidLPPL(f240) ? calcLPPLScore(f240) : 0
-
-  return 0.2*s60 + 0.3*s120 + 0.5*s240
+  return (s20<0 && s60>0)?100:0
 }
 
-// ==============================
-// 風險模組
-// ==============================
+function accelRisk(price){
 
-function slopeRisk(close){
-
-  let ma20 = SMA(close,20)
-  let ma60 = SMA(close,60)
-
-  let slope20 = ma20.at(-1) - ma20.at(-5)
-  let slope60 = ma60.at(-1) - ma60.at(-5)
-
-  return (slope20 < 0 && slope60 > 0) ? 100 : 0
+  let acc = ROC(price,20).at(-1) - ROC(price,60).at(-1)
+  return Math.max(0,Math.min(100,acc*200))
 }
 
-function accelRisk(close){
+function exposure(score){
 
-  let roc20 = ROC(close,20).at(-1)
-  let roc60 = ROC(close,60).at(-1)
-
-  let acc = roc20 - roc60
-
-  return Math.max(0, Math.min(100, acc * 200))
+  if(score<60) return 1
+  if(score<70) return 0.8
+  if(score<75) return 0.6
+  if(score<80) return 0.4
+  if(score<85) return 0.2
+  return 0
 }
 
-// ==============================
-// Exposure
-// ==============================
+// ================= 主流程 =================
 
-function getExposure(score){
+async function run(){
 
-  if(score < 60) return 1.0
-  if(score < 70) return 0.8
-  if(score < 75) return 0.6
-  if(score < 80) return 0.4
-  if(score < 85) return 0.2
-  return 0.0
-}
+  let symbol = document.getElementById("symbol").value
 
-// ==============================
-// 主引擎
-// ==============================
+  document.getElementById("score").innerText = "Loading..."
 
-async function runRiskEngine(config){
+  let price = await getYahoo(symbol)
 
-  let data
+  let lppl = multiLPPL(price)
+  let slope = slopeRisk(price)
+  let accel = accelRisk(price)
 
-  if(config.source === "yahoo"){
-    data = await getYahooData(config.symbol)
-  }else{
-    data = normalizeUploadData(config.data)
-  }
+  let score = 0.6*lppl + 0.2*slope + 0.2*accel
 
-  let close = data.map(d => d.close)
-
-  let lppl = multiLPPL(close)
-  let slope = config.useSlope ? slopeRisk(close) : 0
-  let accel = config.useAccel ? accelRisk(close) : 0
-
-  let score =
-    0.6 * lppl +
-    0.2 * slope +
-    0.2 * accel
-
-  let exposure = getExposure(score)
+  let exp = exposure(score)
 
   let regime =
-    score > 80 ? "RISK_OFF" :
-    score > 70 ? "WARNING" :
-    "NORMAL"
+    score>80?"RISK_OFF":
+    score>70?"WARNING":"NORMAL"
 
-  return {
-    score,
-    exposure,
-    regime,
-    detail: { lppl, slope, accel }
-  }
+  document.getElementById("score").innerText = score.toFixed(1)
+  document.getElementById("exposure").innerText = exp
+  document.getElementById("regime").innerText = regime
 }
 
-// ==============================
-// ▶ 測試執行
-// ==============================
+</script>
 
-(async () => {
-
-  const result = await runRiskEngine({
-    source: "yahoo",
-    symbol: "^GSPC",   // 或 ^TWII
-    useSlope: true,
-    useAccel: true
-  })
-
-  console.log("==== LPPL Risk Engine ====")
-  console.log(result)
-
-})()
+</body>
+</html>
