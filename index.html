@@ -2,19 +2,19 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<title>LPPL Pro Engine</title>
+<title>LPPL Pro V3</title>
 
 <style>
 body{background:#111;color:#eee;font-family:Arial;padding:20px}
 .card{background:#222;padding:15px;margin:10px 0;border-radius:10px}
-button{padding:10px;margin-top:10px}
-.big{font-size:24px}
+#bar{width:100%;background:#333;height:20px;border-radius:10px}
+#progress{height:100%;width:0%;background:#4caf50}
 </style>
 </head>
 
 <body>
 
-<h2>LPPL 專業風控系統</h2>
+<h2>LPPL 專業風控系統 V3（不卡版）</h2>
 
 <div class="card">
 <select id="symbol">
@@ -22,18 +22,38 @@ button{padding:10px;margin-top:10px}
 <option value="^TWII">台股</option>
 </select>
 
+<br><br>
 <button onclick="run()">執行分析</button>
 <button onclick="optimize()">一鍵優化</button>
 </div>
 
 <div class="card">
-<h3>結果</h3>
+<div id="bar"><div id="progress"></div></div>
+<div id="status">待機中</div>
+</div>
+
+<div class="card">
 <div id="output"></div>
 </div>
 
 <script>
 
-// ================= Yahoo =================
+const worker = new Worker("worker.js")
+
+worker.onmessage = (e)=>{
+
+  const msg = e.data
+
+  if(msg.type==="progress"){
+    progress.style.width = msg.value + "%"
+    status.innerText = msg.text
+  }
+
+  if(msg.type==="result"){
+    output.innerHTML = msg.html
+    status.innerText = "完成"
+  }
+}
 
 async function getYahoo(symbol){
   let url=`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=5y&interval=1d`
@@ -41,34 +61,69 @@ async function getYahoo(symbol){
   return j.chart.result[0].indicators.quote[0].close.filter(v=>v)
 }
 
-// ================= LPPL =================
+async function run(){
 
-function lpplModel(t,A,B,C,m,w,tc,phi){
-  let dt = tc - t
-  return A + B*Math.pow(dt,m) +
-    C*Math.pow(dt,m)*Math.cos(w*Math.log(dt)+phi)
+  status.innerText = "下載資料..."
+  let price = await getYahoo(symbol.value)
+
+  worker.postMessage({
+    cmd:"run",
+    price
+  })
 }
 
-// ===== 簡化 Nelder-Mead =====
+async function optimize(){
 
-function fitLPPL(price){
+  status.innerText = "下載資料..."
+  let price = await getYahoo(symbol.value)
+
+  worker.postMessage({
+    cmd:"optimize",
+    price
+  })
+}
+
+</script>
+
+</body>
+</html>
+
+self.onmessage = async (e)=>{
+
+  const {cmd, price} = e.data
+
+  if(cmd==="run"){
+    let res = await backtest(price)
+    sendResult(res)
+  }
+
+  if(cmd==="optimize"){
+    let res = await optimizeWeights(price)
+    sendResult(res,true)
+  }
+}
+
+// ===== 工具 =====
+
+function ROC(a,n){return a.map((v,i)=>i<n?0:(v-a[i-n])/a[i-n])}
+
+// ===== 快速LPPL（優化版）=====
+
+function fastLPPL(price){
 
   let best=null
 
-  for(let m=0.2;m<0.9;m+=0.2){
-    for(let w=6;w<=12;w+=2){
+  for(let m=0.3;m<0.8;m+=0.2){
+    for(let w=6;w<=10;w+=2){
 
       let tc = price.length + 30
 
-      let A = Math.log(price.at(-1))
-      let B = -1
-      let C = 0.1
-      let phi = 0
-
       let err=0
 
-      for(let t=0;t<price.length;t++){
-        let pred = lpplModel(t,A,B,C,m,w,tc,phi)
+      for(let t=0;t<price.length;t+=5){ // 🔥 加速
+        let dt=tc-t
+        let pred = Math.log(price[0]) +
+          Math.pow(dt,m)*(1+Math.cos(w*Math.log(dt)))
         err += Math.abs(Math.log(price[t])-pred)
       }
 
@@ -81,25 +136,11 @@ function fitLPPL(price){
   return best
 }
 
-// ================= Score =================
-
-function lpplScore(fit){
-
-  let days = fit.tc - fit.len
-
-  let s1 = 100*Math.exp(-days/30)
-  let s2 = (1-fit.m)*100
-
-  return 0.6*s1 + 0.4*s2
-}
-
-// ================= 風險 =================
-
-function ROC(a,n){return a.map((v,i)=>i<n?0:(v-a[i-n])/a[i-n])}
+// ===== 風險 =====
 
 function slope(price){
-  let ma20=price.slice(-20).reduce((a,b)=>a+b)/20
-  let ma60=price.slice(-60).reduce((a,b)=>a+b)/60
+  let ma20=avg(price.slice(-20))
+  let ma60=avg(price.slice(-60))
   return ma20<ma60?100:0
 }
 
@@ -109,17 +150,28 @@ function accel(price){
   return Math.max(0,Math.min(100,(r20-r60)*200))
 }
 
-// ================= 回測 =================
+function avg(a){return a.reduce((x,y)=>x+y,0)/a.length}
 
-function backtest(price,w){
+// ===== 回測 =====
 
-  let hits=0, signals=0, dd=[]
+async function backtest(price, w={lppl:0.6,slope:0.2,accel:0.2}){
+
+  let hits=0,signals=0,dd=[]
 
   for(let i=100;i<price.length-20;i++){
 
+    if(i%10===0){
+      self.postMessage({
+        type:"progress",
+        value: Math.floor(i/price.length*100),
+        text:"回測中..."
+      })
+      await sleep(0)
+    }
+
     let sub=price.slice(0,i)
 
-    let fit=fitLPPL(sub)
+    let fit=fastLPPL(sub)
 
     let score =
       w.lppl*(1-fit.m)*100 +
@@ -135,80 +187,80 @@ function backtest(price,w){
       let d=(min-price[i])/price[i]*100
 
       dd.push(d)
-
       if(d<-5) hits++
     }
   }
 
-  let avg=dd.reduce((a,b)=>a+b,0)/dd.length
-
   return {
     success:(hits/signals*100)||0,
-    avg:avg||0,
+    avg:(dd.reduce((a,b)=>a+b,0)/dd.length)||0,
     signals
   }
 }
 
-// ================= 主 =================
+// ===== 優化 =====
 
-async function run(){
-
-  let price=await getYahoo(symbol.value)
-
-  let res=backtest(price,{
-    lppl:0.6,
-    slope:0.2,
-    accel:0.2
-  })
-
-  output.innerHTML=`
-  成功率: ${res.success.toFixed(1)}%<br>
-  平均跌幅: ${res.avg.toFixed(2)}%<br>
-  訊號數: ${res.signals}
-  `
-}
-
-// ================= 一鍵優化 =================
-
-async function optimize(){
-
-  let price=await getYahoo(symbol.value)
+async function optimizeWeights(price){
 
   let best=null
+  let total=0,done=0
 
-  for(let lp=0.3;lp<=0.8;lp+=0.1){
-    for(let sl=0;sl<=0.4;sl+=0.1){
+  let grid=[]
 
-      let ac = 1-lp-sl
-
-      if(ac<0) continue
-
-      let res=backtest(price,{
-        lppl:lp,
-        slope:sl,
-        accel:ac
-      })
-
-      let score = res.success * Math.abs(res.avg)
-
-      if(!best || score>best.score){
-        best={lp,sl,ac,...res,score}
-      }
+  for(let lp=0.4;lp<=0.8;lp+=0.1){
+    for(let sl=0;sl<=0.3;sl+=0.1){
+      let ac=1-lp-sl
+      if(ac>=0) grid.push({lp,sl,ac})
     }
   }
 
-  output.innerHTML=`
-  ⭐最佳組合<br>
-  LPPL: ${best.lp.toFixed(2)}<br>
-  Slope: ${best.sl.toFixed(2)}<br>
-  Accel: ${best.ac.toFixed(2)}<br><br>
+  total=grid.length
 
-  成功率: ${best.success.toFixed(1)}%<br>
-  平均跌幅: ${best.avg.toFixed(2)}%
-  `
+  for(let g of grid){
+
+    let res = await backtest(price,g)
+
+    let score = res.success * Math.abs(res.avg)
+
+    if(!best || score>best.score){
+      best={...g,...res,score}
+    }
+
+    done++
+
+    self.postMessage({
+      type:"progress",
+      value: Math.floor(done/total*100),
+      text:"優化中..."
+    })
+  }
+
+  return best
 }
 
-</script>
+// ===== 輸出 =====
 
-</body>
-</html>
+function sendResult(res,isOpt=false){
+
+  let html = isOpt
+    ? `
+    ⭐最佳組合<br>
+    LPPL:${res.lp?.toFixed(2)}<br>
+    Slope:${res.sl?.toFixed(2)}<br>
+    Accel:${res.ac?.toFixed(2)}<br><br>
+    成功率:${res.success.toFixed(1)}%<br>
+    平均跌幅:${res.avg.toFixed(2)}%
+    `
+    : `
+    成功率:${res.success.toFixed(1)}%<br>
+    平均跌幅:${res.avg.toFixed(2)}%<br>
+    訊號數:${res.signals}
+    `
+
+  self.postMessage({
+    type:"result",
+    html
+  })
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
