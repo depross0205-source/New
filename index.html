@@ -1,1858 +1,280 @@
-<!DOCTYPE html>
+/*************************************************
+ LPPL Risk Engine V1
+ 支援：
+ - Yahoo Finance 抓資料
+ - 上傳資料
+ - LPPL + 風險分數
+*************************************************/
 
-<html lang="zh-TW">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>&#x53F0;&#x80A1;&#x52D5;&#x80FD;&#x9078;&#x80A1; V1.8</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Noto+Sans+TC:wght@400;600;700&display=swap');
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0a0c10;--sf:#12161f;--sf2:#1a2030;--bd:#252d3d;--bhi:#3a4560;
-  --tx:#e2eaf8;--mu:#6b7a99;--gr:#00e5a0;--re:#ff4d6d;--red:#3d0012;
-  --ye:#ffb830;--bl:#4d9fff;--bld:#001a3d;--ac:#7eb8ff;
-  --tw:#ff6b9d;--twd:#3d0020;--te:#00d4aa;--ted:#003328;--wh:#f8faff;
-  --us:#a78bfa;--usd:#1a0040;
-}
-body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;padding:16px;font-size:14px;line-height:1.6}
-.mono{font-family:'IBM Plex Mono',monospace}
-.wrap{max-width:1200px;margin:0 auto}
-h1{font-size:18px;font-weight:700;color:var(--wh);display:flex;align-items:center;gap:8px;margin-bottom:4px}
-.tag{font-size:11px;padding:2px 8px;border-radius:3px;background:var(--tw);color:#000;font-weight:700}
-.sub{font-size:11px;color:var(--mu);margin-bottom:14px;line-height:1.8}
-.tabs{display:flex;border-bottom:2px solid wood var(--bd);margin-bottom:14px;overflow-x:auto;white-space:nowrap}
-.tab{padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;color:var(--mu);border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;font-family:inherit;transition:.15s}
-.tab.active{color:var(--tw);border-bottom-color:var(--tw)}
-.panel{display:none}.panel.active{display:block}
-.card{background:var(--sf);border:1px solid var(--bd);padding:13px;margin-bottom:10px}
-.ct{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--mu);margin-bottom:9px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-.fi{display:flex;flex-direction:column;gap:3px}
-.fi label{font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase}
-input[type=text],input[type=number],select{background:var(--bg);border:1px solid var(--bhi);color:var(--wh);padding:7px 9px;border-radius:3px;font-size:13px;font-family:'IBM Plex Mono',monospace;width:100%}
-input:focus,select:focus{outline:none;border-color:var(--tw)}
-button{padding:9px 14px;border:none;border-radius:3px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;transition:.15s}
-.btw{background:var(--tw);color:#000;width:100%}.btw:hover{opacity:.85}
-.bo{background:transparent;border:1px solid var(--bhi);color:var(--mu)}.bo:hover{color:var(--tx);border-color:var(--tx)}
-.bte{background:transparent;border:1px solid var(--te);color:var(--te);width:100%}.bte:hover{opacity:.85}
-.sm{padding:5px 11px;font-size:11px;width:auto}
-.log{font-size:11px;color:var(--mu);font-family:'IBM Plex Mono',monospace;margin-top:7px;min-height:14px;word-break:break-all;white-space:pre-wrap}
-.pw{background:var(--bd);border-radius:2px;height:4px;margin-top:6px;overflow:hidden}
-.pf{height:100%;background:var(--tw);border-radius:2px;transition:width .3s}
-.ig{border:1px solid var(--bd);margin-bottom:5px;border-radius:3px;overflow:hidden}
-.ih{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;cursor:pointer;background:var(--sf2);user-select:none;gap:8px}
-.ih:hover{background:var(--bhi)}
-.in{font-size:12px;font-weight:700;color:var(--ac);flex:1}
-.ic{font-size:10px;color:var(--mu);white-space:nowrap}
-.ib{padding:7px;display:flex;flex-wrap:wrap;gap:4px}
-.ib.col{display:none}
-.sc{display:inline-flex;align-items:center;padding:4px 8px;border-radius:3px;font-size:11px;font-family:'IBM Plex Mono',monospace;border:1px solid var(--bd);background:var(--bg);cursor:pointer;gap:4px;user-select:none;transition:.12s}
-.sc:hover{border-color:var(--tw);background:var(--twd)}
-.sc.act{background:var(--twd);border-color:var(--tw);color:var(--tw)}
-.sc.usc:hover{border-color:var(--us);background:var(--usd)}
-.sc.usc.act{background:var(--usd);border-color:var(--us);color:var(--us)}
-.cc{font-weight:700}.cn{font-size:9px;color:var(--mu)}
-.sc.act .cn{color:var(--tw);opacity:.7}.sc.usc.act .cn{color:var(--us);opacity:.7}
-.cd{font-size:12px;color:var(--re);opacity:0;padding:0 2px;line-height:1}
-.sc:hover .cd{opacity:1}
-.cust{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;align-items:center}
-.cust input,.cust select{flex:1;min-width:75px}
-.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:8px;margin-bottom:10px}
-.scard{background:var(--sf);border:1px solid var(--bd);padding:11px;border-radius:3px}
-.shdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px}
-.scode{font-size:15px;font-weight:700;font-family:'IBM Plex Mono',monospace}
-.sname{font-size:10px;color:var(--mu)}
-.sscore{font-size:21px;font-weight:700;font-family:'IBM Plex Mono',monospace}
-.srank{font-size:11px;font-weight:700;padding:2px 8px;border-radius:3px}
-.sbars{margin-top:7px}
-.sbrow{display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:10px;color:var(--mu)}
-.sbwrap{flex:1;height:3px;background:var(--bd);border-radius:2px;overflow:hidden}
-.sbfill{height:100%;border-radius:2px}
-.wk .scode{color:var(--re)}.wk .srank{background:var(--red);color:var(--re);border-color:var(--re)}
-.mr{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--bd)}
-.mr:last-child{border:none}.mv{font-family:'IBM Plex Mono',monospace;font-weight:700}
-.tg{color:var(--gr)}.tr{color:var(--re)}.wh{color:var(--wh)}
-.tw-wrap{overflow-x:auto;background:var(--sf);border:1px solid var(--bd);margin-bottom:10px;max-height:480px}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{padding:7px 8px;color:var(--mu);text-align:left;background:var(--sf2);position:sticky;top:0;z-index:2;font-size:10px;white-space:nowrap}
-td{padding:6px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}
-tr:hover{background:var(--sf2)}
-.cw{background:var(--sf);border:1px solid var(--bd);padding:13px;margin-bottom:10px}
-.ct2{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--mu);margin-bottom:9px}
-.load{position:fixed;inset:0;background:rgba(10,12,16,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px}
-.spin{width:32px;height:32px;border:3px solid var(--bd);border-top-color:var(--tw);border-radius:50%;animation:sp .7s linear infinite}
-@keyframes sp{to{transform:rotate(360deg)}}
-.hidden{display:none}
-.bdg{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:10px;font-family:'IBM Plex Mono',monospace;font-weight:700;margin:2px}
-.shbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--twd);border:1px solid var(--tw);border-radius:3px;margin-bottom:10px;flex-wrap:wrap}
-.shbar label{font-size:11px;color:var(--tw);font-weight:700;white-space:nowrap}
-.shbar input{width:70px}.shbar span{font-size:10px;color:var(--mu)}
-.ib2{background:var(--sf2);border:1px solid var(--bd);padding:9px 11px;border-radius:3px;font-size:11px;color:var(--mu);line-height:1.9;margin-top:8px}
-.ib2 b{color:var(--tw)}
-.tnx-bar{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--bld);border:1px solid var(--bl);border-radius:3px;margin-bottom:8px;font-size:11px;flex-wrap:wrap}
-.cs-bar{display:flex;align-items:center;padding:6px 10px;background:var(--sf2);border:1px solid var(--bd);border-radius:3px;margin-bottom:8px}
-</style>
-</head>
-<body>
-<div class="load hidden" id="loadEl">
-  <div class="spin"></div>
-  <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">...</div>
-</div>
-<div class="wrap">
-<h1>&#x1F1F9;&#x1F1FC; &#x53F0;&#x80A1;&#x52D5;&#x80FD;&#x9078;&#x80A1; <span class="tag">V1.8</span></h1>
-<div class="sub">&#x53F0;50+&#x4E2D;100+US ETF+Mag7 | TS=^TNX+0.5% | &#x53F0;13&#x9031;/&#x7F8E;50&#x65E5; | &#x5FEB;&#x53D6;+&#x5B58;&#x6A94;+&#x6B0A;&#x91CD;&#x5373;&#x6642;&#x751F;&#x6548;</div>
-<div class="tabs">
-  <button class="tab active" onclick="switchTab('pool',this)">&#x1F4CB; &#x80A1;&#x6C60;</button>
-  <button class="tab" onclick="switchTab('fetch',this)">&#x1F310; &#x6293;&#x53D6;</button>
-  <button class="tab" onclick="switchTab('signal',this)">&#x1F4E1; &#x4FE1;&#x865F;</button>
-  <button class="tab" onclick="switchTab('backtest',this)">&#x1F4C8; &#x56DE;&#x6E2C;</button>
-</div>
-<div class="panel active" id="panel-pool">
-  <div class="shbar">
-    <label>&#x1F6E1; &#x76FE;&#x724C;&#x5206;&#x6578;</label>
-    <input type="number" id="shieldScore" placeholder="0-100" min="0" max="100">
-    <span>&#x7559;&#x7A7A;=&#x4E0D;&#x904E;&#x6FFE;</span>
-  </div>
-   <div class="card">
-    <div class="ct">&#x80A1;&#x6C60;
-      <div style="display:flex;gap:6px">
-        <button class="bo sm" onclick="selectAll()">全選</button>
-        <button class="bo sm" onclick="selectNone()">全停</button>
-        <button class="bo sm" style="color:var(--tw);border-color:var(--tw)" onclick="selectTW(true)">台股全選</button>
-        <button class="bo sm" style="color:var(--tw);border-color:var(--tw)" onclick="selectTW(false)">台股全停</button>
-      </div>
-    </div>
- <div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">[US] US-ETF</span><span class="ic" id="ic0">11/11</span></div><div class="ib" id="ib0">
-<span class="sc act usc" onclick="toggleStock('SPY')" data-code="SPY" data-type="mid" data-tw="0" data-on="1"><span class="cc">SPY</span><span class="cn">SPY500</span><span class="cd" onclick="event.stopPropagation();deleteStock('SPY')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('QQQ')" data-code="QQQ" data-type="mid" data-tw="0" data-on="1"><span class="cc">QQQ</span><span class="cn">NasdaqETF</span><span class="cd" onclick="event.stopPropagation();deleteStock('QQQ')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('IWM')" data-code="IWM" data-type="mid" data-tw="0" data-on="1"><span class="cc">IWM</span><span class="cn">SmallCap</span><span class="cd" onclick="event.stopPropagation();deleteStock('IWM')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('VEU')" data-code="VEU" data-type="mid" data-tw="0" data-on="1"><span class="cc">VEU</span><span class="cn">GlobalExUS</span><span class="cd" onclick="event.stopPropagation();deleteStock('VEU')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('EFA')" data-code="EFA" data-type="mid" data-tw="0" data-on="1"><span class="cc">EFA</span><span class="cn">DevelMkt</span><span class="cd" onclick="event.stopPropagation();deleteStock('EFA')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('EEM')" data-code="EEM" data-type="mid" data-tw="0" data-on="1"><span class="cc">EEM</span><span class="cn">EmergMkt</span><span class="cd" onclick="event.stopPropagation();deleteStock('EEM')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('TLT')" data-code="TLT" data-type="mid" data-tw="0" data-on="1"><span class="cc">TLT</span><span class="cn">Bond20Y</span><span class="cd" onclick="event.stopPropagation();deleteStock('TLT')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('IEF')" data-code="IEF" data-type="mid" data-tw="0" data-on="1"><span class="cc">IEF</span><span class="cn">Bond7Y</span><span class="cd" onclick="event.stopPropagation();deleteStock('IEF')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('GLD')" data-code="GLD" data-type="mid" data-tw="0" data-on="1"><span class="cc">GLD</span><span class="cn">Gold</span><span class="cd" onclick="event.stopPropagation();deleteStock('GLD')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('SLV')" data-code="SLV" data-type="mid" data-tw="0" data-on="1"><span class="cc">SLV</span><span class="cn">Silver</span><span class="cd" onclick="event.stopPropagation();deleteStock('SLV')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('VNQ')" data-code="VNQ" data-type="mid" data-tw="0" data-on="1"><span class="cc">VNQ</span><span class="cn">REIT</span><span class="cd" onclick="event.stopPropagation();deleteStock('VNQ')">&times;</span></span>
-</div></div>
-      <div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">[US] iShares ETF (去重)</span><span class="ic" id="ic_ish">7/7</span></div><div class="ib" id="ib_ish">
-<span class="sc act usc" onclick="toggleStock('AGG')" data-code="AGG" data-type="mid" data-tw="0" data-on="1"><span class="cc">AGG</span><span class="cn">US Bond Agg</span><span class="cd" onclick="event.stopPropagation();deleteStock('AGG')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('IWF')" data-code="IWF" data-type="mid" data-tw="0" data-on="1"><span class="cc">IWF</span><span class="cn">R1000 Growth</span><span class="cd" onclick="event.stopPropagation();deleteStock('IWF')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('IWD')" data-code="IWD" data-type="mid" data-tw="0" data-on="1"><span class="cc">IWD</span><span class="cn">R1000 Value</span><span class="cd" onclick="event.stopPropagation();deleteStock('IWD')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('IJH')" data-code="IJH" data-type="mid" data-tw="0" data-on="1"><span class="cc">IJH</span><span class="cn">S&P MidCap</span><span class="cd" onclick="event.stopPropagation();deleteStock('IJH')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('IJR')" data-code="IJR" data-type="mid" data-tw="0" data-on="1"><span class="cc">IJR</span><span class="cn">S&P SmallCap</span><span class="cd" onclick="event.stopPropagation();deleteStock('IJR')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('SGOV')" data-code="SGOV" data-type="mid" data-tw="0" data-on="1"><span class="cc">SGOV</span><span class="cn">0-3M Treasury</span><span class="cd" onclick="event.stopPropagation();deleteStock('SGOV')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('ITOT')" data-code="ITOT" data-type="mid" data-tw="0" data-on="1"><span class="cc">ITOT</span><span class="cn">Total US Mkt</span><span class="cd" onclick="event.stopPropagation();deleteStock('ITOT')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">[US] US-Mag7</span><span class="ic" id="ic1">7/7</span></div><div class="ib" id="ib1">
-<span class="sc act usc" onclick="toggleStock('AAPL')" data-code="AAPL" data-type="mid" data-tw="0" data-on="1"><span class="cc">AAPL</span><span class="cn">Apple</span><span class="cd" onclick="event.stopPropagation();deleteStock('AAPL')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('MSFT')" data-code="MSFT" data-type="mid" data-tw="0" data-on="1"><span class="cc">MSFT</span><span class="cn">Microsoft</span><span class="cd" onclick="event.stopPropagation();deleteStock('MSFT')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('GOOGL')" data-code="GOOGL" data-type="mid" data-tw="0" data-on="1"><span class="cc">GOOGL</span><span class="cn">Alphabet</span><span class="cd" onclick="event.stopPropagation();deleteStock('GOOGL')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('AMZN')" data-code="AMZN" data-type="mid" data-tw="0" data-on="1"><span class="cc">AMZN</span><span class="cn">Amazon</span><span class="cd" onclick="event.stopPropagation();deleteStock('AMZN')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('META')" data-code="META" data-type="mid" data-tw="0" data-on="1"><span class="cc">META</span><span class="cn">Meta</span><span class="cd" onclick="event.stopPropagation();deleteStock('META')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('NVDA')" data-code="NVDA" data-type="mid" data-tw="0" data-on="1"><span class="cc">NVDA</span><span class="cn">Nvidia</span><span class="cd" onclick="event.stopPropagation();deleteStock('NVDA')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('TSLA')" data-code="TSLA" data-type="mid" data-tw="0" data-on="1"><span class="cc">TSLA</span><span class="cn">Tesla</span><span class="cd" onclick="event.stopPropagation();deleteStock('TSLA')">&times;</span></span>
-</div></div>
-    <div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">[US] S&P 500 Top 30 (去重)</span><span class="ic" id="ic_sp30">23/23</span></div><div class="ib" id="ib_sp30">
-<span class="sc act usc" onclick="toggleStock('BRK-B')" data-code="BRK-B" data-type="mid" data-tw="0" data-on="1"><span class="cc">BRK-B</span><span class="cn">Berkshire</span><span class="cd" onclick="event.stopPropagation();deleteStock('BRK-B')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('LLY')" data-code="LLY" data-type="mid" data-tw="0" data-on="1"><span class="cc">LLY</span><span class="cn">Eli Lilly</span><span class="cd" onclick="event.stopPropagation();deleteStock('LLY')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('AVGO')" data-code="AVGO" data-type="mid" data-tw="0" data-on="1"><span class="cc">AVGO</span><span class="cn">Broadcom</span><span class="cd" onclick="event.stopPropagation();deleteStock('AVGO')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('JPM')" data-code="JPM" data-type="mid" data-tw="0" data-on="1"><span class="cc">JPM</span><span class="cn">JPMorgan</span><span class="cd" onclick="event.stopPropagation();deleteStock('JPM')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('UNH')" data-code="UNH" data-type="mid" data-tw="0" data-on="1"><span class="cc">UNH</span><span class="cn">UnitedHealth</span><span class="cd" onclick="event.stopPropagation();deleteStock('UNH')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('V')" data-code="V" data-type="mid" data-tw="0" data-on="1"><span class="cc">V</span><span class="cn">Visa</span><span class="cd" onclick="event.stopPropagation();deleteStock('V')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('XOM')" data-code="XOM" data-type="mid" data-tw="0" data-on="1"><span class="cc">XOM</span><span class="cn">ExxonMobil</span><span class="cd" onclick="event.stopPropagation();deleteStock('XOM')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('MA')" data-code="MA" data-type="mid" data-tw="0" data-on="1"><span class="cc">MA</span><span class="cn">Mastercard</span><span class="cd" onclick="event.stopPropagation();deleteStock('MA')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('JNJ')" data-code="JNJ" data-type="mid" data-tw="0" data-on="1"><span class="cc">JNJ</span><span class="cn">J&J</span><span class="cd" onclick="event.stopPropagation();deleteStock('JNJ')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('PG')" data-code="PG" data-type="mid" data-tw="0" data-on="1"><span class="cc">PG</span><span class="cn">P&G</span><span class="cd" onclick="event.stopPropagation();deleteStock('PG')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('HD')" data-code="HD" data-type="mid" data-tw="0" data-on="1"><span class="cc">HD</span><span class="cn">Home Depot</span><span class="cd" onclick="event.stopPropagation();deleteStock('HD')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('COST')" data-code="COST" data-type="mid" data-tw="0" data-on="1"><span class="cc">COST</span><span class="cn">Costco</span><span class="cd" onclick="event.stopPropagation();deleteStock('COST')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('ABBV')" data-code="ABBV" data-type="mid" data-tw="0" data-on="1"><span class="cc">ABBV</span><span class="cn">AbbVie</span><span class="cd" onclick="event.stopPropagation();deleteStock('ABBV')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('MRK')" data-code="MRK" data-type="mid" data-tw="0" data-on="1"><span class="cc">MRK</span><span class="cn">Merck</span><span class="cd" onclick="event.stopPropagation();deleteStock('MRK')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('CRM')" data-code="CRM" data-type="mid" data-tw="0" data-on="1"><span class="cc">CRM</span><span class="cn">Salesforce</span><span class="cd" onclick="event.stopPropagation();deleteStock('CRM')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('CVX')" data-code="CVX" data-type="mid" data-tw="0" data-on="1"><span class="cc">CVX</span><span class="cn">Chevron</span><span class="cd" onclick="event.stopPropagation();deleteStock('CVX')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('NFLX')" data-code="NFLX" data-type="mid" data-tw="0" data-on="1"><span class="cc">NFLX</span><span class="cn">Netflix</span><span class="cd" onclick="event.stopPropagation();deleteStock('NFLX')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('AMD')" data-code="AMD" data-type="mid" data-tw="0" data-on="1"><span class="cc">AMD</span><span class="cn">AMD</span><span class="cd" onclick="event.stopPropagation();deleteStock('AMD')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('PEP')" data-code="PEP" data-type="mid" data-tw="0" data-on="1"><span class="cc">PEP</span><span class="cn">PepsiCo</span><span class="cd" onclick="event.stopPropagation();deleteStock('PEP')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('KO')" data-code="KO" data-type="mid" data-tw="0" data-on="1"><span class="cc">KO</span><span class="cn">Coca-Cola</span><span class="cd" onclick="event.stopPropagation();deleteStock('KO')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('BAC')" data-code="BAC" data-type="mid" data-tw="0" data-on="1"><span class="cc">BAC</span><span class="cn">BofA</span><span class="cd" onclick="event.stopPropagation();deleteStock('BAC')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('WMT')" data-code="WMT" data-type="mid" data-tw="0" data-on="1"><span class="cc">WMT</span><span class="cn">Walmart</span><span class="cd" onclick="event.stopPropagation();deleteStock('WMT')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('ADBE')" data-code="ADBE" data-type="mid" data-tw="0" data-on="1"><span class="cc">ADBE</span><span class="cn">Adobe</span><span class="cd" onclick="event.stopPropagation();deleteStock('ADBE')">&times;</span></span>
-</div></div>
+// ==============================
+// 工具函數
+// ==============================
 
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">[US] Nasdaq Top 30 (去重)</span><span class="ic" id="ic_ndx30">17/17</span></div><div class="ib" id="ib_ndx30">
-<span class="sc act usc" onclick="toggleStock('LIN')" data-code="LIN" data-type="mid" data-tw="0" data-on="1"><span class="cc">LIN</span><span class="cn">Linde</span><span class="cd" onclick="event.stopPropagation();deleteStock('LIN')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('CSCO')" data-code="CSCO" data-type="mid" data-tw="0" data-on="1"><span class="cc">CSCO</span><span class="cn">Cisco</span><span class="cd" onclick="event.stopPropagation();deleteStock('CSCO')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('TMUS')" data-code="TMUS" data-type="mid" data-tw="0" data-on="1"><span class="cc">TMUS</span><span class="cn">T-Mobile</span><span class="cd" onclick="event.stopPropagation();deleteStock('TMUS')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('INTU')" data-code="INTU" data-type="mid" data-tw="0" data-on="1"><span class="cc">INTU</span><span class="cn">Intuit</span><span class="cd" onclick="event.stopPropagation();deleteStock('INTU')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('QCOM')" data-code="QCOM" data-type="mid" data-tw="0" data-on="1"><span class="cc">QCOM</span><span class="cn">Qualcomm</span><span class="cd" onclick="event.stopPropagation();deleteStock('QCOM')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('TXN')" data-code="TXN" data-type="mid" data-tw="0" data-on="1"><span class="cc">TXN</span><span class="cn">Texas Inst</span><span class="cd" onclick="event.stopPropagation();deleteStock('TXN')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('AMAT')" data-code="AMAT" data-type="mid" data-tw="0" data-on="1"><span class="cc">AMAT</span><span class="cn">Applied Mat</span><span class="cd" onclick="event.stopPropagation();deleteStock('AMAT')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('ISRG')" data-code="ISRG" data-type="mid" data-tw="0" data-on="1"><span class="cc">ISRG</span><span class="cn">Intuitive</span><span class="cd" onclick="event.stopPropagation();deleteStock('ISRG')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('AMGN')" data-code="AMGN" data-type="mid" data-tw="0" data-on="1"><span class="cc">AMGN</span><span class="cn">Amgen</span><span class="cd" onclick="event.stopPropagation();deleteStock('AMGN')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('CMCSA')" data-code="CMCSA" data-type="mid" data-tw="0" data-on="1"><span class="cc">CMCSA</span><span class="cn">Comcast</span><span class="cd" onclick="event.stopPropagation();deleteStock('CMCSA')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('HON')" data-code="HON" data-type="mid" data-tw="0" data-on="1"><span class="cc">HON</span><span class="cn">Honeywell</span><span class="cd" onclick="event.stopPropagation();deleteStock('HON')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('SBUX')" data-code="SBUX" data-type="mid" data-tw="0" data-on="1"><span class="cc">SBUX</span><span class="cn">Starbucks</span><span class="cd" onclick="event.stopPropagation();deleteStock('SBUX')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('GILD')" data-code="GILD" data-type="mid" data-tw="0" data-on="1"><span class="cc">GILD</span><span class="cn">Gilead</span><span class="cd" onclick="event.stopPropagation();deleteStock('GILD')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('BKNG')" data-code="BKNG" data-type="mid" data-tw="0" data-on="1"><span class="cc">BKNG</span><span class="cn">Booking</span><span class="cd" onclick="event.stopPropagation();deleteStock('BKNG')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('MDLZ')" data-code="MDLZ" data-type="mid" data-tw="0" data-on="1"><span class="cc">MDLZ</span><span class="cn">Mondelez</span><span class="cd" onclick="event.stopPropagation();deleteStock('MDLZ')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('ADP')" data-code="ADP" data-type="mid" data-tw="0" data-on="1"><span class="cc">ADP</span><span class="cn">ADP</span><span class="cd" onclick="event.stopPropagation();deleteStock('ADP')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('VRTX')" data-code="VRTX" data-type="mid" data-tw="0" data-on="1"><span class="cc">VRTX</span><span class="cn">Vertex</span><span class="cd" onclick="event.stopPropagation();deleteStock('VRTX')">&times;</span></span>
-</div></div><div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">[US] SOX Top 20 (去重)</span><span class="ic" id="ic_sox20">14/14</span></div><div class="ib" id="ib_sox20">
-<span class="sc act usc" onclick="toggleStock('MU')" data-code="MU" data-type="mid" data-tw="0" data-on="1"><span class="cc">MU</span><span class="cn">Micron</span><span class="cd" onclick="event.stopPropagation();deleteStock('MU')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('INTC')" data-code="INTC" data-type="mid" data-tw="0" data-on="1"><span class="cc">INTC</span><span class="cn">Intel</span><span class="cd" onclick="event.stopPropagation();deleteStock('INTC')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('LRCX')" data-code="LRCX" data-type="mid" data-tw="0" data-on="1"><span class="cc">LRCX</span><span class="cn">Lam Rsch</span><span class="cd" onclick="event.stopPropagation();deleteStock('LRCX')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('ADI')" data-code="ADI" data-type="mid" data-tw="0" data-on="1"><span class="cc">ADI</span><span class="cn">Analog Dev</span><span class="cd" onclick="event.stopPropagation();deleteStock('ADI')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('KLAC')" data-code="KLAC" data-type="mid" data-tw="0" data-on="1"><span class="cc">KLAC</span><span class="cn">KLA Corp</span><span class="cd" onclick="event.stopPropagation();deleteStock('KLAC')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('NXPI')" data-code="NXPI" data-type="mid" data-tw="0" data-on="1"><span class="cc">NXPI</span><span class="cn">NXP Semi</span><span class="cd" onclick="event.stopPropagation();deleteStock('NXPI')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('SNPS')" data-code="SNPS" data-type="mid" data-tw="0" data-on="1"><span class="cc">SNPS</span><span class="cn">Synopsys</span><span class="cd" onclick="event.stopPropagation();deleteStock('SNPS')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('CDNS')" data-code="CDNS" data-type="mid" data-tw="0" data-on="1"><span class="cc">CDNS</span><span class="cn">Cadence</span><span class="cd" onclick="event.stopPropagation();deleteStock('CDNS')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('MRVL')" data-code="MRVL" data-type="mid" data-tw="0" data-on="1"><span class="cc">MRVL</span><span class="cn">Marvell</span><span class="cd" onclick="event.stopPropagation();deleteStock('MRVL')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('MPWR')" data-code="MPWR" data-type="mid" data-tw="0" data-on="1"><span class="cc">MPWR</span><span class="cn">Monolithic</span><span class="cd" onclick="event.stopPropagation();deleteStock('MPWR')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('MCHP')" data-code="MCHP" data-type="mid" data-tw="0" data-on="1"><span class="cc">MCHP</span><span class="cn">Microchip</span><span class="cd" onclick="event.stopPropagation();deleteStock('MCHP')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('ON')" data-code="ON" data-type="mid" data-tw="0" data-on="1"><span class="cc">ON</span><span class="cn">ON Semi</span><span class="cd" onclick="event.stopPropagation();deleteStock('ON')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('SWKS')" data-code="SWKS" data-type="mid" data-tw="0" data-on="1"><span class="cc">SWKS</span><span class="cn">Skyworks</span><span class="cd" onclick="event.stopPropagation();deleteStock('SWKS')">&times;</span></span>
-<span class="sc act usc" onclick="toggleStock('TER')" data-code="TER" data-type="mid" data-tw="0" data-on="1"><span class="cc">TER</span><span class="cn">Teradyne</span><span class="cd" onclick="event.stopPropagation();deleteStock('TER')">&times;</span></span>
-</div></div>
-
-
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x5149;&#x5B78;&#x7CBE;&#x5BC6;</span><span class="ic" id="ic2">2/2</span></div><div class="ib" id="ib2">
-<span class="sc act" onclick="toggleStock('3008')" data-code="3008" data-type="tw50" data-tw="1" data-on="1"><span class="cc">3008</span><span class="cn">&#x5927;&#x7ACB;&#x5149;</span></span>
-<span class="sc act" onclick="toggleStock('3406')" data-code="3406" data-type="mid" data-tw="1" data-on="1"><span class="cc">3406</span><span class="cn">&#x7389;&#x6676;&#x5149;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3406')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x534A;&#x5C0E;&#x9AD4;</span><span class="ic" id="ic3">20/20</span></div><div class="ib" id="ib3">
-<span class="sc act" onclick="toggleStock('2330')" data-code="2330" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2330</span><span class="cn">&#x53F0;&#x7A4D;&#x96FB;</span></span>
-<span class="sc act" onclick="toggleStock('2454')" data-code="2454" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2454</span><span class="cn">&#x806F;&#x767C;&#x79D1;</span></span>
-<span class="sc act" onclick="toggleStock('2303')" data-code="2303" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2303</span><span class="cn">&#x806F;&#x96FB;</span></span>
-<span class="sc act" onclick="toggleStock('3711')" data-code="3711" data-type="tw50" data-tw="1" data-on="1"><span class="cc">3711</span><span class="cn">&#x65E5;&#x6708;&#x5149;</span></span>
-<span class="sc act" onclick="toggleStock('2344')" data-code="2344" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2344</span><span class="cn">&#x83EF;&#x90A6;&#x96FB;</span></span>
-<span class="sc act" onclick="toggleStock('2368')" data-code="2368" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2368</span><span class="cn">&#x91D1;&#x50CF;&#x96FB;</span></span>
-<span class="sc act" onclick="toggleStock('2449')" data-code="2449" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2449</span><span class="cn">&#x4EAC;&#x5143;&#x96FB;&#x5B50;</span></span>
-<span class="sc act" onclick="toggleStock('2408')" data-code="2408" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2408</span><span class="cn">&#x5357;&#x4E9E;&#x79D1;</span></span>
-<span class="sc act" onclick="toggleStock('3034')" data-code="3034" data-type="mid" data-tw="1" data-on="1"><span class="cc">3034</span><span class="cn">&#x806F;&#x8A60;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3034')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2379')" data-code="2379" data-type="mid" data-tw="1" data-on="1"><span class="cc">2379</span><span class="cn">&#x745E;&#x6615;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2379')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2337')" data-code="2337" data-type="mid" data-tw="1" data-on="1"><span class="cc">2337</span><span class="cn">&#x65FA;&#x5B8F;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2337')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('3035')" data-code="3035" data-type="mid" data-tw="1" data-on="1"><span class="cc">3035</span><span class="cn">&#x667A;&#x539F;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3035')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('6770')" data-code="6770" data-type="mid" data-tw="1" data-on="1"><span class="cc">6770</span><span class="cn">&#x529B;&#x7A4D;&#x96FB;</span><span class="cd" onclick="event.stopPropagation();deleteStock('6770')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('3443')" data-code="3443" data-type="mid" data-tw="1" data-on="1"><span class="cc">3443</span><span class="cn">&#x5275;&#x610F;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3443')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('6415')" data-code="6415" data-type="mid" data-tw="1" data-on="1"><span class="cc">6415</span><span class="cn">&#x77FD;&#x529B;-KY</span><span class="cd" onclick="event.stopPropagation();deleteStock('6415')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('3014')" data-code="3014" data-type="mid" data-tw="1" data-on="1"><span class="cc">3014</span><span class="cn">&#x806F;&#x967D;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3014')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('4919')" data-code="4919" data-type="mid" data-tw="1" data-on="1"><span class="cc">4919</span><span class="cn">&#x65B0;&#x5510;</span><span class="cd" onclick="event.stopPropagation();deleteStock('4919')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2231')" data-code="2231" data-type="mid" data-tw="1" data-on="1"><span class="cc">2231</span><span class="cn">&#x70BA;&#x5347;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2231')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x5DE5;&#x696D;&#x6A5F;&#x68B0;</span><span class="ic" id="ic4">3/3</span></div><div class="ib" id="ib4">
-<span class="sc act" onclick="toggleStock('2059')" data-code="2059" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2059</span><span class="cn">&#x5DDD;&#x6E56;</span></span>
-<span class="sc act" onclick="toggleStock('2049')" data-code="2049" data-type="mid" data-tw="1" data-on="1"><span class="cc">2049</span><span class="cn">&#x4E0A;&#x9280;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2049')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('1590')" data-code="1590" data-type="mid" data-tw="1" data-on="1"><span class="cc">1590</span><span class="cn">&#x4E9E;&#x5FB7;&#x5BA2;</span><span class="cd" onclick="event.stopPropagation();deleteStock('1590')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x5DE5;&#x696D;&#x96FB;&#x8166;</span><span class="ic" id="ic5">1/1</span></div><div class="ib" id="ib5">
-<span class="sc act" onclick="toggleStock('2395')" data-code="2395" data-type="mid" data-tw="1" data-on="1"><span class="cc">2395</span><span class="cn">&#x7814;&#x83EF;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2395')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x6C7D;&#x8ECA;</span><span class="ic" id="ic6">1/1</span></div><div class="ib" id="ib6">
-<span class="sc act" onclick="toggleStock('2207')" data-code="2207" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2207</span><span class="cn">&#x548C;&#x6CF0;&#x8ECA;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x751F;&#x6280;&#x91AB;&#x7642;</span><span class="ic" id="ic7">3/3</span></div><div class="ib" id="ib7">
-<span class="sc act" onclick="toggleStock('1789')" data-code="1789" data-type="mid" data-tw="1" data-on="1"><span class="cc">1789</span><span class="cn">&#x795E;&#x9686;</span><span class="cd" onclick="event.stopPropagation();deleteStock('1789')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('6446')" data-code="6446" data-type="mid" data-tw="1" data-on="1"><span class="cc">6446</span><span class="cn">&#x85E5;&#x83EF;&#x85E5;</span><span class="cd" onclick="event.stopPropagation();deleteStock('6446')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x77F3;&#x5316;</span><span class="ic" id="ic8">4/4</span></div><div class="ib" id="ib8">
-<span class="sc act" onclick="toggleStock('1301')" data-code="1301" data-type="tw50" data-tw="1" data-on="1"><span class="cc">1301</span><span class="cn">&#x53F0;&#x5869;</span></span>
-<span class="sc act" onclick="toggleStock('1303')" data-code="1303" data-type="tw50" data-tw="1" data-on="1"><span class="cc">1303</span><span class="cn">&#x5357;&#x4E9E;</span></span>
-<span class="sc act" onclick="toggleStock('6505')" data-code="6505" data-type="tw50" data-tw="1" data-on="1"><span class="cc">6505</span><span class="cn">&#x53F0;&#x5869;&#x5316;</span></span>
-<span class="sc act" onclick="toggleStock('1326')" data-code="1326" data-type="mid" data-tw="1" data-on="1"><span class="cc">1326</span><span class="cn">&#x53F0;&#x5316;</span><span class="cd" onclick="event.stopPropagation();deleteStock('1326')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x822A;&#x904B;</span><span class="ic" id="ic9">6/6</span></div><div class="ib" id="ib9">
-<span class="sc act" onclick="toggleStock('2615')" data-code="2615" data-type="mid" data-tw="1" data-on="1"><span class="cc">2615</span><span class="cn">&#x842C;&#x6D77;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2615')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2603')" data-code="2603" data-type="mid" data-tw="1" data-on="1"><span class="cc">2603</span><span class="cn">&#x9577;&#x69AE;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2603')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2609')" data-code="2609" data-type="mid" data-tw="1" data-on="1"><span class="cc">2609</span><span class="cn">&#x967D;&#x660E;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2609')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2610')" data-code="2610" data-type="mid" data-tw="1" data-on="1"><span class="cc">2610</span><span class="cn">&#x83EF;&#x822A;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2610')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2618')" data-code="2618" data-type="mid" data-tw="1" data-on="1"><span class="cc">2618</span><span class="cn">&#x9577;&#x69AE;&#x822A;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2618')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2645')" data-code="2645" data-type="mid" data-tw="1" data-on="1"><span class="cc">2645</span><span class="cn">&#x9577;&#x69AE;&#x822A;&#x592A;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2645')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x91D1;&#x878D;</span><span class="ic" id="ic10">19/19</span></div><div class="ib" id="ib10">
-<span class="sc act" onclick="toggleStock('2881')" data-code="2881" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2881</span><span class="cn">&#x5BCC;&#x90A6;&#x91D1;</span></span>
-<span class="sc act" onclick="toggleStock('2882')" data-code="2882" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2882</span><span class="cn">&#x570B;&#x6CF0;&#x91D1;</span></span>
-<span class="sc act" onclick="toggleStock('2884')" data-code="2884" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2884</span><span class="cn">&#x7389;&#x5C71;&#x91D1;</span></span>
-<span class="sc act" onclick="toggleStock('2885')" data-code="2885" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2885</span><span class="cn">&#x5143;&#x5927;&#x91D1;</span></span>
-<span class="sc act" onclick="toggleStock('2886')" data-code="2886" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2886</span><span class="cn">&#x5146;&#x8C50;&#x91D1;</span></span>
-<span class="sc act" onclick="toggleStock('2887')" data-code="2887" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2887</span><span class="cn">&#x53F0;&#x65B0;&#x91D1;</span></span>
-<span class="sc act" onclick="toggleStock('2891')" data-code="2891" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2891</span><span class="cn">&#x4E2D;&#x4FE1;&#x91D1;</span></span>
-<span class="sc act" onclick="toggleStock('2892')" data-code="2892" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2892</span><span class="cn">&#x7B2C;&#x4E00;&#x91D1;</span></span>
-<span class="sc act" onclick="toggleStock('2883')" data-code="2883" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2883</span><span class="cn">&#x958B;&#x767C;&#x91D1;</span></span>
-<span class="sc act" onclick="toggleStock('2880')" data-code="2880" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2880</span><span class="cn">&#x83EF;&#x5357;&#x91D1;</span></span>
-<span class="sc act" onclick="toggleStock('5880')" data-code="5880" data-type="tw50" data-tw="1" data-on="1"><span class="cc">5880</span><span class="cn">&#x5408;&#x5EAB;&#x91D1;</span></span>
-<span class="sc act" onclick="toggleStock('2890')" data-code="2890" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2890</span><span class="cn">&#x6C38;&#x8C50;&#x91D1;</span></span>
-<span class="sc act" onclick="toggleStock('2838')" data-code="2838" data-type="mid" data-tw="1" data-on="1"><span class="cc">2838</span><span class="cn">&#x806F;&#x90A6;&#x9280;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2838')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('5876')" data-code="5876" data-type="mid" data-tw="1" data-on="1"><span class="cc">5876</span><span class="cn">&#x4E0A;&#x5546;&#x9280;</span><span class="cd" onclick="event.stopPropagation();deleteStock('5876')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('5871')" data-code="5871" data-type="mid" data-tw="1" data-on="1"><span class="cc">5871</span><span class="cn">&#x4E2D;&#x79DF;-KY</span><span class="cd" onclick="event.stopPropagation();deleteStock('5871')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2812')" data-code="2812" data-type="mid" data-tw="1" data-on="1"><span class="cc">2812</span><span class="cn">&#x53F0;&#x4E2D;&#x9280;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2812')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2836')" data-code="2836" data-type="mid" data-tw="1" data-on="1"><span class="cc">2836</span><span class="cn">&#x9AD8;&#x96C4;&#x9280;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2836')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x9F4B;&#x9435;</span><span class="ic" id="ic11">1/1</span></div><div class="ib" id="ib11">
-<span class="sc act" onclick="toggleStock('2002')" data-code="2002" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2002</span><span class="cn">&#x4E2D;&#x9F4B;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x96FB;&#x4FE1;</span><span class="ic" id="ic12">3/3</span></div><div class="ib" id="ib12">
-<span class="sc act" onclick="toggleStock('2412')" data-code="2412" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2412</span><span class="cn">&#x4E2D;&#x83EF;&#x96FB;</span></span>
-<span class="sc act" onclick="toggleStock('3045')" data-code="3045" data-type="tw50" data-tw="1" data-on="1"><span class="cc">3045</span><span class="cn">&#x53F0;&#x7063;&#x5927;</span></span>
-<span class="sc act" onclick="toggleStock('4904')" data-code="4904" data-type="mid" data-tw="1" data-on="1"><span class="cc">4904</span><span class="cn">&#x9060;&#x50B3;</span><span class="cd" onclick="event.stopPropagation();deleteStock('4904')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x96FB;&#x5B50;&#x88FD;&#x9020;</span><span class="ic" id="ic13">11/11</span></div><div class="ib" id="ib13">
-<span class="sc act" onclick="toggleStock('2317')" data-code="2317" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2317</span><span class="cn">&#x9CF4;&#x6D77;</span></span>
-<span class="sc act" onclick="toggleStock('2382')" data-code="2382" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2382</span><span class="cn">&#x5EE3;&#x9054;</span></span>
-<span class="sc act" onclick="toggleStock('2308')" data-code="2308" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2308</span><span class="cn">&#x53F0;&#x9054;&#x96FB;</span></span>
-<span class="sc act" onclick="toggleStock('2301')" data-code="2301" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2301</span><span class="cn">&#x5149;&#x5BF6;&#x79D1;</span></span>
-<span class="sc act" onclick="toggleStock('2354')" data-code="2354" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2354</span><span class="cn">&#x9CF4;&#x6E96;</span></span>
-<span class="sc act" onclick="toggleStock('2360')" data-code="2360" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2360</span><span class="cn">&#x81F4;&#x8305;</span></span>
-<span class="sc act" onclick="toggleStock('4938')" data-code="4938" data-type="mid" data-tw="1" data-on="1"><span class="cc">4938</span><span class="cn">&#x548C;&#x7A69;</span><span class="cd" onclick="event.stopPropagation();deleteStock('4938')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('3231')" data-code="3231" data-type="mid" data-tw="1" data-on="1"><span class="cc">3231</span><span class="cn">&#x7DE8;&#x5275;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3231')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2356')" data-code="2356" data-type="mid" data-tw="1" data-on="1"><span class="cc">2356</span><span class="cn">&#x82F1;&#x696D;&#x9054;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2356')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('3702')" data-code="3702" data-type="mid" data-tw="1" data-on="1"><span class="cc">3702</span><span class="cn">&#x5927;&#x806F;&#x5927;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3702')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2385')" data-code="2385" data-type="mid" data-tw="1" data-on="1"><span class="cc">2385</span><span class="cn">&#x7FA4;&#x5149;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2385')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x96FB;&#x5B50;&#x96F6;&#x7D44;&#x4EF6;</span><span class="ic" id="ic14">17/17</span></div><div class="ib" id="ib14">
-<span class="sc act" onclick="toggleStock('3037')" data-code="3037" data-type="tw50" data-tw="1" data-on="1"><span class="cc">3037</span><span class="cn">&#x6B23;&#x8208;</span></span>
-<span class="sc act" onclick="toggleStock('2383')" data-code="2383" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2383</span><span class="cn">&#x53F0;&#x5149;&#x96FB;</span></span>
-<span class="sc act" onclick="toggleStock('3653')" data-code="3653" data-type="tw50" data-tw="1" data-on="1"><span class="cc">3653</span><span class="cn">&#x5065;&#x7B56;</span></span>
-<span class="sc act" onclick="toggleStock('3189')" data-code="3189" data-type="mid" data-tw="1" data-on="1"><span class="cc">3189</span><span class="cn">&#x6CA1;&#x7A69;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3189')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('3533')" data-code="3533" data-type="mid" data-tw="1" data-on="1"><span class="cc">3533</span><span class="cn">&#x5609;&#x6FA4;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3533')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2327')" data-code="2327" data-type="mid" data-tw="1" data-on="1"><span class="cc">2327</span><span class="cn">&#x570B;&#x5DE5;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2327')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('3017')" data-code="3017" data-type="mid" data-tw="1" data-on="1"><span class="cc">3017</span><span class="cn">&#x5947;&#x9CB4;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3017')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('3044')" data-code="3044" data-type="mid" data-tw="1" data-on="1"><span class="cc">3044</span><span class="cn">&#x5065;&#x9F8E;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3044')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2492')" data-code="2492" data-type="mid" data-tw="1" data-on="1"><span class="cc">2492</span><span class="cn">&#x83EF;&#x65B0;&#x79D1;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2492')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('3665')" data-code="3665" data-type="mid" data-tw="1" data-on="1"><span class="cc">3665</span><span class="cn">&#x8CB7;&#x806F;-KY</span><span class="cd" onclick="event.stopPropagation();deleteStock('3665')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('8996')" data-code="8996" data-type="mid" data-tw="1" data-on="1"><span class="cc">8996</span><span class="cn">&#x9AD8;&#x529B;</span><span class="cd" onclick="event.stopPropagation();deleteStock('8996')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2474')" data-code="2474" data-type="mid" data-tw="1" data-on="1"><span class="cc">2474</span><span class="cn">&#x53EF;&#x6210;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2474')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2392')" data-code="2392" data-type="mid" data-tw="1" data-on="1"><span class="cc">2392</span><span class="cn">&#x6B63;&#x5D34;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2392')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2393')" data-code="2393" data-type="mid" data-tw="1" data-on="1"><span class="cc">2393</span><span class="cn">&#x5104;&#x5149;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2393')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('6271')" data-code="6271" data-type="mid" data-tw="1" data-on="1"><span class="cc">6271</span><span class="cn">&#x540C;&#x6B23;&#x96FB;</span><span class="cd" onclick="event.stopPropagation();deleteStock('6271')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('6669')" data-code="6669" data-type="mid" data-tw="1" data-on="1"><span class="cc">6669</span><span class="cn">&#x7DEF;&#x7A4E;</span><span class="cd" onclick="event.stopPropagation();deleteStock('6669')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x96FB;&#x8166;&#x5468;&#x908A;</span><span class="ic" id="ic15">6/6</span></div><div class="ib" id="ib15">
-<span class="sc act" onclick="toggleStock('2357')" data-code="2357" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2357</span><span class="cn">&#x83EF;&#x7A69;</span></span>
-<span class="sc act" onclick="toggleStock('2353')" data-code="2353" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2353</span><span class="cn">&#x5B8F;&#x7A79;</span></span>
-<span class="sc act" onclick="toggleStock('2324')" data-code="2324" data-type="mid" data-tw="1" data-on="1"><span class="cc">2324</span><span class="cn">&#x4EC1;&#x5BF6;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2324')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2377')" data-code="2377" data-type="mid" data-tw="1" data-on="1"><span class="cc">2377</span><span class="cn">&#x5FAE;&#x661F;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2377')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2376')" data-code="2376" data-type="mid" data-tw="1" data-on="1"><span class="cc">2376</span><span class="cn">&#x6280;&#x5609;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2376')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('3706')" data-code="3706" data-type="mid" data-tw="1" data-on="1"><span class="cc">3706</span><span class="cn">&#x795E;&#x9054;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3706')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x9762;&#x677F;</span><span class="ic" id="ic16">2/2</span></div><div class="ib" id="ib16">
-<span class="sc act" onclick="toggleStock('2409')" data-code="2409" data-type="tw50" data-tw="1" data-on="1"><span class="cc">2409</span><span class="cn">&#x53CB;&#x9054;</span></span>
-<span class="sc act" onclick="toggleStock('3481')" data-code="3481" data-type="mid" data-tw="1" data-on="1"><span class="cc">3481</span><span class="cn">&#x7FA4;&#x5275;</span><span class="cd" onclick="event.stopPropagation();deleteStock('3481')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x98DF;&#x54C1;&#x6D88;&#x8CBB;</span><span class="ic" id="ic17">3/3</span></div><div class="ib" id="ib17">
-<span class="sc act" onclick="toggleStock('1216')" data-code="1216" data-type="tw50" data-tw="1" data-on="1"><span class="cc">1216</span><span class="cn">&#x7D71;&#x4E00;&#x4F01;&#x696D;</span></span>
-<span class="sc act" onclick="toggleStock('2912')" data-code="2912" data-type="mid" data-tw="1" data-on="1"><span class="cc">2912</span><span class="cn">&#x7D71;&#x4E00;&#x8D85;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2912')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('1210')" data-code="1210" data-type="mid" data-tw="1" data-on="1"><span class="cc">1210</span><span class="cn">&#x5927;&#x6210;</span><span class="cd" onclick="event.stopPropagation();deleteStock('1210')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x7D21;&#x7E54;&#x6210;&#x8863;</span><span class="ic" id="ic18">4/4</span></div><div class="ib" id="ib18">
-<span class="sc act" onclick="toggleStock('1476')" data-code="1476" data-type="mid" data-tw="1" data-on="1"><span class="cc">1476</span><span class="cn">&#x5112;&#x9D3F;</span><span class="cd" onclick="event.stopPropagation();deleteStock('1476')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('9910')" data-code="9910" data-type="mid" data-tw="1" data-on="1"><span class="cc">9910</span><span class="cn">&#x8C4A;&#x6CF0;</span><span class="cd" onclick="event.stopPropagation();deleteStock('9910')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('1434')" data-code="1434" data-type="mid" data-tw="1" data-on="1"><span class="cc">1434</span><span class="cn">&#x798F;&#x61BF;</span><span class="cd" onclick="event.stopPropagation();deleteStock('1434')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('1440')" data-code="1440" data-type="mid" data-tw="1" data-on="1"><span class="cc">1440</span><span class="cn">&#x5357;&#x7D21;</span><span class="cd" onclick="event.stopPropagation();deleteStock('1440')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x6A61;&#x8B60;&#x6C7D;&#x8ECA;</span><span class="ic" id="ic19">3/3</span></div><div class="ib" id="ib19">
-<span class="sc act" onclick="toggleStock('2105')" data-code="2105" data-type="mid" data-tw="1" data-on="1"><span class="cc">2105</span><span class="cn">&#x6B63;&#x65B0;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2105')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2206')" data-code="2206" data-type="mid" data-tw="1" data-on="1"><span class="cc">2206</span><span class="cn">&#x4E09;&#x967D;&#x5DE5;&#x696D;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2206')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2201')" data-code="2201" data-type="mid" data-tw="1" data-on="1"><span class="cc">2201</span><span class="cn">&#x88D5;&#x9686;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2201')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x5EFA;&#x6750;&#x4E0D;&#x52D5;&#x7522;</span><span class="ic" id="ic20">3/3</span></div><div class="ib" id="ib20">
-<span class="sc act" onclick="toggleStock('2542')" data-code="2542" data-type="mid" data-tw="1" data-on="1"><span class="cc">2542</span><span class="cn">&#x8208;&#x5BCC;&#x767C;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2542')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('5522')" data-code="5522" data-type="mid" data-tw="1" data-on="1"><span class="cc">5522</span><span class="cn">&#x9060;&#x96C4;</span><span class="cd" onclick="event.stopPropagation();deleteStock('5522')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('1513')" data-code="1513" data-type="mid" data-tw="1" data-on="1"><span class="cc">1513</span><span class="cn">&#x4E2D;&#x8208;&#x96FB;</span><span class="cd" onclick="event.stopPropagation();deleteStock('1513')">&times;</span></span>
-</div></div>
-<div class="ig"><div class="ih" onclick="toggleInd(this)"><span class="in">&#x901A;&#x8DEF;&#x6D41;&#x901A;</span><span class="ic" id="ic21">4/4</span></div><div class="ib" id="ib21">
-<span class="sc act" onclick="toggleStock('2347')" data-code="2347" data-type="mid" data-tw="1" data-on="1"><span class="cc">2347</span><span class="cn">&#x806F;&#x5F37;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2347')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2915')" data-code="2915" data-type="mid" data-tw="1" data-on="1"><span class="cc">2915</span><span class="cn">&#x6F64;&#x6CF0;&#x5168;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2915')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('9904')" data-code="9904" data-type="mid" data-tw="1" data-on="1"><span class="cc">9904</span><span class="cn">&#x5BF6;&#x6210;</span><span class="cd" onclick="event.stopPropagation();deleteStock('9904')">&times;</span></span>
-<span class="sc act" onclick="toggleStock('2903')" data-code="2903" data-type="mid" data-tw="1" data-on="1"><span class="cc">2903</span><span class="cn">&#x9060;&#x767E;</span><span class="cd" onclick="event.stopPropagation();deleteStock('2903')">&times;</span></span>
-</div></div>
-
-    <div class="cust">
-      <input type="text" id="cusT" placeholder="2330 or SPY" style="max-width:120px">
-      <input type="text" id="cusN" placeholder="Name" style="max-width:90px">
-      <select id="cusI" style="max-width:110px">
-<option value="US-ETF">US-ETF</option>
-<option value="US-Mag7">US-Mag7</option>
-<option value="&#x5149;&#x5B78;&#x7CBE;&#x5BC6;">&#x5149;&#x5B78;&#x7CBE;&#x5BC6;</option>
-<option value="&#x534A;&#x5C0E;&#x9AD4;">&#x534A;&#x5C0E;&#x9AD4;</option>
-<option value="&#x5DE5;&#x696D;&#x6A5F;&#x68B0;">&#x5DE5;&#x696D;&#x6A5F;&#x68B0;</option>
-<option value="&#x5DE5;&#x696D;&#x96FB;&#x8166;">&#x5DE5;&#x696D;&#x96FB;&#x8166;</option>
-<option value="&#x6C7D;&#x8ECA;">&#x6C7D;&#x8ECA;</option>
-<option value="&#x751F;&#x6280;&#x91AB;&#x7642;">&#x751F;&#x6280;&#x91AB;&#x7642;</option>
-<option value="&#x77F3;&#x5316;">&#x77F3;&#x5316;</option>
-<option value="&#x822A;&#x904B;">&#x822A;&#x904B;</option>
-<option value="&#x91D1;&#x878D;">&#x91D1;&#x878D;</option>
-<option value="&#x9F4B;&#x9435;">&#x9F4B;&#x9435;</option>
-<option value="&#x96FB;&#x4FE1;">&#x96FB;&#x4FE1;</option>
-<option value="&#x96FB;&#x5B50;&#x88FD;&#x9020;">&#x96FB;&#x5B50;&#x88FD;&#x9020;</option>
-<option value="&#x96FB;&#x5B50;&#x96F6;&#x7D44;&#x4EF6;">&#x96FB;&#x5B50;&#x96F6;&#x7D44;&#x4EF6;</option>
-<option value="&#x96FB;&#x8166;&#x5468;&#x908A;">&#x96FB;&#x8166;&#x5468;&#x908A;</option>
-<option value="&#x9762;&#x677F;">&#x9762;&#x677F;</option>
-<option value="&#x98DF;&#x54C1;&#x6D88;&#x8CBB;">&#x98DF;&#x54C1;&#x6D88;&#x8CBB;</option>
-<option value="&#x7D21;&#x7E54;&#x6210;&#x8863;">&#x7D21;&#x7E54;&#x6210;&#x8863;</option>
-<option value="&#x6A61;&#x8B60;&#x6C7D;&#x8ECA;">&#x6A61;&#x8B60;&#x6C7D;&#x8ECA;</option>
-<option value="&#x5EFA;&#x6750;&#x4E0D;&#x52D5;&#x7522;">&#x5EFA;&#x6750;&#x4E0D;&#x52D5;&#x7522;</option>
-<option value="&#x901A;&#x8DEF;&#x6D41;&#x901A;">&#x901A;&#x8DEF;&#x6D41;&#x901A;</option>
-      </select>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--mu);cursor:pointer">
-        <input type="checkbox" id="cusUS" style="width:14px;accent-color:var(--us)"> US
-      </label>
-      <button class="bo sm" onclick="addCustom()">+ Add</button>
-    </div>
-  </div>
-  <div class="card">
-    <div class="ct">&#x8A55;&#x5206;&#x6B0A;&#x91CD; <span style="font-size:10px;color:var(--gr)">&#x6539;&#x5B8C;&#x6B0A;&#x91CD;&#x76F4;&#x63A5;&#x91CD;&#x8A08;</span></div>
-    <div class="g3">
-      <div class="fi"><label>&#x52D5;&#x80FD;z(%)</label><input type="number" id="wMom" value="50" min="0" max="100"></div>
-      <div class="fi"><label>Bias(%)</label><input type="number" id="wBias" value="15" min="0" max="100"></div>
-      <div class="fi"><label>Slope(%)</label><input type="number" id="wSlope" value="15" min="0" max="100"></div>
-      <div class="fi"><label>&#x91CF;&#x80FD;(%)</label><input type="number" id="wVol" value="10" min="0" max="100"></div>
-      <div class="fi"><label>K&#x68D2;(%)</label><input type="number" id="wKbar" value="10" min="0" max="100"></div>
-      <div class="fi"><label>Corr Thresh</label><input type="number" id="corrT" value="0.75" step="0.05" min="0.3" max="1"></div>
-      <div class="fi"><label>Corr Window (mo)</label><input type="number" id="corrW" value="24" min="6" max="60" step="6"></div>
-    </div>
-    <div class="ib2">
-      <b>&#x52D5;&#x80FD;</b>: 0.5z12+0.3z6+0.2z3 (&#x6708;&#x983B;) |
-      <b>&#x53F0;</b>: &#x9031;&#x983B; 13&#x9031; | <b>US/Mag7</b>: &#x65E5;&#x983B; 50&#x65E5;<br>
-      <b>TS</b>: R12 &gt; ^TNX + spread%
-    </div>
-  </div>
-</div>
-
-<div class="panel" id="panel-fetch">
-  <div class="card">
-    <div class="ct">Proxy</div>
-    <!-- 新增：資料監控儀表板 -->
-<div class="card" style="border-left: 4px solid var(--ye);">
-  <div class="ct">🚦 資料健康診斷 <button class="bo sm" onclick="checkDataHealth()">🔄 立即診斷</button></div>
-  <div id="healthDashboard">
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
-      <div class="ib2" style="margin-top:0">🔴 待更新股數：<b id="staleCount" style="color:var(--re)">0</b></div>
-      <div class="ib2" style="margin-top:0">📅 平均延遲：<b id="avgDelay" style="color:var(--ye)">0</b> 天</div>
-    </div>
-    <div class="tw-wrap" style="max-height: 200px;">
-      <table>
-        <thead>
-          <tr><th>市場</th><th>代碼</th><th>最後日期</th><th>延遲天數</th><th>狀態</th></tr>
-        </thead>
-        <tbody id="healthBody">
-          <tr><td colspan="5" style="text-align:center; color:var(--mu)">請點擊診斷按鈕</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- 新增：備用來源切換 -->
-<div class="card">
-  <div class="ct">⚙️ 資料來源引擎設定</div>
-  <div style="display:flex; gap:10px; align-items:center;">
-    <select id="dataSource" style="flex:1">
-      <option value="yahoo">主要來源：Yahoo Finance (JSON)</option>
-      <option value="stooq">備用來源：Stooq (CSV/Global)</option>
-    </select>
-    <span style="font-size:11px; color:var(--mu)">※ 若主要來源失效請切換</span>
-  </div>
-</div>
-
-    <div class="fi"><label>URL</label>
-      <input type="text" id="proxyUrl" value="https://shield-proxy.depross0205.workers.dev?url=" autocorrect="off" spellcheck="false">
-    </div>
-  </div>
-  <div class="card">
-    <div class="ct">&#x8CC7;&#x6599;&#x6293;&#x53D6;</div>
-    <div class="tnx-bar">
-      <span>^TNX:</span>
-      <b id="tnxVal" style="color:var(--bl);font-family:monospace">not fetched</b>
-      <span id="tnxThresh" style="color:var(--mu)"></span>
-    </div>
-    <div id="fetchStat" style="display:flex;flex-wrap:wrap;margin-bottom:8px"></div>
-    <button class="btw" onclick="fetchAll()">&#x1F310; &#x6293;&#x53D6;&#x5168;&#x90E8; - &#x81EA;&#x52D5;&#x5EFA;&#x5FEB;&#x53D6;</button>
-    <div class="log" id="fetchLog"></div>
-    <div class="pw hidden" id="fetchProg"><div class="pf" id="fetchFill" style="width:0%"></div></div>
-  </div>
-  <div class="card">
-    <div class="ct">&#x5B58;&#x6A94;/&#x8F09;&#x5165;
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="bo sm" onclick="dlJson()">&#x2B07; JSON</button>
-        <button class="bo sm" onclick="dlOHLCV()">&#x2B07; OHLCV</button>
-        <button class="bo sm" onclick="dlMonthly()">&#x2B07; &#x6708;&#x983B;</button>
-      </div>
-    </div>
-    <div class="cs-bar"><span id="cacheTxt" style="font-size:11px;font-weight:700">Cache: not built</span></div>
-    <button class="bte" onclick="fetchUpdate()" style="margin-bottom:8px">&#x21BB; &#x81EA;&#x52D5;&#x88DC;&#x9F4A;&#x66F4;&#x65B0; &#x2014; &#x88DC;&#x7F3A;&#x6A19;&#x7684;+&#x88DC;&#x7F3A;&#x65E5;&#x671F;</button>
-    <div class="log" id="updateLog"></div>
-    <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <input type="file" id="fileJson" accept=".json" style="display:none" onchange="upJson(this)">
-      <button class="bo sm" onclick="document.getElementById('fileJson').click()">&#x2B06; JSON &#x9084;&#x539F;</button>
-      <button class="bo sm" style="color:var(--re);border-color:var(--re)" onclick="clearAndReset()">&#x1F5D1; Clear DB</button>
-      <button class="bo sm" style="color:var(--ye);border-color:var(--ye)" onclick="debugDataLen()">&#x1F50D; Debug</button>
-
-      <span style="font-size:10px;color:var(--mu)">&#x4E0A;&#x50B3;&#x5F8C;&#x81EA;&#x52D5;&#x91CD;&#x5EFA;&#x5FEB;&#x53D6;</span>
-    </div>
-    <div class="log" id="dlLog"></div>
-  </div>
-</div>
-
-<div class="panel" id="panel-signal">
-  <div class="card">
-    <div class="ct">&#x1F4E1; &#x5373;&#x6642;&#x4FE1;&#x865F;</div>
-    <div id="sigContent" style="color:var(--mu);font-size:12px">&#x8ACB;&#x5148;&#x6293;&#x53D6;&#x8CC7;&#x6599;&#x3002;</div>
-    <button class="btw" onclick="calcSignal()" style="margin-top:10px">&#x25B6; &#x8A08;&#x7B97;&#x4FE1;&#x865F;</button>
-  </div>
-  <div class="card hidden" id="stCard">
-    <div class="ct">&#x5168;&#x80A1;&#x6C60;&#x6392;&#x884C;</div>
-    <div class="tw-wrap"><table><thead><tr>
-      <th>#</th><th>Code</th><th>Name</th><th>Ind</th>
-      <th>Score</th><th>MomZ</th><th>BiasZ</th><th>SlopeZ</th><th>VolZ</th><th>KbarZ</th>
-      <th>R12</th><th>R6</th><th>R3</th><th>TS</th>
-    </tr></thead><tbody id="stBody"></tbody></table></div>
-  </div>
-</div>
-
-<div class="panel" id="panel-backtest">
-  <div class="card">
-    <div class="ct">&#x56DE;&#x6E2C;&#x8A2D;&#x5B9A;</div>
-    <div class="g3">
-      <div class="fi"><label>Start</label><input type="text" id="btS" placeholder="YYYY-MM"></div>
-      <div class="fi"><label>End</label><input type="text" id="btE" placeholder="YYYY-MM"></div>
-      <div class="fi"><label>Max Hold</label><input type="number" id="btH" value="3" min="1" max="10"></div>
-      <div class="fi"><label>Capital</label><input type="number" id="btCap" value="100000"></div>
-      <div class="fi"><label>Cost(%)</label><input type="number" id="btC" value="0.3" step="0.1"></div>
-      <div class="fi"><label>TNX Spread(%)</label><input type="number" id="btSpread" value="0.5" step="0.1"></div>
-      <div class="fi"><label>Weight Mode</label>
-        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px">
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="radio" name="wtMode" id="wtEq" value="eq" checked style="width:14px;accent-color:var(--tw)"> &#x7B49;&#x6B0A;
-          </label>
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="radio" name="wtMode" id="wtRank" value="rank" style="width:14px;accent-color:var(--tw)"> &#x6392;&#x540D;&#x52A0;&#x6B0A;
-          </label>
-        </div>
-      </div>
-      <div class="fi"><label>Short N</label><input type="number" id="btSN" value="0" min="0" max="10" placeholder="0=off"></div>
-      <div class="fi"><label>Capital Mode</label>
-        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px">
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="radio" name="capMode" id="capNeutral" value="neutral" checked style="width:14px;accent-color:var(--bl)"> 50/50
-          </label>
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="radio" name="capMode" id="cap1330" value="1330" style="width:14px;accent-color:var(--bl)"> 130/30
-          </label>
-        </div>
-      </div>
-      <div class="fi"><label>Short TS Filter</label>
-        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer">
-          <input type="checkbox" id="btSTSF" style="width:14px;accent-color:var(--bl)"> R12 &lt; 0 only
-        </label>
-      </div>
-      <div class="fi"><label>Rolling Periods</label>
-        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">
-          <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl1" checked style="width:13px;accent-color:var(--tw)"> 1Y</label>
-          <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl2" checked style="width:13px;accent-color:var(--tw)"> 2Y</label>
-          <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl3" checked style="width:13px;accent-color:var(--tw)"> 3Y</label>
-          <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl5" style="width:13px;accent-color:var(--tw)"> 5Y</label>
-        </div>
-      </div>
-            <div class="fi"><label>Skip Month</label>
-        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer">
-          <input type="checkbox" id="btSkipMo" style="width:14px;accent-color:var(--tw)"> &#x8DF3;&#x904E;&#x6700;&#x8FD1;1&#x6708;
-        </label>
-      </div>
-      <div class="fi"><label>Signal Lag</label>
-        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px">
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="radio" name="lagMode" id="lagT1" value="1" checked style="width:14px;accent-color:var(--tw)"> t-1
-          </label>
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="radio" name="lagMode" id="lagT2" value="2" style="width:14px;accent-color:var(--tw)"> t-2
-          </label>
-        </div>
-      </div>
-
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="btw" onclick="runBT()" style="flex:1">&#x25B6; &#x57F7;&#x884C;&#x56DE;&#x6E2C;</button>
-      <button class="bo" onclick="runCompare()" style="flex:1">&#x25B6; &#x6BD4;&#x8F03; N=1~max</button>
-    </div>
-    <button class="bte" onclick="runRolling()" style="width:100%;margin-top:6px">&#x25B6; &#x6EFE;&#x52D5;&#x5831;&#x916C;&#x5206;&#x6790;</button>
-    <div class="log" id="btLog"></div>
-  </div>
-  <div id="btRes" class="hidden">
-    <div id="btMetrics" style="margin-bottom:10px"></div>
-    <div style="margin-bottom:8px">
-      <button class="bo sm" onclick="toggleCharts(this)" id="btnChart" style="width:100%;text-align:left">&#x25B6; Show Charts (NAV / MDD)</button>
-      <div id="chartArea" style="display:none;margin-top:6px">
-        <div class="cw"><div class="ct2">NAV vs TAIEX</div><div style="position:relative;height:220px"><canvas id="navC"></canvas></div></div>
-        <div class="cw"><div class="ct2">MDD</div><div style="position:relative;height:120px"><canvas id="ddC"></canvas></div></div>
-      </div>
-    </div>
-    <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
-      <button class="bo sm" onclick="dlBtCsv()">&#x2B07; CSV</button>
-    </div>
-    <div class="tw-wrap"><table><thead><tr>
-      <th>Month / Stock</th><th>Holdings</th><th>Hurdle%</th><th>Return%</th><th>NAV / +$PnL</th><th>TAIEX / Contrib</th><th>Alpha%</th>
-    </tr></thead><tbody id="btBody"></tbody></table></div>
-    <div id="rollingRes" class="hidden" style="margin-top:10px"></div>
-  </div>
-</div>
-</div>
-<script>
-var WEEKLY={},MONTHLY={},DAILY={},BENCH_MONTHLY=[],TNX_MONTHLY=[];
-var RAW_SCORES={},BT_RESULT=null,CHART={},CACHE_BUILT=false,CACHE_TS=null,SKIP_MO=false,CACHE_SKIP_MO=false,CORR_WIN=24;
-var N_TW=13,N_US=50;
-  function checkDataHealth() {
-    const stocks = getEnabledStocks();
-    const now = new Date();
-    const tbody = $('healthBody');
-    let staleNum = 0;
-    let totalDelay = 0;
-    let html = '';
-
-    stocks.forEach(s => {
-        const data = s.tw ? WEEKLY[s.c] : DAILY[s.c];
-        let delay = 999;
-        let lastD = '無資料';
-        
-        if (data && data.length > 0) {
-            const lastDate = new Date(data[data.length - 1].date);
-            lastD = data[data.length - 1].date;
-            // 計算天數差距
-            delay = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
-        }
-
-        const isStale = s.tw ? delay > 5 : delay > 2; // 台股週頻大於5天, 美股日頻大於2天算過期
-        if (isStale) staleNum++;
-        if (delay !== 999) totalDelay += delay;
-
-        const statusLabel = isStale ? `<span style="color:var(--re)">✘ 需更新</span>` : `<span style="color:var(--te)">✔ 正常</span>`;
-        const marketLabel = s.tw ? '🇹🇼 台股' : '🇺🇸 美股';
-
-        html += `<tr>
-            <td>${marketLabel}</td>
-            <td class="mono">${s.c}</td>
-            <td class="mono">${lastD}</td>
-            <td class="mono">${delay === 999 ? '∞' : delay + 'd'}</td>
-            <td>${statusLabel}</td>
-        </tr>`;
-    });
-
-    tbody.innerHTML = html || '<tr><td colspan="5">無啟用中的標的</td></tr>';
-    $('staleCount').textContent = staleNum;
-    $('avgDelay').textContent = stocks.length ? (totalDelay / stocks.length).toFixed(1) : 0;
-}
-// --- IndexedDB Core ---
-const DB_NAME = 'FearlessConsoleDB';
-const DB_VERSION = 1;
-
-function initDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('stockData')) {
-        db.createObjectStore('stockData', { keyPath: 'id' });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function saveAllToDB() {
-  const db = await initDB();
-  const tx = db.transaction('stockData', 'readwrite');
-  const store = tx.objectStore('stockData');
-  const payload = {
-    id: 'main_cache',
-    WEEKLY, MONTHLY, DAILY, BENCH_MONTHLY, TNX_MONTHLY,
-    ts: new Date().toISOString()
-  };
-  store.put(payload);
-  console.log('Data persisted to IndexedDB');
-}
-
-async function loadFromDB() {
-  const db = await initDB();
-  const tx = db.transaction('stockData', 'readonly');
-  const store = tx.objectStore('stockData');
-  const request = store.get('main_cache');
-  
-  return new Promise((resolve) => {
-    request.onsuccess = async () => {
-      const res = request.result;
-      if (res) {
-        WEEKLY = res.WEEKLY || {};
-        MONTHLY = res.MONTHLY || {};
-        DAILY = res.DAILY || {};
-        BENCH_MONTHLY = res.BENCH_MONTHLY || [];
-        TNX_MONTHLY = res.TNX_MONTHLY || [];
-        updFetchStat();
-        updTNX();
-        await buildCache();
-        sl('dlLog', '從資料庫恢復成功 (' + res.ts.slice(0, 16).replace('T', ' ') + ')', true);
-        resolve(true);
-      } else {
-        resolve(false);
-      }
-    };
-  });
-}
-// ----------------------
-
-function $(i){return document.getElementById(i);}
-function gv(i){var e=$(i);return e?parseFloat(e.value)||0:0;}
-function sl(id,msg,ok){var e=$(id);if(!e)return;e.textContent=msg;e.style.color=ok===true?'var(--gr)':ok===false?'var(--re)':'var(--mu)';}
-function showL(t){$('loadEl').classList.remove('hidden');$('loadTxt').textContent=t||'...';}
-function hideL(){$('loadEl').classList.add('hidden');}
-function dlBlob(b,n){var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;document.body.appendChild(a);a.click();document.body.removeChild(a);}
-function dlText(t,n,ty){dlBlob(new Blob([t],{type:ty||'text/plain;charset=utf-8'}),n);}
-function switchTab(name,el){
-  var tabs=document.querySelectorAll('.tab'),panels=document.querySelectorAll('.panel');
-  for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('active');
-  for(var i=0;i<panels.length;i++)panels[i].classList.remove('active');
-  if(el)el.classList.add('active');
-  var p=$('panel-'+name);if(p)p.classList.add('active');
-}
-  function toggleGroup(ibId, turnOn) {
-  var ib = document.getElementById(ibId);
-  if (!ib) return;
-  ib.querySelectorAll('[data-code]').forEach(function(el) {
-    el.dataset.on = turnOn ? '1' : '0';
-    turnOn ? el.classList.add('act') : el.classList.remove('act');
-  });
-  updCountByIb(ib);
-}
-function initGroupToggles() {
-  document.querySelectorAll('.ih').forEach(function(ih) {
-    var ib = ih.nextElementSibling;
-    if (!ib || !ib.classList.contains('ib')) return;
-    var ibId = ib.id;
-    if (!ibId) return;
-    var wrap = document.createElement('span');
-    wrap.style.cssText = 'display:inline-flex;align-items:center;gap:3px;margin-right:6px';
-    var b1 = document.createElement('button');
-    b1.className = 'bo sm';
-    b1.style.cssText = 'padding:1px 5px;font-size:10px;color:var(--gr);border-color:var(--gr)';
-    b1.textContent = '\u5168';
-    b1.onclick = function(e) { e.stopPropagation(); toggleGroup(ibId, true); };
-    var b2 = document.createElement('button');
-    b2.className = 'bo sm';
-    b2.style.cssText = 'padding:1px 5px;font-size:10px;color:var(--re);border-color:var(--re)';
-    b2.textContent = '\u505c';
-    b2.onclick = function(e) { e.stopPropagation(); toggleGroup(ibId, false); };
-    wrap.appendChild(b1);
-    wrap.appendChild(b2);
-    var ic = ih.querySelector('.ic');
-    ih.insertBefore(wrap, ic);
-  });
-}
-
-function toggleStock(code){
-  var el=document.querySelector('[data-code="'+code+'"]');if(!el)return;
-  var on=el.dataset.on==='1';el.dataset.on=on?'0':'1';el.classList.toggle('act',!on);updCount(el);
-}
-function deleteStock(code){
-  var el=document.querySelector('[data-code="'+code+'"]');
-  if(!el||el.dataset.type==='tw50')return;
-  var ib=el.closest('.ib');el.remove();if(ib)updCountByIb(ib);
-}
-function toggleInd(ih){var ib=ih.nextElementSibling;if(ib)ib.classList.toggle('col');}
-function selectAll(){document.querySelectorAll('[data-code]').forEach(function(el){el.dataset.on='1';el.classList.add('act');});updAllCounts();}
-  function selectAll(){document.querySelectorAll('[data-code]').forEach(function(el){el.dataset.on='1';el.classList.add('act');});updAllCounts();}
-function selectNone(){document.querySelectorAll('[data-code]').forEach(function(el){el.dataset.on='0';el.classList.remove('act');});updAllCounts();}
-
-// 新增：專門控制台股 (data-tw="1") 的開關邏輯
-function selectTW(turnOn){
-  document.querySelectorAll('[data-code][data-tw="1"]').forEach(function(el){
-    el.dataset.on = turnOn ? '1' : '0';
-    turnOn ? el.classList.add('act') : el.classList.remove('act');
-  });
-  updAllCounts();
-}
-
-function selectNone(){document.querySelectorAll('[data-code]').forEach(function(el){el.dataset.on='0';el.classList.remove('act');});updAllCounts();}
-function updCount(chip){var ib=chip.closest('.ib');if(ib)updCountByIb(ib);}
-function updCountByIb(ib){
-  var all=ib.querySelectorAll('[data-code]'),act=ib.querySelectorAll('[data-on="1"]');
-  var ih=ib.previousElementSibling;if(ih){var ic=ih.querySelector('.ic');if(ic)ic.textContent=act.length+'/'+all.length;}
-}
-function updAllCounts(){document.querySelectorAll('.ib').forEach(function(ib){updCountByIb(ib);});}
-function addCustom(){
-  var raw=$('cusT').value.trim().toUpperCase();var isUS=$('cusUS')&&$('cusUS').checked;
-  var code=isUS?raw:raw.replace('.TW','');if(!code)return;
-  if(document.querySelector('[data-code="'+code+'"]'))return;
-  var name=$('cusN').value.trim()||code;
-  var chip=document.createElement('span');
-  chip.className='sc act'+(isUS?' usc':'');chip.setAttribute('onclick',"toggleStock('"+code+"')");
-  chip.dataset.code=code;chip.dataset.type='mid';chip.dataset.tw=isUS?'0':'1';chip.dataset.on='1';
-  chip.innerHTML='<span class="cc">'+code+'</span><span class="cn">'+name+'</span><span class="cd" onclick="event.stopPropagation();deleteStock(\''+code+'\')">x</span>';
-  var ibs=document.querySelectorAll('.ib');if(ibs.length)ibs[0].appendChild(chip);
-  $('cusT').value='';$('cusN').value='';updAllCounts();
-}
-function getEnabledStocks(){
-  var result=[];
-  document.querySelectorAll('[data-code][data-on="1"]').forEach(function(el){
-    var cn=el.querySelector('.cn');result.push({c:el.dataset.code,n:cn?cn.textContent:'',type:el.dataset.type,tw:el.dataset.tw==='1'});
-  });
-  return result;
-}
-function getStockName(code){var el=document.querySelector('[data-code="'+code+'"] .cn');return el?el.textContent:code;}
-function getWeightMode(){var r=document.querySelector('input[name="wtMode"]:checked');return r?r.value:'eq';}
-function calcWeights(sel,mode){
-  var n=sel.length;if(!n)return{};var newH={};
-  if(mode==='rank'){var denom=n*(n+1)/2;sel.forEach(function(r,i){newH[r.s.c]=(n-i)/denom;});}
-  else{var w=1/n;sel.forEach(function(r){newH[r.s.c]=w;});}
-  return newH;
-}
-function buildProxies(){
-  var p=$('proxyUrl')?$('proxyUrl').value.trim():'';
-  if(p&&!p.includes('url='))p+=p.endsWith('/')?'?url=':'/?url=';
-  return [p,'https://api.allorigins.win/raw?url=','https://api.codetabs.com/v1/proxy?quest='].filter(Boolean);
-}
-async function fp(url,proxies){
-  var last;
-  for(var i=0;i<proxies.length;i++){try{var r=await fetch(proxies[i]+encodeURIComponent(url));if(!r.ok)throw new Error('HTTP '+r.status);return r;}catch(e){last=e;}}
-  throw last||new Error('all proxies failed');
-}
-function buildTicker(s){
-  if(!s.tw)return s.c;if(s.c.charAt(0)==='^'||s.c.indexOf('.')>=0)return s.c;return s.c+'.TW';
-}
-async function fetchOHLCV(s,interval,prx){
-  var tk=buildTicker(s);
-  var r=await fp('https://query1.finance.yahoo.com/v8/finance/chart/'+tk+'?range=max&interval='+interval,prx);
-  var j=await r.json();var ch=j&&j.chart&&j.chart.result&&j.chart.result[0];
-  if(!ch||!ch.timestamp)throw new Error('no data');
-  var out=[];
-  ch.timestamp.forEach(function(ts,i){
-    var q=ch.indicators.quote[0];var h=q.high[i],l=q.low[i],c=q.close[i],v=q.volume[i];
-    if(c&&c>0&&h&&l&&v!=null)out.push({date:new Date(ts*1000).toISOString().slice(0,10),h:+h.toFixed(3),l:+l.toFixed(3),c:+c.toFixed(3),v:+v});
-  });
-  return out;
-}
-async function fetchMonthly(tkOrS,prx){
-  var tk=typeof tkOrS==='string'?tkOrS:buildTicker(tkOrS);
-  var r=await fp('https://query1.finance.yahoo.com/v8/finance/chart/'+tk+'?range=max&interval=1mo',prx);
-  var j=await r.json();var ch=j&&j.chart&&j.chart.result&&j.chart.result[0];
-  if(!ch||!ch.timestamp)throw new Error('no data');
-  var out=[];
-  ch.timestamp.forEach(function(ts,i){
-    var adj=ch.indicators.adjclose&&ch.indicators.adjclose[0]?ch.indicators.adjclose[0].adjclose[i]:null;
-    var cl=ch.indicators.quote[0].close[i];var c=adj!=null?adj:cl;
-    if(c&&c>0){
-      // Yahoo monthly timestamp = bar 開始日 (月初)，但 close 實際是該 bar 結束的月末
-      // 直接用 timestamp 當月即正確，不需位移
-      // 但實測發現 Yahoo 的月 timestamp 比實際收盤日早一個月
-      // 修正：將日期往後推一個月
-      var d=new Date(ts*1000);
-      d.setMonth(d.getMonth()+1);
-      out.push({date:d.toISOString().slice(0,7),c:+c.toFixed(4)});
-    }
-  });
-  var seen={};out.forEach(function(p){seen[p.date]=p;});
-  return Object.values(seen).sort(function(a,b){return a.date.localeCompare(b.date);});
-}
-
-  async function fetchFromStooq(s) {
-    const prx = buildProxies();
-    // Stooq 代碼格式: 台股 2330.TW -> 2330.TW, 美股 AAPL -> AAPL.US
-    const ticker = s.tw ? `${s.c}.TW` : `${s.c}.US`;
-    const url = `https://stooq.com/q/d/l/?s=${ticker}&i=d`; // i=d 為日頻
-    
-    try {
-        const r = await fp(url, prx);
-        const text = await r.text();
-        const lines = text.split('\n').slice(1); // 跳過 Header
-        
-        return lines.map(line => {
-            const [date, open, high, low, close, vol] = line.split(',');
-            if(!close) return null;
-            return {
-                date: date.trim(),
-                h: parseFloat(high),
-                l: parseFloat(low),
-                c: parseFloat(close),
-                v: parseInt(vol)
-            };
-        }).filter(x => x && !isNaN(x.c));
-    } catch (e) {
-        throw new Error('Stooq 來源失敗: ' + e.message);
-    }
-}
-
-// 修改原有的 fetchAll 邏輯，加入來源判斷
-async function smartFetch(s, type) {
-    const engine = $('dataSource').value;
-    if (engine === 'stooq') {
-        return await fetchFromStooq(s);
-    } else {
-        // 原有的 Yahoo Finance 邏輯
-        const prx = buildProxies();
-        if (type === 'ohlcv') return await fetchOHLCV(s, s.tw ? '1wk' : '1d', prx);
-        if (type === 'monthly') return await fetchMonthly(s, prx);
-    }
-}
-
-function mergeArr(existing,newData){
-  var map={};
-  (existing||[]).forEach(function(d){map[d.date]=d;});
-  (newData||[]).forEach(function(d){map[d.date]=d;});
-  return Object.values(map).sort(function(a,b){return a.date.localeCompare(b.date);});
-}
-async function fetchUpdate(){
-  var prx=buildProxies();
-  var stocks=getEnabledStocks();
-  var twCut=new Date(Date.now()-8*24*60*60*1000).toISOString().slice(0,10);
-  var usCut=new Date(Date.now()-2*24*60*60*1000).toISOString().slice(0,10);
-  var thisMonth=new Date().toISOString().slice(0,7);
-  var missing=[],stale=[];
-  stocks.forEach(function(s){
-    if(s.tw){
-      if(!WEEKLY[s.c]||!WEEKLY[s.c].length||!MONTHLY[s.c]||!MONTHLY[s.c].length){missing.push(s);return;}
-      if(WEEKLY[s.c][WEEKLY[s.c].length-1].date<twCut)stale.push(s);
-    }else{
-      if(!DAILY[s.c]||!DAILY[s.c].length||!MONTHLY[s.c]||!MONTHLY[s.c].length){missing.push(s);return;}
-      if(DAILY[s.c][DAILY[s.c].length-1].date<usCut)stale.push(s);
-    }
-  });
-  var benchStale=!BENCH_MONTHLY.length||(BENCH_MONTHLY[BENCH_MONTHLY.length-1].date<thisMonth);
-  var tnxStale=!TNX_MONTHLY.length||(TNX_MONTHLY[TNX_MONTHLY.length-1].date<thisMonth);
-  if(!missing.length&&!stale.length&&!benchStale&&!tnxStale){sl('updateLog','All data up to date.',true);return;}
-  var toFetch=missing.concat(stale),failed=[];
-  showL('Updating '+toFetch.length+' stocks...');
-  for(var i=0;i<toFetch.length;i++){
-    var s=toFetch[i];var isMissing=missing.indexOf(s)>=0;
-    $('loadTxt').textContent=(isMissing?'[NEW] ':'[UPD] ')+s.c+' ('+(i+1)+'/'+toFetch.length+')';
-    try{
-      if(s.tw){
-        WEEKLY[s.c]=mergeArr(WEEKLY[s.c],await fetchOHLCV(s,'1wk',prx));
-        MONTHLY[s.c]=mergeArr(MONTHLY[s.c],await fetchMonthly(s,prx));
-      }else{
-        DAILY[s.c]=mergeArr(DAILY[s.c],await fetchOHLCV(s,'1d',prx));
-        MONTHLY[s.c]=mergeArr(MONTHLY[s.c],await fetchMonthly(s,prx));
-      }
-    }catch(e){failed.push(s.c);}
-    await new Promise(function(r){setTimeout(r,350);});
-  }
-  if(benchStale){
-    $('loadTxt').textContent='Update ^TWII...';
-    try{BENCH_MONTHLY=mergeArr(BENCH_MONTHLY,await fetchMonthly('^TWII',prx));}catch(e){failed.push('^TWII');}
-    await new Promise(function(r){setTimeout(r,350);});
-  }
-  if(tnxStale){
-    $('loadTxt').textContent='Update ^TNX...';
-    try{
-      var raw=await fetchMonthly('^TNX',prx);
-      TNX_MONTHLY=[];var lastV=null;
-      if(raw.length){
-        var byD={};raw.forEach(function(p){byD[p.date]=p.c;});
-        var cur=new Date(raw[0].date+'-01'),end=new Date(raw[raw.length-1].date+'-01');
-        while(cur<=end){
-          var m=cur.toISOString().slice(0,7);
-          if(byD[m]!=null)lastV=byD[m];
-          if(lastV!=null)TNX_MONTHLY.push({date:m,c:lastV});
-          cur.setMonth(cur.getMonth()+1);
-        }
-      }
-      updTNX();
-    }catch(e){failed.push('^TNX');}
-  }
-  hideL();updFetchStat(stocks);
-  var newCodes=missing.map(function(s){return s.c;});
-  var staleCodes=stale.map(function(s){return s.c;});
-  var msg='Done. New:'+newCodes.length+' Updated:'+staleCodes.length;
-  if(newCodes.length)msg+='\nNEW: '+newCodes.join(', ');
-  if(staleCodes.length)msg+='\nUPD: '+staleCodes.join(', ');
-  if(failed.length)msg+='\nFAIL: '+failed.join(', ');
-  sl('updateLog',msg,failed.length===0);
-  await buildCache(getEnabledStocks());
-  // 在 fetchAll() 或 fetchUpdate() 的最後一行加入
-   await saveAllToDB(); 
-
-}
-async function fetchAll(){
-  var prx=buildProxies();var stocks=getEnabledStocks();
-  var tw=stocks.filter(function(s){return s.tw;}),us=stocks.filter(function(s){return !s.tw;});
-  var total=tw.length*2+us.length*2+2,done=0;
-  function prog(lbl){$('loadTxt').textContent=lbl;$('fetchFill').style.width=((done++/total)*100)+'%';}
-  showL('Preparing...');$('fetchProg').classList.remove('hidden');var failed=[];
-  for(var i=0;i<tw.length;i++){
-    var s=tw[i];prog('TW wk: '+s.c+' ('+(i+1)+'/'+tw.length+')');
-    try{WEEKLY[s.c]=await fetchOHLCV(s,'1wk',prx);}catch(e){failed.push(s.c+'-W');}
-    await new Promise(function(r){setTimeout(r,350);});
-    prog('TW mo: '+s.c);
-    try{MONTHLY[s.c]=await fetchMonthly(s,prx);}catch(e){failed.push(s.c+'-M');}
-    await new Promise(function(r){setTimeout(r,350);});
-  }
-  for(var i2=0;i2<us.length;i2++){
-    var s2=us[i2];prog('US day: '+s2.c+' ('+(i2+1)+'/'+us.length+')');
-    try{DAILY[s2.c]=await fetchOHLCV(s2,'1d',prx);}catch(e){failed.push(s2.c+'-D');}
-    await new Promise(function(r){setTimeout(r,350);});
-    prog('US mo: '+s2.c);
-    try{MONTHLY[s2.c]=await fetchMonthly(s2,prx);}catch(e){failed.push(s2.c+'-M');}
-    await new Promise(function(r){setTimeout(r,350);});
-  }
-  prog('^TWII');
-  try{BENCH_MONTHLY=await fetchMonthly('^TWII',prx);}catch(e){failed.push('^TWII');}
-  await new Promise(function(r){setTimeout(r,350);});
-  prog('^TNX');
-  try{
-    var raw=await fetchMonthly('^TNX',prx);
-    TNX_MONTHLY=[];var lastV=null;
-    if(raw.length){
-      var byD={};raw.forEach(function(p){byD[p.date]=p.c;});
-      var cur=new Date(raw[0].date+'-01'),end=new Date(raw[raw.length-1].date+'-01');
-      while(cur<=end){
-        var m=cur.toISOString().slice(0,7);
-        if(byD[m]!=null)lastV=byD[m];
-        if(lastV!=null)TNX_MONTHLY.push({date:m,c:lastV});
-        cur.setMonth(cur.getMonth()+1);
-      }
-    }
-    updTNX();
-  }catch(e){failed.push('^TNX');}
-  $('fetchFill').style.width='100%';$('fetchProg').classList.add('hidden');
-  sl('fetchLog','Done '+(total-failed.length)+'/'+total+(failed.length?' | fail:'+failed.slice(0,8).join(','):''),failed.length===0);
-  updFetchStat(stocks);hideL();
-  await buildCache(stocks);
-  // 在 fetchAll() 或 fetchUpdate() 的最後一行加入
-  await saveAllToDB(); 
-
-}
-function updTNX(){
-  if(!TNX_MONTHLY.length)return;
-  var last=TNX_MONTHLY[TNX_MONTHLY.length-1];
-  var sp=gv('btSpread')||0.5;
-  var el=$('tnxVal');if(el)el.textContent=last.c.toFixed(2)+'% ('+last.date+')';
-  var el2=$('tnxThresh');if(el2)el2.textContent='TS: '+(last.c+sp).toFixed(2)+'%';
-}
-function updFetchStat(stocks){
-  var bar=$('fetchStat');if(!bar)return;
-  bar.innerHTML=(stocks||getEnabledStocks()).map(function(s){
-    var ok=s.tw?(WEEKLY[s.c]&&MONTHLY[s.c]):(DAILY[s.c]&&MONTHLY[s.c]);
-    var col=ok?(s.tw?'var(--te)':'var(--us)'):'var(--mu)';
-    var bg=ok?(s.tw?'var(--ted)':'var(--usd)'):'var(--sf2)';
-    var bd=ok?(s.tw?'var(--te)':'var(--us)'):'var(--bd)';
-    return '<span class="bdg" style="background:'+bg+';color:'+col+';border:1px solid '+bd+'">'+s.c+'</span>';
-  }).join('');
-}
-function calcVWMA(bars,n){
-  if(bars.length<n)return null;
-  var sl=bars.slice(-n),sp=0,sv=0;
-  sl.forEach(function(b){sp+=b.c*b.v;sv+=b.v;});
-  return sv>0?sp/sv:null;
-}
-function calcBias(bars,N){var v=calcVWMA(bars,N);return v?(bars[bars.length-1].c-v)/v:null;}
-function calcSlope(bars,N){
-  if(bars.length<N+3)return null;var va=[];
-  for(var i=bars.length-N;i<bars.length;i++){
-    var sl=bars.slice(Math.max(0,i-N+1),i+1);var sp=0,sv=0;
-    sl.forEach(function(b){sp+=b.c*b.v;sv+=b.v;});if(sv>0)va.push(sp/sv);
-  }
-  if(va.length<Math.floor(N/2))return null;
-  var n=va.length,sx=0,sy=0,sxy=0,sx2=0;
-  for(var j=0;j<n;j++){sx+=j;sy+=va[j];sxy+=j*va[j];sx2+=j*j;}
-  var den=n*sx2-sx*sx;if(!den)return 0;
-  return (n*sxy-sx*sy)/den/(va[0]||1);
-}
-function calcVol(bars,N){
-  if(bars.length<N+1)return null;var sl=bars.slice(-N),sc=[];
-  for(var i=1;i<sl.length;i++){
-    var pr=(sl[i].c-sl[i-1].c)/(sl[i-1].c||1);var vr=sl[i-1].v>0?sl[i].v/sl[i-1].v:1;
-    sc.push((pr>=0?1:-1)*(pr>=0?(vr-1):(1-vr)));
-  }
-  return sc.length?sc.reduce(function(a,b){return a+b;},0)/sc.length:null;
-}
-function calcKbar(bars,N){
-  if(bars.length<N)return null;var sl=bars.slice(-N);
-  var v=sl.map(function(b){var r=b.h-b.l;return r>0?(b.c-b.l)/r:0.5;});
-  return v.reduce(function(a,b){return a+b;},0)/v.length;
-}
-function momZ(mo,idx,n){
-  if(idx<n)return null;var pn=mo[idx-1].c,p0=mo[idx-n].c;if(!p0||p0<=0)return null;
-  var ret=pn/p0-1,rets=[];
-  for(var i=idx-n+1;i<idx;i++)if(mo[i-1].c>0)rets.push(mo[i].c/mo[i-1].c-1);
-  if(rets.length<3)return null;
-  var avg=rets.reduce(function(a,b){return a+b;},0)/rets.length;
-  var std=Math.sqrt(rets.reduce(function(a,b){return a+(b-avg)*(b-avg);},0)/rets.length);
-  return std>0?ret/std:null;
-}
-function rawMom(mo,idx,skip){
-  var ri=skip?idx-1:idx;if(ri<1)return null;
-  var z12=momZ(mo,ri,12),z6=momZ(mo,ri,6),z3=momZ(mo,ri,3);
-  if(z12===null||z6===null||z3===null)return null;
-  return 0.5*z12+0.3*z6+0.2*z3;
-}
-function getMonthIdx(mo,yyyymm){for(var i=0;i<mo.length;i++){if(mo[i].date>yyyymm)return i;}return mo.length;}
-async function buildCache(stocks){
-  stocks=stocks||getEnabledStocks();
-  var withData=stocks.filter(function(s){return s.tw?(WEEKLY[s.c]&&MONTHLY[s.c]):(DAILY[s.c]&&MONTHLY[s.c]);});
-  if(!withData.length){updCacheSt();return;}
-  showL('Building cache...');RAW_SCORES={};
-  for(var si=0;si<withData.length;si++){
-    var s=withData[si];$('loadTxt').textContent='Cache: '+s.c+' ('+(si+1)+'/'+withData.length+')';
-    var mo=MONTHLY[s.c],bars=s.tw?WEEKLY[s.c]:DAILY[s.c],N=s.tw?N_TW:N_US;
-    if(!mo||!bars)continue;
-    RAW_SCORES[s.c]={};var allMo=mo.map(function(p){return p.date;});
-    for(var mi=13;mi<allMo.length;mi++){
-      var yyyymm=allMo[mi];var mIdx=getMonthIdx(mo,yyyymm);
-      var cut=bars.filter(function(b){return b.date<=yyyymm+'-31';});
-      var rm=rawMom(mo,mIdx,SKIP_MO);
-      var rb=cut.length>=N?calcBias(cut,N):null;
-      var rs=cut.length>=N+3?calcSlope(cut,N):null;
-      var rv=cut.length>=N+1?calcVol(cut,N):null;
-      var rk=cut.length>=N?calcKbar(cut,N):null;
-      var pn=mo[mIdx-1]?mo[mIdx-1].c:null;
-      var r12=mIdx>=13&&mo[mIdx-13]?pn/mo[mIdx-13].c-1:null;
-      var r6=mIdx>=7&&mo[mIdx-7]?pn/mo[mIdx-7].c-1:null;
-      var r3=mIdx>=4&&mo[mIdx-4]?pn/mo[mIdx-4].c-1:null;
-      RAW_SCORES[s.c][yyyymm]={rm:rm,rb:rb,rs:rs,rv:rv,rk:rk,r12:r12,r6:r6,r3:r3};
-    }
-    if(si%5===4)await new Promise(function(r){setTimeout(r,0);});
-  }
-  CACHE_BUILT=true;CACHE_TS=new Date().toISOString();CACHE_SKIP_MO=SKIP_MO;
-  hideL();updCacheSt();updTNX();
-}
-function updCacheSt(){
-  var el=$('cacheTxt');if(!el)return;
-  if(!CACHE_BUILT){el.textContent='Cache: not built';el.style.color='var(--mu)';return;}
-  var n=Object.keys(RAW_SCORES).length;
-  var dt=new Date(CACHE_TS).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'});
-  el.textContent='Cache OK ('+n+' stocks, '+dt+')';el.style.color='var(--gr)';
-}
-function crossZ(arr,cap){
-  cap=cap||2;
-  var vals=arr.filter(function(v){return v!==null&&!isNaN(v);});
-  if(vals.length<3)return arr.map(function(v){return v===null?null:0;});
-  var mean=vals.reduce(function(a,b){return a+b;},0)/vals.length;
-  var std=Math.sqrt(vals.reduce(function(a,b){return a+(b-mean)*(b-mean);},0)/vals.length)||1;
-  return arr.map(function(v){if(v===null)return null;return Math.max(-cap,Math.min(cap,(v-mean)/std));});
-}
-function getTNXRate(yyyymm){
-  if(!TNX_MONTHLY.length)return 0.04;
-  var best=null;TNX_MONTHLY.forEach(function(p){if(p.date<=yyyymm)best=p;});
-  return best?(best.c/100):0.04;
-}
-function getHurdle(yyyymm){return Math.max(0,getTNXRate(yyyymm)+(gv('btSpread')||0.5)/100);}
-function calcAllScores(yyyymm){
-  var stocks=getEnabledStocks().filter(function(s){
-    var mo=MONTHLY[s.c];
-    if(!mo)return false;
-    var idx=mo.findIndex(function(p){return p.date===yyyymm;});
-    return idx>=13;
-  });
-  if(stocks.length<5)return[];
-
-  var wM=gv('wMom')/100,wB=gv('wBias')/100,wS=gv('wSlope')/100,wV=gv('wVol')/100,wK=gv('wKbar')/100;
-  var rMs=[],rBs=[],rSs=[],rVs=[],rKs=[];
-  var infos=stocks.map(function(s){
-    var raw=RAW_SCORES[s.c][yyyymm];
-    rMs.push(raw.rm);rBs.push(raw.rb);rSs.push(raw.rs);rVs.push(raw.rv);rKs.push(raw.rk);
-    return{s:s,raw:raw};
-  });
-  var zMs=crossZ(rMs,99),zBs=crossZ(rBs,2),zSs=crossZ(rSs,99),zVs=crossZ(rVs,2),zKs=crossZ(rKs,99);
-  return infos.map(function(d,i){
-    var zm=zMs[i],zb=zBs[i],zs=zSs[i],zv=zVs[i],zk=zKs[i],tw=0,tt=0;
-    if(zm!==null){tw+=wM*zm;tt+=wM;}if(zb!==null){tw+=wB*zb;tt+=wB;}
-    if(zs!==null){tw+=wS*zs;tt+=wS;}if(zv!==null){tw+=wV*zv;tt+=wV;}
-    if(zk!==null){tw+=wK*zk;tt+=wK;}
-    return{s:d.s,score:tt>0.1?tw/tt:null,zm:zm,zb:zb,zs:zs,zv:zv,zk:zk,r12:d.raw.r12,r6:d.raw.r6,r3:d.raw.r3};
-  });
-}
-function calcCorr(c1,c2,yyyymm,n){
-  n=n||CORR_WIN;var m1=MONTHLY[c1],m2=MONTHLY[c2];if(!m1||!m2)return 0;
-  var i1=getMonthIdx(m1,yyyymm),i2=getMonthIdx(m2,yyyymm),mi=Math.min(i1,i2);
-  if(mi<n+1)return 0;var r1=[],r2=[];
-  for(var i=mi-n;i<mi;i++){
-    var a0=m1[i-1]?m1[i-1].c:null,a1=m1[i]?m1[i].c:null;
-    var b0=m2[i-1]?m2[i-1].c:null,b1=m2[i]?m2[i].c:null;
-    if(a0&&a1&&b0&&b1&&a0>0&&b0>0){r1.push(a1/a0-1);r2.push(b1/b0-1);}
-  }
-  if(r1.length<6)return 0;
-  var m1a=r1.reduce(function(a,b){return a+b;},0)/r1.length;
-  var m2a=r2.reduce(function(a,b){return a+b;},0)/r2.length;
-  var num=0,d1=0,d2=0;
-  r1.forEach(function(v,i){num+=(v-m1a)*(r2[i]-m2a);d1+=(v-m1a)*(v-m1a);d2+=(r2[i]-m2a)*(r2[i]-m2a);});
-  return num/Math.sqrt((d1*d2)||1);
-}
-async function calcSignal() {
-  if (!CACHE_BUILT) { alert('Fetch data first'); return; }
-  SKIP_MO = !!($('btSkipMo') && $('btSkipMo').checked);
-  CORR_WIN = parseInt($('corrW') ? $('corrW').value : '24') || 24;
-  if (CACHE_SKIP_MO !== SKIP_MO) { await buildCache(); }
-  
-  var stocks = getEnabledStocks().filter(function(s) { return RAW_SCORES[s.c]; });
-  if (!stocks.length) { alert('No cached data'); return; }
-  
-  var mo = MONTHLY[stocks[0].c], yyyymm = mo[mo.length - 1].date, hurdle = getHurdle(yyyymm);
-  var scores = calcAllScores(yyyymm), valid = scores.filter(function(r) { return r.score !== null; });
-  valid.sort(function(a, b) { return b.score - a.score; });
-
-  // --- 新增：相關性屏蔽邏輯 ---
-  var tsPass = valid.filter(function(r) { return r.r12 !== null && r.r12 > hurdle; });
-  var ct = gv('corrT') || 0.75, mh = parseInt($('btH') ? $('btH').value : '3') || 3;
-  var sel = [];
-  var rejectedByCorr = {}; // 記錄 { '被屏蔽代碼': '造成的衝突代碼' }
-
-  for (var i = 0; i < tsPass.length; i++) {
-    var cand = tsPass[i];
-    var conflict = null;
-    
-    // 與已選中的標的檢查相關性
-    for (var x of sel) {
-      if (Math.abs(calcCorr(cand.s.c, x.s.c, yyyymm)) >= ct) {
-        conflict = x.s.c;
-        break;
-      }
-    }
-
-    if (!conflict && sel.length < mh) {
-      sel.push(cand);
-    } else if (conflict) {
-      rejectedByCorr[cand.s.c] = conflict; // 標記衝突原因
+function SMA(arr, n){
+  let res = []
+  for(let i=0;i<arr.length;i++){
+    if(i < n-1) res.push(null)
+    else{
+      let sum = 0
+      for(let j=0;j<n;j++) sum += arr[i-j]
+      res.push(sum/n)
     }
   }
-  // -----------------------
-
-  renderSig(sel, valid.slice(-3).reverse(), valid, yyyymm, hurdle);
-  renderST(valid, hurdle, sel.map(s => s.s.c), rejectedByCorr); // 傳入屏蔽資訊
+  return res
 }
 
-function renderSig(sel,wk,all,yyyymm,hurdle){
-  var zf=function(v){return v!==null?(v>=0?'+':'')+v.toFixed(2):'-';};
-  var pf=function(v){return v!==null?(v>=0?'+':'')+(v*100).toFixed(1)+'%':'-';};
-  var tnx=getTNXRate(yyyymm);
-  var html='<div style="font-size:11px;color:var(--mu);margin-bottom:9px">Month: <b style="color:var(--tw)">'+yyyymm+'</b>'
-  +' | ^TNX: <b style="color:var(--bl)">'+(tnx*100).toFixed(2)+'%</b>'
-  +' | Hurdle: <b style="color:var(--ye)">'+(hurdle*100).toFixed(2)+'%</b></div>';
-  html+='<div style="font-size:12px;font-weight:700;color:var(--tw);margin-bottom:6px">Top '+sel.length+'</div><div class="sg">';
-  sel.forEach(function(r,rk){
-    var isUs=!r.s.tw;var col=isUs?'var(--us)':'var(--tw)';var rbg=isUs?'var(--usd)':'var(--twd)';
-    html+='<div class="scard"><div class="shdr"><div><div class="scode" style="color:'+col+'">'+r.s.c+'</div>'
-    +'<div class="sname">'+r.s.n+'</div></div>'
-    +'<span class="srank" style="background:'+rbg+';color:'+col+';border:1px solid '+col+'">#'+(rk+1)+'</span></div>';
-    html+='<div class="sscore">'+(r.score>=0?'+':'')+r.score.toFixed(2)+'</div><div class="sbars">';
-    [['Mom',r.zm,'var(--tw)'],['Bias',r.zb,'var(--bl)'],['Slope',r.zs,'var(--te)'],['Vol',r.zv,'var(--ye)'],['Kbar',r.zk,'var(--ac)']].forEach(function(b){
-      if(b[1]===null)return;var w=Math.round(Math.min(100,Math.abs(b[1])*25));
-      html+='<div class="sbrow"><span style="width:32px">'+b[0]+'</span>'
-      +'<div class="sbwrap"><div class="sbfill" style="width:'+w+'%;background:'+b[2]+'"></div></div>'
-      +'<span style="width:36px;text-align:right;font-family:monospace">'+zf(b[1])+'</span></div>';
-    });
-    html+='</div><div style="margin-top:5px;font-size:10px;color:var(--mu);font-family:monospace">'
-    +'R12:'+pf(r.r12)+' R6:'+pf(r.r6)+' R3:'+pf(r.r3)+'</div></div>';
-  });
-  html+='</div>';
-  if(!sel.length)html+='<div style="color:var(--ye);font-size:12px;margin-bottom:9px">No stocks pass TS - hold cash</div>';
-  html+='<div style="font-size:12px;font-weight:700;color:var(--re);margin:9px 0 6px">Weakest 3</div><div class="sg">';
-  wk.forEach(function(r,rk){
-    html+='<div class="scard wk"><div class="shdr"><div><div class="scode">'+r.s.c+'</div>'
-    +'<div class="sname">'+r.s.n+'</div></div><span class="srank">W'+(rk+1)+'</span></div>'
-    +'<div class="sscore" style="color:var(--re)">'+(r.score>=0?'+':'')+r.score.toFixed(2)+'</div></div>';
-  });
-  html+='</div>';$('sigContent').innerHTML=html;
-}
-function renderST(all, hurdle, selectedCodes, rejectedMap) {
-  $('stCard').classList.remove('hidden');
-  var sorted = all.filter(function(r) { return r.score !== null; }).sort(function(a, b) { return b.score - a.score; });
-  var zf = function(v) { return v !== null ? (v >= 0 ? '+' : '') + v.toFixed(2) : '-'; };
-  var pf = function(v) { return v !== null ? (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%' : '-'; };
-  
-  $('stBody').innerHTML = sorted.map(function(r, i) {
-    var ts = r.r12 !== null && r.r12 > hurdle;
-    var isUs = !r.s.tw;
-    var isSelected = selectedCodes.includes(r.s.c);
-    var conflictWith = rejectedMap[r.s.c];
-    
-    // 狀態標籤邏輯
-    var statusHtml = '';
-    if (isSelected) statusHtml = '<span style="color:var(--gr);font-weight:700">★ 已選入</span>';
-    else if (conflictWith) statusHtml = `<span style="color:var(--mu);font-size:10px">🚫 相關性 > ${conflictWith}</span>`;
-    else if (!ts) statusHtml = '<span style="color:var(--re)">TS 淘汰</span>';
-
-    return '<tr><td class="mono" style="color:var(--mu)">' + (i + 1) + '</td>'
-    + '<td class="mono" style="font-weight:700;color:' + (isUs ? 'var(--us)' : 'var(--tw)') + '">' + r.s.c + '</td>'
-    + '<td>' + r.s.n + '</td>'
-    + '<td style="font-size:11px">' + statusHtml + '</td>' // 新增的狀態欄
-    + '<td class="mono" style="font-weight:700;color:' + (r.score >= 0 ? 'var(--gr)' : 'var(--re)') + '">' + zf(r.score) + '</td>'
-    + '<td class="mono">' + zf(r.zm) + '</td><td class="mono">' + zf(r.zb) + '</td>'
-    + '<td class="mono">' + zf(r.zs) + '</td><td class="mono">' + zf(r.zv) + '</td><td class="mono">' + zf(r.zk) + '</td>'
-    + '<td class="mono">' + pf(r.r12) + '</td><td class="mono">' + pf(r.r6) + '</td><td class="mono">' + pf(r.r3) + '</td>'
-    + '<td>' + (ts ? '<span style="color:var(--gr)">Y</span>' : '<span style="color:var(--re)">N</span>') + '</td></tr>';
-  }).join('');
+function ROC(arr, n){
+  return arr.map((v,i)=>{
+    if(i < n) return 0
+    return (v - arr[i-n]) / arr[i-n]
+  })
 }
 
-function runBTcore(mh, mode) {
-  var stocks = getEnabledStocks().filter(function(s) { return RAW_SCORES[s.c]; });
-  if (stocks.length < 3) return null;
-      var refMo = BENCH_MONTHLY.length ? BENCH_MONTHLY : MONTHLY[stocks[0].c];
-  if (!refMo || !refMo.length) return null;
-  var allM = refMo.map(function(p) { return p.date; }).sort();
-
-
-    var rawS = $('btS') ? ($('btS').value || '').trim().slice(0, 7) : '';
-  var rawE = $('btE') ? ($('btE').value || '').trim().slice(0, 7) : '';
-
-  var lagEl = document.querySelector('input[name="lagMode"]:checked');
-  var LAG = lagEl ? parseInt(lagEl.value) : 1;
-
-    var MIN = 14, cS = MIN + LAG;
-  if (rawS) {
-    for (var i = MIN + LAG; i < allM.length; i++) {
-      if (allM[i] >= rawS) { cS = i; break; }
+function STD(arr, n){
+  let res = []
+  for(let i=0;i<arr.length;i++){
+    if(i < n) res.push(null)
+    else{
+      let slice = arr.slice(i-n, i)
+      let mean = slice.reduce((a,b)=>a+b,0)/n
+      let variance = slice.reduce((a,b)=>a+(b-mean)**2,0)/n
+      res.push(Math.sqrt(variance))
     }
   }
-
-
-  var dataEnd = allM[allM.length - 1];
-  stocks.forEach(function(s) {
-    var mo = MONTHLY[s.c];
-    if (mo && mo.length) {
-      var last = mo[mo.length - 1].date;
-      if (last < dataEnd) dataEnd = last;
-    }
-  });
-  var todayM = new Date().toISOString().slice(0, 7);
-  if (dataEnd > todayM) dataEnd = todayM;
-
-  var cE = allM.length - 1;
-  while (cE >= MIN + LAG && allM[cE] > dataEnd) cE--;
-  if (rawE) {
-    for (var i2 = cE; i2 >= MIN + LAG; i2--) {
-      if (allM[i2] <= rawE) { cE = i2; break; }
-    }
-  }
-
-
-  if (cS > cE) return null;
-
-
-    var INIT = gv('btCap') || 100000, COST = (gv('btC') || 0.3) / 100, ct = gv('corrT') || 0.75;
-  var shortN = parseInt($('btSN') ? $('btSN').value : '0') || 0;
-  var capModeEl = document.querySelector('input[name="capMode"]:checked');
-  var capMode = capModeEl ? capModeEl.value : 'neutral';
-  var shortTSF = !!($('btSTSF') && $('btSTSF').checked);
-  var nav = INIT, bNav = INIT, records = [], holdings = { CASH: 1.0 };
-
-  function getBench(m) {
-    if (!BENCH_MONTHLY.length) return null;
-    var best = null;
-    BENCH_MONTHLY.forEach(function(p) { if (p.date <= m) best = p; });
-    return best ? best.c : null;
-  }
-    function getMo(code, m) {
-  var isUS = !!(document.querySelector('[data-code="'+code+'"][data-tw="0"]'));
-  if (isUS && DAILY[code] && DAILY[code].length) {
-    var daily = DAILY[code];
-    var cutoff = m + '-31';
-    var best = null;
-    for (var i = daily.length - 1; i >= 0; i--) {
-      if (daily[i].date <= cutoff) { best = daily[i].c; break; }
-    }
-    return best;
-  }
-  var mo = MONTHLY[code]; if (!mo) return null;
-  var best = null;
-  for (var i = mo.length - 1; i >= 0; i--) {
-    if (mo[i].date <= m) { best = mo[i].c; break; }
-  }
-  return best;
+  return res
 }
 
+// ==============================
+// 📥 Yahoo資料擷取
+// ==============================
 
-    for (var idx = cS; idx <= cE; idx++) {
-    var sigM   = allM[idx];
-    var prevM  = allM[idx-1];
-    var scoreM = allM[idx-LAG];
+async function getYahooData(symbol){
 
-    var hurdle = getHurdle(scoreM);
-    var sc2 = calcAllScores(scoreM);
-    var valid = sc2.filter(function(r) { return r.score !== null; });
-    valid.sort(function(a, b) { return b.score - a.score; });
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=5y&interval=1d`
 
+  const res = await fetch(url)
+  const json = await res.json()
 
+  const result = json.chart.result[0]
+  const timestamps = result.timestamp
+  const quote = result.indicators.quote[0]
 
-    if (valid.length < 5) {
-      var b0x = getBench(prevM), b1x = getBench(sigM);
-      if (b0x && b1x && b0x > 0) bNav *= (1 + b1x / b0x - 1);
-      records.push({ month: sigM, nav: nav, bNav: bNav, holdings: { CASH: 1.0 }, pRet: 0, hurdle: hurdle, stockRets: {} });
-      holdings = { CASH: 1.0 };
-      continue;
-    }
+  let data = []
 
-       var DEFENSIVE = ['TLT','GLD','SGOV'];
-    var tsP = valid.filter(function(r) {
-      return r.r12 !== null && r.r12 > hurdle && DEFENSIVE.indexOf(r.s.c) === -1;
-    });
-    tsP.sort(function(a, b) { return b.score - a.score; });
-    var sel = [];
-    for (var j = 0; j < tsP.length && sel.length < mh; j++) {
-      var cand = tsP[j];
-      if (sel.every(function(x) { return Math.abs(calcCorr(cand.s.c, x.s.c, scoreM)) < ct; })) {
-        sel.push(cand);
-      }
-    }
-        var slots = mh - sel.length;
-    if (slots > 0) {
-      var defCands = sc2.filter(function(r) {
-        if (r.r12 === null) return false;
-        if (r.s.c === 'SGOV') return r.r12 > 0;
-        return (r.s.c === 'TLT' || r.s.c === 'GLD') && r.r12 > hurdle + 0.01;
-      }).sort(function(a, b) { return b.r12 - a.r12; });
-      for (var jd = 0; jd < defCands.length && slots > 0; jd++) {
-        sel.push(defCands[jd]);
-        slots--;
-      }
-    }
+  for(let i=0;i<timestamps.length;i++){
+    data.push({
+      date: new Date(timestamps[i]*1000).toISOString().slice(0,10),
+      open: quote.open[i],
+      high: quote.high[i],
+      low: quote.low[i],
+      close: quote.close[i]
+    })
+  }
 
+  return data.filter(d => d.close != null)
+}
 
+// ==============================
+// 📥 上傳資料轉換
+// ==============================
 
-    var selS = [];
-    if (shortN > 0 && sel.length > 0) {
-      var longMap = {}; sel.forEach(function(r) { longMap[r.s.c] = 1; });
-      var sCands = valid.filter(function(r) { return !longMap[r.s.c]; });
-      if (shortTSF) sCands = sCands.filter(function(r) { return r.r12 !== null && r.r12 < 0; });
-      sCands.sort(function(a, b) { return a.score - b.score; });
-      for (var ks = 0; ks < sCands.length && selS.length < shortN; ks++) {
-        var candS = sCands[ks];
-                    if (selS.every(function(x) { return Math.abs(calcCorr(candS.s.c, x.s.c, scoreM)) < ct; })) {
- 
-          selS.push(candS);
+function normalizeUploadData(data){
+  return data.map(d => ({
+    date: d.date,
+    open: +d.open,
+    high: +d.high,
+    low: +d.low,
+    close: +d.close
+  }))
+}
+
+// ==============================
+// LPPL Fit（簡化版）
+// ==============================
+
+function computeError(price, tc, m, w){
+
+  let err = 0
+
+  for(let t=0;t<price.length;t++){
+
+    let dt = tc - t
+    if(dt <= 0) return Infinity
+
+    let pred =
+      Math.log(price[0]) +
+      Math.pow(dt, m) *
+      (1 + Math.cos(w * Math.log(dt)))
+
+    err += Math.abs(Math.log(price[t]) - pred)
+  }
+
+  return err
+}
+
+function fitLPPL(price){
+
+  let best = null
+
+  for(let tcShift=10; tcShift<=60; tcShift+=5){
+
+    let tc = price.length + tcShift
+
+    for(let m=0.2; m<0.9; m+=0.1){
+      for(let w=6; w<=12; w+=1){
+
+        let error = computeError(price, tc, m, w)
+
+        if(!best || error < best.error){
+          best = { tc, m, w, error, len: price.length }
         }
       }
     }
-
-  // 開始回測迴圈
-  
-
-    // 4. 配置權重與計算週轉成本
-        var newH = {};
-    if (!sel.length) { newH = { CASH: 1.0 }; }
-    else {
-      var is1330 = capMode === '1330';
-      var lScale = is1330 ? 1.0 : 0.5, sScale = is1330 ? 0.3 : 0.5;
-      if (mode === 'rank') {
-        var ldenom = sel.length * (sel.length + 1) / 2;
-        sel.forEach(function(r, i) { newH[r.s.c] = lScale * (sel.length - i) / ldenom; });
-      } else {
-        var lw = lScale / sel.length;
-        sel.forEach(function(r) { newH[r.s.c] = lw; });
-      }
-      if (selS.length) {
-        var sdenom = mode === 'rank' ? selS.length * (selS.length + 1) / 2 : selS.length;
-        selS.forEach(function(r, i) {
-          newH[r.s.c] = -sScale * (mode === 'rank' ? (selS.length - i) / sdenom : 1 / sdenom);
-        });
-      }
-    }
-
-        var totalW = 0;
-    Object.keys(newH).forEach(function(c) { totalW += newH[c]; });
-    var cashW = 1.0 - totalW;
-    if (cashW > 0.001) newH['CASH'] = cashW;
-    if (Math.abs(totalW - 1) > 0.02 && cashW <= 0.001) { console.warn('Weight error:', totalW); }
-
-    var maxW = Object.keys(newH).reduce(function(a,c){return Math.max(a,newH[c]);},0);
-    if (idx < cS + 12) console.log(sigM, 'scoreM:', scoreM, 'pool:', valid.length, 'pos:', Object.keys(newH).length, 'maxW:', maxW.toFixed(2));
-
-    var allC = Object.keys(holdings).concat(Object.keys(newH)), seen2 = {};
-    allC.forEach(function(c) { seen2[c] = true; });
-    var tv = 0;
-    Object.keys(seen2).forEach(function(c) { tv += Math.abs((newH[c] || 0) - (holdings[c] || 0)); });
-
-    var cr = getTNXRate(scoreM);
-
-    var pRet = 0, stockRets = {}, pureRet = 0;
-    Object.keys(newH).forEach(function(c) {
-      var wt = newH[c];
-      if (c === 'CASH') {
-        var r_c = cr / 12; pRet += wt * r_c; pureRet += wt * r_c;
-        stockRets.CASH = { ret: r_c, w: wt }; return;
-      }
-      var p0 = getMo(c, prevM), p1 = getMo(c, sigM);
-      if (p0 && p1 && p0 > 0) {
-        var r_s = p1 / p0 - 1; pRet += wt * r_s; pureRet += wt * r_s;
-        stockRets[c] = { ret: r_s, w: wt };
-      } else { stockRets[c] = { ret: 0, w: wt }; }
-    });
-    pRet -= (tv / 2) * COST;
-nav *= (1 + pRet);
-
-
-
-    // 6. 計算月底權重飄移
-        var driftedH = {};
-    Object.keys(newH).forEach(function(c) {
-      driftedH[c] = newH[c] * (1 + (stockRets[c] ? stockRets[c].ret : 0)) / (1 + pureRet);
-    });
-
-    var b0 = getBench(prevM), b1 = getBench(sigM);
-    if (b0 && b1 && b0 > 0) bNav *= (1 + b1 / b0 - 1);
-
-    var hCopy = {}; Object.keys(newH).forEach(function(k) { hCopy[k] = newH[k]; });
-    records.push({ month: sigM, nav: nav, bNav: bNav, holdings: hCopy, pRet: pRet, hurdle: hurdle, stockRets: stockRets });
-    holdings = driftedH;
   }
 
-  return records.length >= 6 ? records : null;
+  return best
 }
 
-function kpi(records,init){
-  var last=records[records.length-1];
-  var yrs=(new Date(last.month+'-01')-new Date(records[0].month+'-01'))/(365.25*86400000);
-  var tr=last.nav/init-1,cagr=yrs>0?Math.pow(1+Math.max(tr,-0.999),1/yrs)-1:0;
-  var pk=init,mdd=0;
-  records.forEach(function(r){if(r.nav>pk)pk=r.nav;var dd=(r.nav-pk)/pk;if(dd<mdd)mdd=dd;});
-  var rets=records.map(function(r){return r.pRet;});
-  var avg=rets.reduce(function(a,b){return a+b;},0)/rets.length;
-  var std=Math.sqrt(rets.reduce(function(a,b){return a+(b-avg)*(b-avg);},0)/rets.length)*Math.sqrt(12)||1;
-  return{cagr:cagr,mdd:mdd,sharpe:(cagr-0.015)/std,nav:last.nav};
-}
-function runBT(){
-  if(!CACHE_BUILT){alert('Fetch data first');return;}
-  SKIP_MO=!!($('btSkipMo')&&$('btSkipMo').checked);
-  CORR_WIN=parseInt($('corrW')?$('corrW').value:'24')||24;
-  sl('btLog','Calculating...',null);showL('Backtesting...');
-  setTimeout(async function(){
-    try{
-      if(CACHE_SKIP_MO!==SKIP_MO){await buildCache();}
-      var mh=parseInt($('btH')?$('btH').value:'3')||3;
-      var mode=getWeightMode(),init=gv('btCap')||100000;
-      var records=runBTcore(mh,mode);
-      if(!records){alert('Not enough data');hideL();return;}
-      BT_RESULT={records:records,initial:init,mode:mode,mh:mh};
-      renderBT(records,init,mode);
-      sl('btLog','Done: '+records.length+' months ('+records[0].month+' - '+records[records.length-1].month+')',true);
-    }catch(err){sl('btLog','Error: '+err.message,false);console.error(err);}
-    finally{hideL();}
-  },80);
-}
-function runCompare(){
-  if(!CACHE_BUILT){alert('Fetch data first');return;}
-  SKIP_MO=!!($('btSkipMo')&&$('btSkipMo').checked);
-  CORR_WIN=parseInt($('corrW')?$('corrW').value:'24')||24;
-  var maxN=parseInt($('btH')?$('btH').value:'5')||5,mode=getWeightMode();
-  sl('btLog','Comparing N=1 to '+maxN+'...',null);showL('Comparing...');
-  setTimeout(async function(){
-    try{
-      if(CACHE_SKIP_MO!==SKIP_MO){await buildCache();}
-      var init=gv('btCap')||100000,results=[];
-      for(var n=1;n<=maxN;n++){var recs=runBTcore(n,mode);if(recs)results.push({n:n,recs:recs,k:kpi(recs,init)});}
-      if(!results.length){alert('No results');hideL();return;}
-      renderCompare(results,init,mode);
-      sl('btLog','Compare done: N=1~'+maxN+' ('+mode+')',true);
-    }catch(err){sl('btLog','Error: '+err.message,false);console.error(err);}
-    finally{hideL();}
-  },80);
-}
-var CMP_COLORS=['#ff6b9d','#a78bfa','#00d4aa','#ffb830','#4d9fff','#00e5a0','#ff4d6d','#7eb8ff'];
-function renderCompare(results,init,mode){
-  $('btRes').classList.remove('hidden');
-  var fmt=function(v,p,pl){return(pl&&v>=0?'+':'')+(p?(v*100).toFixed(2)+'%':v.toFixed(2));};
-  var html='<div class="tw-wrap" style="margin-bottom:10px"><table><thead><tr>'
-  +'<th>N</th><th>Weight</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Final NAV</th></tr></thead><tbody>';
-  results.forEach(function(res,i){
-    var k=res.k;
-    html+='<tr><td class="mono" style="font-weight:700;color:'+CMP_COLORS[i%CMP_COLORS.length]+'">'+res.n+'</td>'
-    +'<td style="font-size:10px;color:var(--mu)">'+(mode==='rank'?'Rank':'Equal')+'</td>'
-    +'<td class="mono" style="color:'+(k.cagr>=0?'var(--gr)':'var(--re)')+'">'+fmt(k.cagr,true,true)+'</td>'
-    +'<td class="mono" style="color:var(--re)">'+fmt(k.mdd,true)+'</td>'
-    +'<td class="mono" style="color:'+(k.sharpe>=1?'var(--gr)':k.sharpe>=0?'var(--ye)':'var(--re)')+'">'+k.sharpe.toFixed(2)+'</td>'
-    +'<td class="mono" style="color:var(--wh)">$'+Math.round(k.nav).toLocaleString()+'</td></tr>';
-  });
-  html+='</tbody></table></div>';$('btMetrics').innerHTML=html;
-  $('chartArea').style.display='block';$('btnChart').textContent='Hide Charts';
-  if(CHART.n)CHART.n.destroy();if(CHART.d){CHART.d.destroy();CHART.d=null;}
-  var labels=results[0].recs.map(function(r){return r.month;});
-  var datasets=results.map(function(res,i){return{label:'N='+res.n,data:res.recs.map(function(r){return r.nav;}),borderColor:CMP_COLORS[i%CMP_COLORS.length],borderWidth:2,pointRadius:0};});
-  datasets.push({label:'TAIEX',data:results[0].recs.map(function(r){return r.bNav;}),borderColor:'#3d4a66',borderWidth:1,pointRadius:0});
-  var sc={x:{ticks:{color:'#6b7a99',maxTicksLimit:12},grid:{color:'#1a2030'}},y:{ticks:{color:'#6b7a99'},grid:{color:'#1a2030'}}};
-  var opt={responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},animation:{duration:200},plugins:{legend:{labels:{color:'#6b7a99',boxWidth:10,font:{size:11}}}}};
-  CHART.n=new Chart($('navC').getContext('2d'),{type:'line',data:{labels:labels,datasets:datasets},options:Object.assign({},opt,{scales:Object.assign({},sc,{y:Object.assign({},sc.y,{type:'logarithmic'})})})});
-  $('btBody').innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:12px;font-size:12px">Run single backtest to see monthly holdings detail.</td></tr>';
-}
-function renderBT(records,init,mode){
-  var recs=records;$('btRes').classList.remove('hidden');
-  var last=recs[recs.length-1];
-  var yrs=(new Date(last.month+'-01')-new Date(recs[0].month+'-01'))/(365.25*86400000);
-  var tr=last.nav/init-1,cagr=yrs>0?Math.pow(1+Math.max(tr,-0.999),1/yrs)-1:0;
-  var btr=last.bNav/init-1,bcagr=yrs>0?Math.pow(1+Math.max(btr,-0.999),1/yrs)-1:0;
-  var pk=init,mdd=0;
-  recs.forEach(function(r){if(r.nav>pk)pk=r.nav;var dd=(r.nav-pk)/pk;if(dd<mdd)mdd=dd;});
-  var rets=recs.map(function(r){return r.pRet;});
-  var avg=rets.reduce(function(a,b){return a+b;},0)/rets.length;
-  var std=Math.sqrt(rets.reduce(function(a,b){return a+(b-avg)*(b-avg);},0)/rets.length)*Math.sqrt(12)||1;
-  var sh=(cagr-0.015)/std;
-  var fmt=function(v,p,pl){return(pl&&v>=0?'+':'')+(p?(v*100).toFixed(2)+'%':v.toFixed(2));};
-  var modeLabel=mode==='rank'?'Rank-Weighted':'Equal-Weighted';
-  $('btMetrics').innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-  +'<div class="card" style="border-top:3px solid var(--tw)"><div class="ct">Strategy ('+modeLabel+')</div>'
-  +'<div class="mr"><span>Final NAV</span><span class="mv wh">$'+Math.round(last.nav).toLocaleString()+'</span></div>'
-  +'<div class="mr"><span>Return</span><span class="mv '+(tr>=0?'tg':'tr')+'">'+fmt(tr,true,true)+'</span></div>'
-  +'<div class="mr"><span>CAGR</span><span class="mv">'+fmt(cagr,true)+'</span></div>'
-  +'<div class="mr"><span>MDD</span><span class="mv tr">'+fmt(mdd,true)+'</span></div>'
-  +'<div class="mr"><span>Sharpe</span><span class="mv tg">'+sh.toFixed(2)+'</span></div></div>'
-  +'<div class="card" style="border-top:3px solid var(--mu)"><div class="ct">TAIEX B&H</div>'
-  +'<div class="mr"><span>Return</span><span class="mv '+(btr>=0?'tg':'tr')+'">'+fmt(btr,true,true)+'</span></div>'
-  +'<div class="mr"><span>CAGR</span><span class="mv">'+fmt(bcagr,true)+'</span></div>'
-  +'<div class="mr"><span>Alpha</span><span class="mv '+((cagr-bcagr)>=0?'tg':'tr')+'">'+fmt(cagr-bcagr,true,true)+'</span></div>'
-  +'</div></div>';
-  if(CHART.n)CHART.n.destroy();if(CHART.d)CHART.d.destroy();
-  var labels=recs.map(function(r){return r.month;});
-  var sc={x:{ticks:{color:'#6b7a99',maxTicksLimit:12},grid:{color:'#1a2030'}},y:{ticks:{color:'#6b7a99'},grid:{color:'#1a2030'}}};
-  var opt={responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},animation:{duration:200},plugins:{legend:{labels:{color:'#6b7a99',boxWidth:10,font:{size:11}}}}};
-  CHART.n=new Chart($('navC').getContext('2d'),{type:'line',data:{labels:labels,datasets:[
-    {label:'Strategy',data:recs.map(function(r){return r.nav;}),borderColor:'#ff6b9d',borderWidth:2.5,pointRadius:0},
-    {label:'TAIEX',data:recs.map(function(r){return r.bNav;}),borderColor:'#3d4a66',borderWidth:1,pointRadius:0}
-  ]},options:Object.assign({},opt,{scales:Object.assign({},sc,{y:Object.assign({},sc.y,{type:'logarithmic'})})})});
-  var mddData=[],pk2=init;
-  recs.forEach(function(r){if(r.nav>pk2)pk2=r.nav;mddData.push((r.nav-pk2)/pk2*100);});
-  CHART.d=new Chart($('ddC').getContext('2d'),{type:'line',data:{labels:labels,datasets:[
-    {label:'MDD',data:mddData,borderColor:'#ff6b9d',borderWidth:1,pointRadius:0,fill:true,backgroundColor:'rgba(255,107,157,0.08)'}
-  ]},options:Object.assign({},opt,{plugins:{legend:{display:false}},scales:sc})});
-  $('btBody').innerHTML=recs.slice().reverse().map(function(r,ri){
-    var idx2=recs.length-1-ri,pb=idx2>0?recs[idx2-1].bNav:init,prevNav=idx2>0?recs[idx2-1].nav:init;
-    var bRet=r.bNav/pb-1,ex=r.pRet-bRet;
-    var rc=r.pRet>=0?'var(--gr)':'var(--re)',ec=ex>=0?'var(--gr)':'var(--re)';
-    var holdStr=Object.keys(r.holdings).map(function(k){
-      var wt=r.holdings[k];var isShort=wt<0;
-      var isUs=!!(document.querySelector('[data-code="'+k+'"][data-tw="0"]'));
-      var col=isShort?'var(--bl)':(isUs?'var(--us)':'var(--tw)');
-      var bg=isShort?'var(--bld)':(isUs?'var(--usd)':'var(--twd)');
-      var bst=isShort?'dashed':'solid';
-      var nm=getStockName(k);
-      var pct=Math.abs(wt*100).toFixed(0)+'%';
-      var lbl=(isShort?'S ':'')+k+(nm&&nm!==k?' '+nm:'');
-      return '<span style="background:'+bg+';color:'+col+';border:1px '+bst+' '+col+';padding:1px 6px;border-radius:3px;font-size:10px;font-family:monospace;margin:1px">'+lbl+' '+pct+'</span>';
-    }).join('');
-    var summaryRow='<tr style="border-top:2px solid var(--bd)">'
-    +'<td class="mono" style="font-weight:700;vertical-align:top">'+r.month+'</td>'
-    +'<td style="vertical-align:top">'+holdStr+'</td>'
-    +'<td class="mono" style="font-size:10px;color:var(--bl);vertical-align:top">'+(r.hurdle*100).toFixed(1)+'%</td>'
-    +'<td class="mono" style="color:'+rc+';font-weight:700;vertical-align:top">'+(r.pRet>=0?'+':'')+(r.pRet*100).toFixed(2)+'%</td>'
-    +'<td class="mono" style="color:var(--tw);font-weight:700;vertical-align:top">$'+Math.round(r.nav).toLocaleString()+'</td>'
-    +'<td class="mono" style="color:var(--mu);vertical-align:top">$'+Math.round(r.bNav).toLocaleString()+'</td>'
-    +'<td class="mono" style="color:'+ec+';font-weight:700;vertical-align:top">'+(ex>=0?'+':'')+(ex*100).toFixed(2)+'pp</td></tr>';
-    var detailRows='';
-    if(r.stockRets){
-      Object.keys(r.stockRets).forEach(function(k){
-        var sr=r.stockRets[k],ret=sr.ret,w=sr.w||0,contrib=ret*w,pnl=prevNav*contrib;
-        var isShortPos=w<0;
-        var isUs=!!(document.querySelector('[data-code="'+k+'"][data-tw="0"]'));
-        var col=isShortPos?'var(--bl)':(isUs?'var(--us)':'var(--tw)');
-        var rc2=contrib>=0?'var(--gr)':'var(--re)';
-        var nm=getStockName(k);
-        var dirLabel=isShortPos?'[S] ':'';
-        var absPct=Math.abs(w*100).toFixed(0)+'%';
-        detailRows+='<tr style="background:var(--bg);opacity:0.85">'
-        +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd)"></td>'
-        +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);font-family:monospace;font-size:11px;color:'+col+'">'
-        +dirLabel+k+(nm&&nm!==k?' <span style="color:var(--mu);font-size:10px">'+nm+'</span>':'')
-        +' <span style="color:var(--mu);font-size:10px">'+absPct+'</span></td>'
-        +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd)"></td>'
-        +'<td class="mono" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:11px;color:var(--mu)">'+(ret>=0?'+':'')+(ret*100).toFixed(2)+'%</td>'
-        +'<td class="mono" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:11px;color:'+rc2+'">'+(pnl>=0?'+$':'-$')+Math.abs(Math.round(pnl)).toLocaleString()+'</td>'
-        +'<td colspan="2" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:10px;color:'+rc2+'">contrib: '+(contrib>=0?'+':'')+(contrib*100).toFixed(2)+'%</td></tr>';
-      });
-    }
-    return summaryRow+detailRows;
-  }).join('');
-}
-function toggleCharts(btn){
-  var area=$('chartArea');if(!area)return;
-  var hidden=area.style.display==='none';
-  area.style.display=hidden?'block':'none';
-  btn.textContent=hidden?'Hide Charts':'Show Charts (NAV / MDD)';
-  if(hidden&&CHART.n){CHART.n.resize();if(CHART.d)CHART.d.resize();}
-}
-function dlJson(){
-  if(!Object.keys(MONTHLY).length){sl('dlLog','No data',false);return;}
-  var obj={ts:new Date().toISOString(),WEEKLY:WEEKLY,MONTHLY:MONTHLY,DAILY:DAILY,BENCH_MONTHLY:BENCH_MONTHLY,TNX_MONTHLY:TNX_MONTHLY};
-  dlBlob(new Blob([JSON.stringify(obj)],{type:'application/json'}),'tw_momentum_'+new Date().toISOString().slice(0,10)+'.json');
-  sl('dlLog','JSON downloaded',true);
-}
-function dlOHLCV(){
-  var rows=['type,code,date,high,low,close,volume'];
-  Object.keys(WEEKLY).forEach(function(k){WEEKLY[k].forEach(function(w){rows.push('W,'+k+','+w.date+','+w.h+','+w.l+','+w.c+','+w.v);});});
-  Object.keys(DAILY).forEach(function(k){DAILY[k].forEach(function(w){rows.push('D,'+k+','+w.date+','+w.h+','+w.l+','+w.c+','+w.v);});});
-  dlText(rows.join('\n'),'tw_ohlcv_'+new Date().toISOString().slice(0,10)+'.csv','text/csv;charset=utf-8');
-  sl('dlLog','OHLCV CSV downloaded',true);
-}
-function dlMonthly(){
-  var rows=['code,date,close'];
-  Object.keys(MONTHLY).forEach(function(k){MONTHLY[k].forEach(function(m){rows.push(k+','+m.date+','+m.c);});});
-  BENCH_MONTHLY.forEach(function(m){rows.push('^TWII,'+m.date+','+m.c);});
-  TNX_MONTHLY.forEach(function(m){rows.push('^TNX,'+m.date+','+m.c);});
-  dlText(rows.join('\n'),'tw_monthly_'+new Date().toISOString().slice(0,10)+'.csv','text/csv;charset=utf-8');
-  sl('dlLog','Monthly CSV downloaded',true);
-}
-async function upJson(el){
-  var file=el.files[0];if(!file)return;sl('dlLog','Loading '+file.name+'...',null);
-  try{
-    var text=await file.text();var obj=JSON.parse(text);
-    if(!obj.MONTHLY){sl('dlLog','Error: no MONTHLY field',false);return;}
-    WEEKLY=obj.WEEKLY||{};MONTHLY=obj.MONTHLY||{};DAILY=obj.DAILY||{};
-    BENCH_MONTHLY=obj.BENCH_MONTHLY||[];TNX_MONTHLY=obj.TNX_MONTHLY||[];
-    updFetchStat();updTNX();await buildCache();sl('dlLog','Loaded! Ready to calculate.',true);
-  }catch(err){sl('dlLog','Error: '+err.message,false);}
-    el.value='';
-}
-async function clearAndReset() {
 
-  if (!confirm('Clear all cached data and IndexedDB?')) return;
-  await indexedDB.deleteDatabase('FearlessConsoleDB');
-  WEEKLY = {}; MONTHLY = {}; DAILY = {};
-  BENCH_MONTHLY = []; TNX_MONTHLY = [];
-  CACHE_BUILT = false; CACHE_TS = null;
-  RAW_SCORES = {};
-  sl('dlLog', 'DB cleared. Please run Fetch All.', true);
-  updFetchStat([]);
-  updCacheSt();
+function isValidLPPL(fit){
+
+  if(!fit) return false
+
+  if(fit.m <= 0 || fit.m >= 1) return false
+  if(fit.w < 6 || fit.w > 13) return false
+
+  let days = fit.tc - fit.len
+
+  if(days < 5 || days > 60) return false
+
+  return true
 }
-  function debugDataLen() {
-  var keys = Object.keys(MONTHLY);
-  var msg = 'MONTHLY stocks: ' + keys.length;
-  if (keys.length) {
-    msg += '\n' + keys[0] + ': ' + MONTHLY[keys[0]].length + ' months';
-    msg += '\n' + keys[keys.length-1] + ': ' + MONTHLY[keys[keys.length-1]].length + ' months';
+
+
+function calcLPPLScore(fit){
+
+  let days = fit.tc - fit.len
+
+  let score_tc = 100 * Math.exp(-days / 30)
+  let score_m  = (1 - fit.m) * 100
+
+  return 0.6 * score_tc + 0.4 * score_m
+}
+
+// ==============================
+// 多窗口LPPL
+// ==============================
+
+function multiLPPL(close){
+
+  let w60  = close.slice(-60)
+  let w120 = close.slice(-120)
+  let w240 = close.slice(-240)
+
+  let f60  = fitLPPL(w60)
+  let f120 = fitLPPL(w120)
+  let f240 = fitLPPL(w240)
+
+  let s60  = isValidLPPL(f60)  ? calcLPPLScore(f60)  : 0
+  let s120 = isValidLPPL(f120) ? calcLPPLScore(f120) : 0
+  let s240 = isValidLPPL(f240) ? calcLPPLScore(f240) : 0
+
+  return 0.2*s60 + 0.3*s120 + 0.5*s240
+}
+
+// ==============================
+// 風險模組
+// ==============================
+
+function slopeRisk(close){
+
+  let ma20 = SMA(close,20)
+  let ma60 = SMA(close,60)
+
+  let slope20 = ma20.at(-1) - ma20.at(-5)
+  let slope60 = ma60.at(-1) - ma60.at(-5)
+
+  return (slope20 < 0 && slope60 > 0) ? 100 : 0
+}
+
+function accelRisk(close){
+
+  let roc20 = ROC(close,20).at(-1)
+  let roc60 = ROC(close,60).at(-1)
+
+  let acc = roc20 - roc60
+
+  return Math.max(0, Math.min(100, acc * 200))
+}
+
+// ==============================
+// Exposure
+// ==============================
+
+function getExposure(score){
+
+  if(score < 60) return 1.0
+  if(score < 70) return 0.8
+  if(score < 75) return 0.6
+  if(score < 80) return 0.4
+  if(score < 85) return 0.2
+  return 0.0
+}
+
+// ==============================
+// 主引擎
+// ==============================
+
+async function runRiskEngine(config){
+
+  let data
+
+  if(config.source === "yahoo"){
+    data = await getYahooData(config.symbol)
+  }else{
+    data = normalizeUploadData(config.data)
   }
-  msg += '\nBENCH: ' + BENCH_MONTHLY.length + ' months';
-  msg += '\nRAW_SCORES keys: ' + Object.keys(RAW_SCORES).length;
-  if (Object.keys(RAW_SCORES).length) {
-    var k = Object.keys(RAW_SCORES)[0];
-    msg += '\n' + k + ' score months: ' + Object.keys(RAW_SCORES[k]).length;
+
+  let close = data.map(d => d.close)
+
+  let lppl = multiLPPL(close)
+  let slope = config.useSlope ? slopeRisk(close) : 0
+  let accel = config.useAccel ? accelRisk(close) : 0
+
+  let score =
+    0.6 * lppl +
+    0.2 * slope +
+    0.2 * accel
+
+  let exposure = getExposure(score)
+
+  let regime =
+    score > 80 ? "RISK_OFF" :
+    score > 70 ? "WARNING" :
+    "NORMAL"
+
+  return {
+    score,
+    exposure,
+    regime,
+    detail: { lppl, slope, accel }
   }
-  alert(msg);
 }
 
+// ==============================
+// ▶ 測試執行
+// ==============================
 
-function pct(v,d){return(v>=0?'+':'')+(v*100).toFixed(d===undefined?1:d)+'%';}
-function median(arr){
-  if(!arr.length)return 0;
-  var s=arr.slice().sort(function(a,b){return a-b;});
-  var m=Math.floor(s.length/2);
-  return s.length%2?s[m]:(s[m-1]+s[m])/2;
-}
-function percentile(arr,p){
-  if(!arr.length)return 0;
-  var s=arr.slice().sort(function(a,b){return a-b;});
-  var i=(p/100)*(s.length-1);
-  var lo=Math.floor(i),hi=Math.ceil(i);
-  return s[lo]+(s[hi]-s[lo])*(i-lo);
-}
-function runRolling(){
-  if(!BT_RESULT){alert('Run backtest first');return;}
-  var recs=BT_RESULT.records,init=BT_RESULT.initial;
-  var periods=[1,2,3,5].filter(function(n){var e=$('rl'+n);return e&&e.checked;});
-  if(!periods.length){alert('Select at least one period');return;}
-  var res={};
-  periods.forEach(function(N){
-    var mo=N*12,wins=[];
-    for(var i=0;i+mo<=recs.length;i++){
-      var sub=recs.slice(i,i+mo);
-      var navS=i>0?recs[i-1].nav:init;
-      var navE=sub[sub.length-1].nav;
-      var cagr=Math.pow(navE/navS,1/N)-1;
-      var bNavS=i>0?recs[i-1].bNav:init;
-      var bNavE=sub[sub.length-1].bNav;
-      var bcagr=Math.pow(bNavE/bNavS,1/N)-1;
-      var rets=sub.map(function(r){return r.pRet;});
-      var avg=rets.reduce(function(a,b){return a+b;},0)/rets.length;
-      var variance=rets.reduce(function(a,b){return a+(b-avg)*(b-avg);},0)/rets.length;
-      var std=Math.sqrt(variance)*Math.sqrt(12);
-      var sharpe=std>0?(cagr-0.015)/std:0;
-      var peak=navS,mdd=0;
-      sub.forEach(function(r){if(r.nav>peak)peak=r.nav;var dd=(r.nav-peak)/peak;if(dd<mdd)mdd=dd;});
-      wins.push({cagr:cagr,bcagr:bcagr,std:std,sharpe:sharpe,mdd:mdd});
-    }
-    res[N]=wins;
-  });
-  renderRolling(res,periods);
-}
-function renderRolling(res,periods){
-  var el=$('rollingRes');if(!el)return;
-  el.classList.remove('hidden');
-  var fmt=function(v,d){return(v>=0?'+':'')+(v*100).toFixed(d===undefined?1:d)+'%';};
-  var fmtN=function(v,d){return v.toFixed(d===undefined?2:d);};
-  var gc=function(v){return v>=0?'var(--gr)':'var(--re)';};
-  var html='<div class="card"><div class="ct">&#x6EFE;&#x52D5;&#x5831;&#x916C;&#x5206;&#x6790; (CAGR)</div>';
-  // one table per period
-  periods.forEach(function(N){
-    var ws=res[N];if(!ws||!ws.length)return;
-    var cagrs=ws.map(function(w){return w.cagr;});
-    var bcagrs=ws.map(function(w){return w.bcagr;});
-    var stds=ws.map(function(w){return w.std;});
-    var sharpes=ws.map(function(w){return w.sharpe;});
-    var mdds=ws.map(function(w){return w.mdd;});
-    var winRate=cagrs.filter(function(v){return v>0;}).length/cagrs.length;
-    var beatRate=ws.filter(function(w){return w.cagr>w.bcagr;}).length/ws.length;
-    html+='<div style="margin-bottom:14px">';
-    html+='<div style="font-size:11px;font-weight:700;color:var(--tw);margin-bottom:6px">'+N+' &#x5E74; ('+ws.length+' &#x7A97;&#x53E3;)</div>';
-    html+='<div class="tw-wrap" style="max-height:none"><table><thead><tr>';
-    html+='<th>&#x6307;&#x6A19;</th><th>&#x4E2D;&#x4F4D;</th><th>&#x5E73;&#x5747;</th><th>P10</th><th>P90</th><th>&#x52DD;&#x7387;</th><th>&#x8D85;TAIEX</th></tr></thead><tbody>';
-    // strategy rows
-    var rows=[
-      ['CAGR',cagrs,true],
-      ['&#x5E74;&#x5316;&#x6A19;&#x6E96;&#x5DEE;',stds,false],
-      ['Sharpe',sharpes,false],
-      ['MDD',mdds,true],
-    ];
-    rows.forEach(function(row){
-      var label=row[0],arr=row[1],isCagr=row[2];
-      var med=median(arr),avg=arr.reduce(function(a,b){return a+b;},0)/arr.length;
-      var p10=percentile(arr,10),p90=percentile(arr,90);
-      var isPct=label!=='Sharpe';
-      var f=function(v){return isPct?fmt(v,1):fmtN(v,2);};
-      html+='<tr><td style="color:var(--mu);font-size:10px">'+label+'</td>';
-      html+='<td class="mono" style="color:'+gc(med)+'">'+f(med)+'</td>';
-      html+='<td class="mono" style="color:'+gc(avg)+'">'+f(avg)+'</td>';
-      html+='<td class="mono" style="color:'+gc(p10)+'">'+f(p10)+'</td>';
-      html+='<td class="mono" style="color:'+gc(p90)+'">'+f(p90)+'</td>';
-      if(isCagr&&label==='CAGR'){
-        html+='<td class="mono" style="color:var(--gr)">'+(winRate*100).toFixed(0)+'%</td>';
-        html+='<td class="mono" style="color:var(--ye)">'+(beatRate*100).toFixed(0)+'%</td>';
-      }else{
-        html+='<td></td><td></td>';
-      }
-      html+='</tr>';
-    });
-    // TAIEX row for CAGR comparison
-    var bmed=median(bcagrs),bavg=bcagrs.reduce(function(a,b){return a+b;},0)/bcagrs.length;
-    var bp10=percentile(bcagrs,10),bp90=percentile(bcagrs,90);
-    var bwin=bcagrs.filter(function(v){return v>0;}).length/bcagrs.length;
-    html+='<tr style="border-top:1px solid var(--bhi)"><td style="color:var(--mu);font-size:10px">TAIEX CAGR</td>';
-    html+='<td class="mono" style="color:'+gc(bmed)+'">'+fmt(bmed,1)+'</td>';
-    html+='<td class="mono" style="color:'+gc(bavg)+'">'+fmt(bavg,1)+'</td>';
-    html+='<td class="mono" style="color:'+gc(bp10)+'">'+fmt(bp10,1)+'</td>';
-    html+='<td class="mono" style="color:'+gc(bp90)+'">'+fmt(bp90,1)+'</td>';
-    html+='<td class="mono" style="color:var(--mu)">'+(bwin*100).toFixed(0)+'%</td><td></td></tr>';
-    html+='</tbody></table></div></div>';
-  });
-  html+='</div>';
-  el.innerHTML=html;
-}
-function dlBtCsv(){
-  if(!BT_RESULT){sl('btLog','Run backtest first',false);return;}
-  var recs=BT_RESULT.records,init=BT_RESULT.initial,rows=['month,holdings,hurdle%,return%,nav,taiex,alpha%'];
-  recs.forEach(function(r,i){
-    var pb=i>0?recs[i-1].bNav:init;var ex=r.pRet-(r.bNav/pb-1);
-    var hold=Object.keys(r.holdings).map(function(k){
-      var nm=getStockName(k);
-      return k+(nm&&nm!==k?'('+nm+')':'')+(r.holdings[k]<0.99?' '+(r.holdings[k]*100).toFixed(0)+'%':'');
-    }).join('+');
-    rows.push([r.month,hold,(r.hurdle*100).toFixed(2),(r.pRet*100).toFixed(3),Math.round(r.nav),Math.round(r.bNav),(ex*100).toFixed(3)].join(','));
-  });
-  dlText(rows.join('\n'),'tw_backtest_'+new Date().toISOString().slice(0,10)+'.csv','text/csv;charset=utf-8');
-}
+(async () => {
 
-// === 自動讀取邏輯 ===
-window.onload = async function() {
-  initGroupToggles();
-  var hasData = await loadFromDB();
-  if (!hasData) {
-    console.log('No local data found in IndexedDB.');
-  }
-};
-</script>
-</body>
-</html>
+  const result = await runRiskEngine({
+    source: "yahoo",
+    symbol: "^GSPC",   // 或 ^TWII
+    useSlope: true,
+    useAccel: true
+  })
+
+  console.log("==== LPPL Risk Engine ====")
+  console.log(result)
+
+})()
