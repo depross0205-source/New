@@ -914,33 +914,6 @@ async function fp(url,proxies){var last;for(var i=0;i<proxies.length;i++){try{va
 function buildTicker(s){if(!s.tw)return s.c;if(s.c.charAt(0)==='^'||s.c.indexOf('.')>=0)return s.c;return s.c+'.TW';}
 
 // 💡 升級版：嚴格使用多重 Proxy 引擎 (fp + buildProxies) 確保下載不中斷
-async function fetchOHLCV(s, interval, range = 'max') {
-  const tk = buildTicker(s);
-  const proxies = buildProxies(); // 🟢 呼叫內建代理陣列
-  
-  let queryStr = `range=${range}&interval=${interval}`;
-  if (range === 'max') {
-    const nowUnix = Math.floor(Date.now() / 1000);
-    queryStr = `period1=0&period2=${nowUnix}&interval=${interval}`;
-  }
-  
-  const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${tk}?${queryStr}`;
-  const r = await fp(targetUrl, proxies); 
-  const j = await r.json();
-  const ch = j.chart?.result?.[0];
-  if (!ch || !ch.timestamp) throw new Error('No Data for ' + tk);
-  
-  return ch.timestamp.map((ts, i) => {
-    const q = ch.indicators.quote[0];
-    const adj = ch.indicators.adjclose?.[0].adjclose[i];
-    return {
-      date: new Date(ts * 1000).toISOString().slice(0, 10),
-      o: q.open[i], h: q.high[i], l: q.low[i], 
-      c: adj || q.close[i], v: q.volume[i]
-    };
-  }).filter(v => v.c != null);
-
-
 // 💡 升級版：嚴格使用多重 Proxy 引擎 (fp + buildProxies) 確保下載不中斷
 async function fetchOHLCV(s, interval, range = 'max') {
   const tk = buildTicker(s);
@@ -949,6 +922,7 @@ async function fetchOHLCV(s, interval, range = 'max') {
   let queryStr = `range=${range}&interval=${interval}`;
   if (range === 'max') {
     const nowUnix = Math.floor(Date.now() / 1000);
+    // 強迫使用絕對時間戳，破解 Yahoo 隱形限制
     queryStr = `period1=0&period2=${nowUnix}&interval=${interval}`;
   }
   
@@ -1022,7 +996,6 @@ async function fetchAll() {
   await buildCache(); 
   await saveAllToDB();
 }
-
 
 async function fetchUpdate() {
   var stocks = getEnabledStocks();
