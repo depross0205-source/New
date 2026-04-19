@@ -95,6 +95,8 @@ tr:hover{background:var(--sf2)}
 </style>
 </head>
 <body>
+<div id="diagBar" style="background:#ff4d6d;color:#fff;padding:8px 12px;font-family:monospace;font-size:12px;position:fixed;top:0;left:0;right:0;z-index:9999;display:none">JS ERROR</div>
+
 <div class="load hidden" id="loadEl">
   <div class="spin"></div>
   <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">...</div>
@@ -424,7 +426,17 @@ tr:hover{background:var(--sf2)}
 </div>
 </div>
 
-<script>
+<script>function switchTab(name, el) {
+  var tabs = document.querySelectorAll('.tab');
+  var panels = document.querySelectorAll('.panel');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  for (var i = 0; i < panels.length; i++) panels[i].classList.remove('active');
+  if (el) el.classList.add('active');
+  var p = document.getElementById('panel-' + name);
+  if (p) p.classList.add('active');
+}
+
+
 function updTotalH() {
   var t = gv('btQuotaTW') + gv('btQuotaUS') + gv('btQuotaETF');
   if (document.getElementById('poolMode').value === 'small') {
