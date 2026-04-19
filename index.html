@@ -676,7 +676,8 @@ async function fp(url, proxies) {
 
 function buildTicker(s){if(!s.tw)return s.c;if(s.c.charAt(0)==='^'||s.c.indexOf('.')>=0)return s.c;return s.c+'.TW';}
 
-async function fetchOHLCV(s, interval, range = 'max') {
+async function fetchOHLCV(s, interval, range) {
+  range = range || 'max';
   var tk = buildTicker(s);
   var proxies = buildProxies(); 
   
@@ -689,13 +690,13 @@ async function fetchOHLCV(s, interval, range = 'max') {
   var targetUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + tk + '?' + queryStr;
   var r = await fp(targetUrl, proxies); 
   var j = await r.json();
-  var ch = j.chart?.result?.[0];
+  var ch = j.chart && j.chart.result && j.chart.result[0];
   
   if (!ch || !ch.timestamp) throw new Error('No Data for ' + tk);
   
-  return ch.timestamp.mapfunction((ts, i) {
+  return ch.timestamp.map(function((ts, i) {
     var q = ch.indicators.quote[0];
-    var adj = ch.indicators.adjclose?.[0]?.adjclose?.[i]; 
+    var adj = ch.indicators.adjclose && ch.indicators.adjclose[0] && ch.indicators.adjclose[0].adjclose ? ch.indicators.adjclose[0].adjclose[i] : undefined; 
     return {
       date: new Date(ts * 1000).toISOString().slice(0, 10),
       o: q.open[i], h: q.high[i], l: q.low[i], 
@@ -1031,7 +1032,7 @@ function calcAllScores(dateStr) {
         return {s: s, raw: r};
       });
       var zMs=crossZ(rMs,99), zBs=crossZ(rBs,2), zSs=crossZ(rSs,99), zVs=crossZ(rVs,2), zKs=crossZ(rKs,99);
-      pinfos.forEachfunction((d,i) {
+      pinfos.forEach(function((d,i) {
         finalScores.push({
           s:d.s, score: (w.m*zMs[i]+w.b*zBs[i]+w.s*zSs[i]+w.v*zVs[i]+w.k*zKs[i]),
           zm:zMs[i], zb:zBs[i], zs:zSs[i], zv:zVs[i], zk:zKs[i], r240:d.raw.r240
@@ -1059,7 +1060,7 @@ function calcCorr(c1, c2, dateStr) {
   }
   var m1 = r1.reduce(function(a,b){return a+b;},0)/r1.length, m2 = r2.reduce(function(a,b){return a+b;},0)/r2.length;
   var num = 0, d1 = 0, d2 = 0;
-  r1.forEachfunction((v, i) {
+  r1.forEach(function((v, i) {
     num += (v - m1) * (r2[i] - m2);
     d1 += (v - m1) ** 2; d2 += (r2[i] - m2) ** 2;
   });
@@ -1339,7 +1340,7 @@ function runBTcore(mh, mode) {
 
     var drifted = {};
     for (var c in validTarget) {
-      drifted[c] = (validTarget[c] * (1 + (stockRets[c]?.ret || 0))) / (1 + grossRet);
+      drifted[c] = (validTarget[c] * (1 + (stockRets[c] ? stockRets[c].ret || 0 : 0))) / (1 + grossRet);
     }
 
     var b0 = getPriceOnDate(refDaily, prevM), b1 = getPriceOnDate(refDaily, sigM);
@@ -1814,7 +1815,8 @@ async function calcSignal() {
   if (mode === 'large') {
     var candidates = allScores.filter(function(r) { return !rejectedMap[r.s.c]; }).sort(function(a,b){return b.score-a.score;});
     var totalMax = parseInt($('btH').value) || 5;
-    for (var cand of candidates) {
+    for (var _foi1=0; _foi1<candidates.length; _foi1++) {
+      var cand=candidates[_foi1];
       if (sel.length >= totalMax) { rejectedMap[cand.s.c] = "\u540d\u984d\u5df2\u6eff"; continue; }
       if (sel.every(function(x){ return Math.abs(calcCorr(cand.s.c,x.s.c,latestDate)) < ct; })) sel.push(cand);
       else rejectedMap[cand.s.c] = "\u76f8\u95dc\u6027\u904e\u9ad8";
@@ -1825,7 +1827,8 @@ async function calcSignal() {
     ['us', 'tw', 'etf'].forEach(function(p) {
       var q = { 'tw':gv('btQuotaTW'), 'us':gv('btQuotaUS'), 'etf':gv('btQuotaETF') }[p], picked = 0;
       var list = sub[p].sort(function(a,b){return b.score-a.score;});
-      for (var cand of list) {
+      for (var _foi2=0; _foi2<list.length; _foi2++) {
+        var cand=list[_foi2];
         if (picked >= q) { rejectedMap[cand.s.c] = "\u914d\u984d\u5df2\u6eff"; continue; }
         if (sel.every(function(x){ return Math.abs(calcCorr(cand.s.c,x.s.c,latestDate)) < ct; })) { sel.push(cand); picked++; }
         else { rejectedMap[cand.s.c] = "\u76f8\u95dc\u6027\u904e\u9ad8"; }
