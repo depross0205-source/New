@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股動能選股 V1.9 Pure</title>
+<title>台股動能選股 V1.9</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Noto+Sans+TC:wght@400;600;700&display=swap');
@@ -46,12 +47,14 @@ button{padding:9px 14px;border:none;border-radius:3px;cursor:pointer;font-size:1
 .in{font-size:12px;font-weight:700;color:var(--ac);flex:1}
 .ic{font-size:10px;color:var(--mu);white-space:nowrap}
 .ib{padding:7px;display:flex;flex-wrap:wrap;gap:4px}
+.ib.col{display:none}
 .sc{display:inline-flex;align-items:center;padding:4px 8px;border-radius:3px;font-size:11px;font-family:'IBM Plex Mono',monospace;border:1px solid var(--bd);background:var(--bg);cursor:pointer;gap:4px;user-select:none;transition:.12s}
 .sc:hover{border-color:var(--tw);background:var(--twd)}
 .sc.act{background:var(--twd);border-color:var(--tw);color:var(--tw)}
 .sc.usc:hover{border-color:var(--us);background:var(--usd)}
 .sc.usc.act{background:var(--usd);border-color:var(--us);color:var(--us)}
 .cc{font-weight:700}.cn{font-size:9px;color:var(--mu)}
+.sc.act .cn{color:var(--tw);opacity:.7}.sc.usc.act .cn{color:var(--us);opacity:.7}
 .cd{font-size:12px;color:var(--re);opacity:0;padding:0 2px;line-height:1}
 .sc:hover .cd{opacity:1}
 .cust{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;align-items:center}
@@ -67,6 +70,7 @@ button{padding:9px 14px;border:none;border-radius:3px;cursor:pointer;font-size:1
 .sbrow{display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:10px;color:var(--mu)}
 .sbwrap{flex:1;height:3px;background:var(--bd);border-radius:2px;overflow:hidden}
 .sbfill{height:100%;border-radius:2px}
+.wk .scode{color:var(--re)}.wk .srank{background:var(--red);color:var(--re);border-color:var(--re)}
 .mr{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--bd)}
 .mr:last-child{border:none}.mv{font-family:'IBM Plex Mono',monospace;font-weight:700}
 .tg{color:var(--gr)}.tr{color:var(--re)}.wh{color:var(--wh)}
@@ -94,53 +98,192 @@ tr:hover{background:var(--sf2)}
 <body>
 <div class="load hidden" id="loadEl">
   <div class="spin"></div>
-  <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">Loading...</div>
+  <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">...</div>
 </div>
 <div class="wrap">
-<h1>TW 動能選股 <span class="tag">V1.9 PURE</span></h1>
-<div class="sub">台50+中100+US ETF+Mag7 | TS=^TNX+0.5% | 趨勢動能系統</div>
+<h1>台股動能選股 <span class="tag">V1.9</span></h1>
+<div class="sub">台50+中100+US ETF+Mag7 | TS=^TNX+0.5% | 台13週/美50日 | Long/Short + IVOL 完整支援</div>
 <div class="tabs">
-  <button class="tab active" onclick="switchTab('pool',this)">Pool</button>
-  <button class="tab" onclick="switchTab('fetch',this)">Fetch</button>
-  <button class="tab" onclick="switchTab('signal',this)">Signal</button>
-  <button class="tab" onclick="switchTab('backtest',this)">Backtest</button>
-  <button class="tab" onclick="switchTab('stress',this)">Stress</button>
+  <button class="tab active" onclick="switchTab('pool',this)">股池</button>
+  <button class="tab" onclick="switchTab('fetch',this)">抓取</button>
+  <button class="tab" onclick="switchTab('signal',this)">信號</button>
+  <button class="tab" onclick="switchTab('backtest',this)">回測</button>
+  <button class="tab" onclick="switchTab('stress',this)">壓力測試</button>
 </div>
 
 <div class="panel active" id="panel-pool">
   <div class="shbar">
-    <label>Shield Score</label>
-    <input type="number" id="shieldScore" placeholder="0-100">
+    <label>盾牌分數</label>
+    <input type="number" id="shieldScore" placeholder="0-100" min="0" max="100">
+    <span>留空=不過濾</span>
   </div>
-  <div class="card">
-    <div class="ct">股池設定
+   <div class="card">
+    <div class="ct">股池
       <div style="display:flex;gap:6px">
         <button class="bo sm" onclick="selectAll()">全選</button>
-        <button class="bo sm" onclick="selectNone()">清除</button>
+        <button class="bo sm" onclick="selectNone()">全停</button>
+        <button class="bo sm" style="color:var(--tw);border-color:var(--tw)" onclick="selectTW(true)">台股全選</button>
+        <button class="bo sm" style="color:var(--tw);border-color:var(--tw)" onclick="selectTW(false)">台股全停</button>
       </div>
     </div>
-    <div id="poolContainer"></div>
+   <div id="poolContainer"></div>
+  <div class="cust">
+      <input type="text" id="cusT" placeholder="2330 or SPY" style="max-width:120px">
+      <input type="text" id="cusN" placeholder="Name" style="max-width:90px">
+      <select id="cusI" style="max-width:110px">
+        <option value="US-ETF">US-ETF</option>
+        <option value="US-Mag7">US-Mag7</option>
+        <option value="光學精密">光學精密</option>
+        <option value="半導體">半導體</option>
+        <option value="工業機械">工業機械</option>
+        <option value="工業電腦">工業電腦</option>
+        <option value="汽車">汽車</option>
+        <option value="生技醫療">生技醫療</option>
+        <option value="石化">石化</option>
+        <option value="航運">航運</option>
+        <option value="金融">金融</option>
+        <option value="鋼鐵">鋼鐵</option>
+        <option value="電信">電信</option>
+        <option value="電子製造">電子製造</option>
+        <option value="電子零組件">電子零組件</option>
+        <option value="電腦周邊">電腦周邊</option>
+        <option value="面板">面板</option>
+        <option value="食品消費">食品消費</option>
+        <option value="紡織成衣">紡織成衣</option>
+        <option value="橡膠汽車">橡膠汽車</option>
+        <option value="建材不動產">建材不動產</option>
+        <option value="通路流通">通路流通</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--mu);cursor:pointer">
+        <input type="checkbox" id="cusUS" style="width:14px;accent-color:var(--us)"> US
+      </label>
+      <button class="bo sm" onclick="addCustom()">+ Add</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">評分權重 <span style="font-size:10px;color:var(--gr)">改完權重直接重計</span></div>
+    <div class="g3">
+      <div class="fi"><label>動能z(%)</label><input type="number" id="wMom" value="50" min="0" max="100"></div>
+      <div class="fi"><label>Bias(%)</label><input type="number" id="wBias" value="15" min="0" max="100"></div>
+      <div class="fi"><label>Slope(%)</label><input type="number" id="wSlope" value="15" min="0" max="100"></div>
+      <div class="fi"><label>量能(%)</label><input type="number" id="wVol" value="10" min="0" max="100"></div>
+      <div class="fi"><label>K棒(%)</label><input type="number" id="wKbar" value="10" min="0" max="100"></div>
+      <div class="fi"><label>Corr Thresh</label><input type="number" id="corrT" value="0.75" step="0.05" min="0.3" max="1"></div>
+      <div class="fi"><label>Corr Window (mo)</label><input type="number" id="corrW" value="24" min="6" max="60" step="6"></div>
+      <div class="fi"><label>>60MA 絕對門檻</label><select id="ma60Filter"><option value="on" selected>On (破線淘汰)</option><option value="off">Off (僅依評分)</option></select></div>
+    </div>
+    <div class="ib2">
+      <b>動能</b>: 0.5z12+0.3z6+0.2z3 (月頻) | <b>台</b>: 週頻 13週 | <b>US/Mag7</b>: 日頻 50日<br>
+      <b>TS</b>: R12 &gt; ^TNX + spread%
+    </div>
   </div>
 </div>
 
 <div class="panel" id="panel-fetch">
   <div class="card">
+    <div class="ct">Proxy / 網路設定</div>
+    <div class="fi"><label>Primary Proxy URL</label>
+      <input type="text" id="proxyUrl" value="https://shield-proxy.depross0205.workers.dev?url=" autocorrect="off" spellcheck="false">
+    </div>
+  </div>
+
+  <div class="card" style="border-left: 4px solid var(--ye);">
+    <div class="ct">資料健康診斷 <button class="bo sm" onclick="checkDataHealth()">立即診斷</button></div>
+    <div id="healthDashboard">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+        <div class="ib2" style="margin-top:0">待更新股數：<b id="staleCount" style="color:var(--re)">0</b></div>
+        <div class="ib2" style="margin-top:0">平均延遲：<b id="avgDelay" style="color:var(--ye)">0</b> 天</div>
+      </div>
+      <div class="tw-wrap" style="max-height: 200px;">
+        <table>
+          <thead>
+            <tr><th>市場</th><th>代碼</th><th>最後日期</th><th>延遲天數</th><th>狀態</th></tr>
+          </thead>
+          <tbody id="healthBody">
+            <tr><td colspan="5" style="text-align:center; color:var(--mu)">請點擊診斷按鈕</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="ct">資料抓取</div>
     <div class="tnx-bar">
-      <span>^TNX Rate:</span>
-      <b id="tnxVal" style="color:var(--bl)">not fetched</b>
+      <span>^TNX:</span>
+      <b id="tnxVal" style="color:var(--bl);font-family:monospace">not fetched</b>
+      <span id="tnxThresh" style="color:var(--mu)"></span>
     </div>
-    <button class="btw" onclick="fetchAll()">🌐 抓取全部歷史資料</button>
+    <div id="fetchStat" style="display:flex;flex-wrap:wrap;margin-bottom:8px"></div>
+    <button class="btw" onclick="fetchAll()">抓取全部 - 自動建快取</button>
     <div class="log" id="fetchLog"></div>
-    <div class="pw hidden" id="fetchProg"><div class="pf" id="fetchFill"></div></div>
+    <div class="pw hidden" id="fetchProg"><div class="pf" id="fetchFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="ct">存檔/載入
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="bo sm" onclick="dlJson()">JSON</button>
+        <button class="bo sm" onclick="dlOHLCV()">OHLCV</button>
+        <button class="bo sm" onclick="dlMonthly()">月頻</button>
+      </div>
+    </div>
+    <div class="cs-bar"><span id="cacheTxt" style="font-size:11px;font-weight:700">Cache: not built</span></div>
+    <button class="bte" onclick="fetchUpdate()" style="margin-bottom:8px">自動補齊更新 — 補缺標的+補缺日期</button>
+    <div class="log" id="updateLog"></div>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <input type="file" id="fileJson" accept=".json" style="display:none" onchange="upJson(this)">
+      <button class="bo sm" onclick="document.getElementById('fileJson').click()">JSON 還原</button>
+      <button class="bo sm" style="color:var(--re);border-color:var(--re)" onclick="clearAndReset()">Clear DB</button>
+      <button class="bo sm" style="color:var(--ye);border-color:var(--ye)" onclick="debugDataLen()">Debug</button>
+      <span style="font-size:10px;color:var(--mu)">上傳後自動重建快取</span>
+    </div>
+    <div class="log" id="dlLog"></div>
   </div>
 </div>
 
 <div class="panel" id="panel-signal">
   <div class="card">
-    <div class="ct">📡 即時信號</div>
-    <div id="sigContent" style="color:var(--mu)">請先執行資料抓取。</div>
-    <button class="btw" onclick="calcSignal()" style="margin-top:10px">執行計算</button>
+    <div class="ct">即時信號</div>
+    <div id="sigContent" style="color:var(--mu);font-size:12px">請先抓取資料。</div>
+    <button class="btw" onclick="calcSignal()" style="margin-top:10px">計算信號</button>
+  </div>
+  <div class="card" id="bubbleMonCard">
+    <div class="ct" style="color:var(--bl)">BUBBLE GUARD 監控<button class="bo sm" onclick="renderBubbleMonitor()" style="color:var(--bl);border-color:var(--bl);margin-left:8px">刷新</button></div>
+    <div id="bubbleMonContent" style="color:var(--mu);font-size:12px">請先計算信號。</div>
+  </div>
+  <div class="card hidden" id="stCard">
+    <div class="ct">全股池排行</div>
+    <div class="tw-wrap"><table><thead><tr>
+      <th>#</th><th>Code</th><th>Name</th><th>Ind</th>
+      <th>Score</th><th>MomZ</th><th>BiasZ</th><th>SlopeZ</th><th>VolZ</th><th>KbarZ</th>
+      <th>R12</th><th>TS</th>
+    </tr></thead><tbody id="stBody"></tbody></table></div>
+  </div>
+</div>
+
+<div class="panel" id="panel-stress">
+  <div class="card">
+    <div class="ct">壓力測試</div>
+    <div class="g3">
+      <div class="fi"><label>模擬次數</label><input type="number" id="stSimN" value="1000" min="100" max="5000" step="100"></div>
+      <div class="fi"><label>Block Size (月)</label><input type="number" id="stBlock" value="4" min="1" max="12"></div>
+      <div class="fi"><label>WF 最少訓練年數</label><input type="number" id="wfMinTrain" value="8" min="3" max="20"></div>
+      <div class="fi"><label>WF 測試窗口(年)</label><input type="number" id="wfTestWin" value="1" min="1" max="3"></div>
+      <div class="fi"><label>Pool Compare ETF配額</label><input type="number" id="wfETFQuota" value="1" min="0" max="5"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="bo" onclick="runMonteCarlo()" style="flex:1">Monte Carlo</button>
+      <button class="bo" onclick="runBlockBootstrap()" style="flex:1">Block Bootstrap</button>
+      <button class="bo sm" onclick="document.getElementById('stressMetrics').innerHTML=''" style="color:var(--re);border-color:var(--re)">清除</button>
+    </div>
+    <button class="bo" onclick="runWalkForward()" style="width:100%;margin-top:6px;color:var(--ye);border-color:var(--ye)">Walk-Forward Analysis (Anchored)</button>
+    <button class="bo" onclick="runWFNCompare()" style="width:100%;margin-top:6px;color:var(--ac);border-color:var(--ac)">WF N比較 (N=2~15)</button>
+    <button class="bo" onclick="runPoolCompare()" style="width:100%;margin-top:6px;color:var(--bl);border-color:var(--bl)">Pool Compare A+B</button>
+    <div class="log" id="stressLog"></div>
+  </div>
+  <div id="stressRes" class="hidden">
+    <div id="stressMetrics"></div>
   </div>
 </div>
 
@@ -148,122 +291,937 @@ tr:hover{background:var(--sf2)}
   <div class="card">
     <div class="ct">回測設定</div>
     <div class="g3">
-      <div class="fi"><label>Start (YYYY-MM)</label><input type="text" id="btS" placeholder="2018-01"></div>
-      <div class="fi"><label>Hold Count</label><input type="number" id="btH" value="5"></div>
-      <div class="fi"><label>Capital</label><input type="number" id="btCap" value="1000000"></div>
+      <div class="fi"><label>Start</label><input type="text" id="btS" placeholder="YYYY-MM"></div>
+      <div class="fi"><label>End</label><input type="text" id="btE" placeholder="YYYY-MM"></div>
+      <div class="fi">
+        <label>選股模式</label>
+        <select id="poolMode" onchange="togglePoolUI()">
+          <option value="large">大池模式 (全局排名)</option>
+          <option value="small" selected>小池模式 (分區配額)</option>
+        </select>
+      </div>
+      <div class="fi"><label>Max Hold (總名額)</label><input type="number" id="btH" value="5"></div>
+      <div class="fi"><label>台股配額</label><input type="number" id="btQuotaTW" value="2" onchange="updTotalH()"></div>
+      <div class="fi"><label>美股配額</label><input type="number" id="btQuotaUS" value="2" onchange="updTotalH()"></div>
+      <div class="fi"><label>ETF 配額</label><input type="number" id="btQuotaETF" value="1" onchange="updTotalH()"></div>
+      <div class="fi"><label>Capital</label><input type="number" id="btCap" value="100000"></div>
+      <div class="fi"><label>Cost(%)</label><input type="number" id="btC" value="0.3" step="0.1"></div>
+      <div class="fi"><label>TNX Spread(%)</label><input type="number" id="btSpread" value="0.5" step="0.1"></div>
+      <div class="fi"><label>Weight Mode</label>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="wtMode" id="wtEq" value="eq" checked style="width:14px;accent-color:var(--tw)"> 等權
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="wtMode" id="wtRank" value="rank" style="width:14px;accent-color:var(--tw)"> 排名加權
+          </label>
+        </div>
+      </div>
+      <div class="fi"><label>Rolling Periods</label>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl1" checked style="width:13px;accent-color:var(--tw)"> 1Y</label>
+          <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl2" checked style="width:13px;accent-color:var(--tw)"> 2Y</label>
+          <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl3" checked style="width:13px;accent-color:var(--tw)"> 3Y</label>
+          <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl5" style="width:13px;accent-color:var(--tw)"> 5Y</label>
+        </div>
+      </div>
+      <div class="fi"><label>Skip Month</label>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="btSkipMo" style="width:14px;accent-color:var(--tw)"> 跳過最近1月
+        </label>
+      </div>
+      <div class="fi"><label>Signal Lag</label>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="lagMode" id="lagT1" value="1" checked style="width:14px;accent-color:var(--tw)"> t-1</label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="lagMode" id="lagT2" value="2" style="width:14px;accent-color:var(--tw)"> t-2</label>
+        </div>
+      </div>
+      <div class="fi"><label>回測頻率</label>
+        <select id="btFreq">
+          <option value="1">全月 (每月1號)</option>
+          <option value="2">半月 (1號 & 15號)</option>
+        </select>
+      </div>
+      <div class="fi"><label>大盤風控 (Regime)</label>
+        <select id="btRegime">
+          <option value="off">Off</option>
+          <option value="on">On (0050/SPY &lt; 60MA)</option>
+        </select>
+      </div>
+      <div class="fi"><label>曝光度 (Regime)</label>
+        <input type="number" id="btRegimeExp" value="50" min="0" max="100">
+      </div>
     </div>
-    <button class="btw" onclick="runBT()" style="margin-top:10px">開始回測</button>
+    <div style="background:var(--sf2);border:1px solid var(--bl);border-radius:3px;padding:10px;margin-top:10px;margin-bottom:2px;">
+      <div style="font-size:10px;font-weight:700;color:var(--bl);text-transform:uppercase;margin-bottom:8px">Bubble Guard</div>
+      <div class="g3">
+        <div class="fi"><label>Bubble Guard</label><select id="btBubble"><option value="off">Off</option><option value="or">OR</option><option value="and">AND</option></select></div>
+        <div class="fi"><label>R12 警戒</label><input type="number" id="btBubR12W" value="80" min="50" max="99" step="5"></div>
+        <div class="fi"><label>R12 強制</label><input type="number" id="btBubR12S" value="90" min="50" max="99" step="5"></div>
+        <div class="fi"><label>Bias 警戒</label><input type="number" id="btBubBiasW" value="80" min="50" max="99" step="5"></div>
+        <div class="fi"><label>Bias 強制</label><input type="number" id="btBubBiasS" value="90" min="50" max="99" step="5"></div>
+        <div class="fi"><label>Vol 上限</label><input type="number" id="btBubVolU" value="30" min="5" max="50" step="5"></div>
+        <div class="fi"><label>警戒持股%</label><input type="number" id="btBubWarnExp" value="75" min="0" max="100" step="5"></div>
+        <div class="fi"><label>強制持股%</label><input type="number" id="btBubStrongExp" value="50" min="0" max="100" step="5"></div>
+        <div class="fi"><label>大盤</label><select id="btBubIndex"><option value="any">任一</option><option value="both">兩者</option><option value="gspc">GSPC</option><option value="twii">TWII</option></select></div>
+        <div class="fi"><label>冷卻</label><select id="btBubCool"><option value="signal">信號</option><option value="1mo">1mo</option><option value="2mo">2mo</option><option value="3mo">3mo</option></select></div>
+        <div class="fi"><label>窗口(年)</label><input type="number" id="btBubWindow" value="10" min="5" max="15" step="1"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btw" onclick="runBT()" style="flex:1">執行回測</button>
+      <button class="bo" onclick="runCompare()" style="flex:1">比較 N=1~max</button>
+    </div>
+    <button class="bte" onclick="runRolling()" style="width:100%;margin-top:6px">滾動報酬分析</button>
     <div class="log" id="btLog"></div>
   </div>
+
   <div id="btRes" class="hidden">
-    <div id="btMetrics"></div>
-    <div class="cw"><canvas id="navC"></canvas></div>
-    <div class="tw-wrap"><table><thead><tr><th>Date</th><th>Holdings</th><th>Ret%</th><th>NAV</th></tr></thead><tbody id="btBody"></tbody></table></div>
+    <div id="btMetrics" style="margin-bottom:10px"></div>
+    <div style="margin-bottom:8px">
+      <button class="bo sm" onclick="toggleCharts(this)" id="btnChart" style="width:100%;text-align:left">Show Charts (NAV / MDD)</button>
+      <div id="chartArea" style="display:none;margin-top:6px">
+        <div class="cw"><div class="ct2">NAV vs TAIEX</div><div style="position:relative;height:220px"><canvas id="navC"></canvas></div></div>
+        <div class="cw"><div class="ct2">MDD</div><div style="position:relative;height:120px"><canvas id="ddC"></canvas></div></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+      <button class="bo sm" onclick="dlBtCsv()">CSV</button>
+    </div>
+    <div class="tw-wrap"><table><thead><tr>
+      <th>Month</th><th>Holdings</th><th>Hurdle%</th><th>Return%</th><th>NAV</th><th>BenchNav</th><th>Alpha%</th>
+    </tr></thead><tbody id="btBody"></tbody></table></div>
+    <div id="rollingRes" class="hidden" style="margin-top:10px"></div>
   </div>
 </div>
-
-<div class="panel" id="panel-stress">
-  <div class="card">
-    <div class="ct">壓力測試</div>
-    <button class="bo" onclick="runMonteCarlo()" style="width:100%">Monte Carlo Simulation</button>
-    <div id="stressMetrics" style="margin-top:10px"></div>
-  </div>
-</div>
-
 </div>
 
 <script>
-// --- Global Variables & Constants ---
-var DAILY={}, RAW_SCORES={}, BT_RESULT=null, CHART={}, CACHE_BUILT=false;
-const $ = id => document.getElementById(id);
-const gv = id => { const el = $(id); return el ? parseFloat(el.value) : 0; };
-
-// --- UI Logic ---
-function switchTab(name, el) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-  $('panel-' + name).classList.add('active');
+function switchTab(name,el){
+  var tabs=document.querySelectorAll('.tab');
+  var panels=document.querySelectorAll('.panel');
+  for(var i=0;i<tabs.length;i++) tabs[i].classList.remove('active');
+  for(var i=0;i<panels.length;i++) panels[i].classList.remove('active');
+  if(el) el.classList.add('active');
+  var p=document.getElementById('panel-'+name);
+  if(p) p.classList.add('active');
+}
+function updTotalH() {
+  var t = gv('btQuotaTW') + gv('btQuotaUS') + gv('btQuotaETF');
+  if (document.getElementById('poolMode').value === 'small') {
+    if ($('btH')) $('btH').value = t;
+  }
 }
 
-function showL(txt) { $('loadEl').classList.remove('hidden'); $('loadTxt').textContent = txt; }
-function hideL() { $('loadEl').classList.add('hidden'); }
+function togglePoolUI() {
+  const isLarge = document.getElementById('poolMode').value === 'large';
+  ['btQuotaTW', 'btQuotaUS', 'btQuotaETF'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) { el.disabled = isLarge; el.style.opacity = isLarge ? "0.3" : "1"; }
+  });
+  const hInput = document.getElementById('btH');
+  if(hInput) { hInput.disabled = !isLarge; hInput.style.background = isLarge ? "var(--bg)" : "rgba(255,255,255,0.05)"; }
+  if (!isLarge) updTotalH(); 
+}
 
-// --- Pool Definition (Simplified for Pure version) ---
-const POOL_DEF = [
-  {title:'US Mag7', stocks:[{c:'AAPL',n:'Apple'},{c:'MSFT',n:'MSFT'},{c:'NVDA',n:'Nvidia'},{c:'GOOGL',n:'Google'},{c:'AMZN',n:'Amazon'},{c:'META',n:'Meta'},{c:'TSLA',n:'Tesla'}]},
-  {title:'TW Bluechip', stocks:[{c:'2330',n:'台積電'},{c:'2454',n:'聯發科'},{c:'2317',n:'鴻海'},{c:'2308',n:'台達電'},{c:'2382',n:'廣達'}]},
-  {title:'Global ETF', stocks:[{c:'SPY',n:'S&P500'},{c:'QQQ',n:'Nasdaq'},{c:'GLD',n:'Gold'},{c:'TLT',n:'20Y Bond'}]}
+var DAILY={}, RAW_SCORES={}, BT_RESULT=null, CHART={}, CACHE_BUILT=false, CACHE_TS=null, SKIP_MO=false, CACHE_SKIP_MO=false, CORR_WIN=24;
+var N_TREND=60; const MOM_CONSISTENCY_MULT=1.2; var REBAL_FREQ="1";
+
+var POOL_DEF = [
+  {title:'[ETF] iShares ETF',pool:'etf',tw:false,stocks:[
+    {c:'SPY',n:'SPY500'},{c:'QQQ',n:'NasdaqETF'},{c:'IWM',n:'SmallCap'},
+    {c:'VEU',n:'GlobalExUS'},{c:'EFA',n:'DevelMkt'},{c:'EEM',n:'EmergMkt'},
+    {c:'TLT',n:'Bond20Y'},{c:'IEF',n:'Bond7Y'},{c:'GLD',n:'Gold'},
+    {c:'SLV',n:'Silver'},{c:'VNQ',n:'REIT'},{c:'AGG',n:'US Bond Agg'},
+    {c:'IWF',n:'R1000 Growth'},{c:'IWD',n:'R1000 Value'},{c:'IJH',n:'S&P MidCap'},
+    {c:'IJR',n:'S&P SmallCap'},{c:'SGOV',n:'0-3M Treasury',locked:true},
+    {c:'ITOT',n:'Total US Mkt'}
+  ]},
+  {title:'[ETF] iShares Country',pool:'etf',tw:false,stocks:[
+    {c:'EWT',n:'台灣'},{c:'MCHI',n:'中國'},{c:'EWY',n:'韓國'},
+    {c:'EWJ',n:'日本'},{c:'EZU',n:'歐元區'},{c:'IVV',n:'美國(S&P)'}
+  ]},
+  {title:'[US] Mag7',pool:'us',tw:false,stocks:[
+    {c:'AAPL',n:'Apple'},{c:'MSFT',n:'Microsoft'},{c:'GOOGL',n:'Alphabet'},
+    {c:'AMZN',n:'Amazon'},{c:'META',n:'Meta'},{c:'NVDA',n:'Nvidia'},{c:'TSLA',n:'Tesla'}
+  ]},
+  {title:'[US] S&P500 Top30',pool:'us',tw:false,stocks:[
+    {c:'BRK-B',n:'Berkshire'},{c:'LLY',n:'Eli Lilly'},{c:'AVGO',n:'Broadcom'},
+    {c:'JPM',n:'JPMorgan'},{c:'UNH',n:'UnitedHealth'},{c:'V',n:'Visa'},
+    {c:'XOM',n:'ExxonMobil'},{c:'MA',n:'Mastercard'},{c:'JNJ',n:'J&J'},
+    {c:'PG',n:'P&G'},{c:'HD',n:'Home Depot'},{c:'COST',n:'Costco'},
+    {c:'ABBV',n:'AbbVie'},{c:'MRK',n:'Merck'},{c:'CRM',n:'Salesforce'},
+    {c:'CVX',n:'Chevron'},{c:'NFLX',n:'Netflix'},{c:'AMD',n:'AMD'},
+    {c:'PEP',n:'PepsiCo'},{c:'KO',n:'Coca-Cola'},{c:'BAC',n:'BofA'},
+    {c:'WMT',n:'Walmart'},{c:'ADBE',n:'Adobe'}
+  ]},
+  {title:'[US] S&P500 Rank31-100',pool:'us',tw:false,stocks:[
+    {c:'ORCL',n:'Oracle'},{c:'PLTR',n:'Palantir'},{c:'CAT',n:'Caterpillar'},
+    {c:'GE',n:'GE Aerospace'},{c:'RTX',n:'RTX/Raytheon'},{c:'MS',n:'Morgan Stanley'},
+    {c:'GS',n:'Goldman Sachs'},{c:'WFC',n:'Wells Fargo'},{c:'PM',n:'Philip Morris'},
+    {c:'GEV',n:'GE Vernova'},{c:'IBM',n:'IBM'},{c:'ETN',n:'Eaton'},
+    {c:'LMT',n:'Lockheed'},{c:'UNP',n:'Union Pacific'},{c:'SPGI',n:'S&P Global'},
+    {c:'ACN',n:'Accenture'},{c:'PANW',n:'Palo Alto'},{c:'LOW',n:'Lowes'},{c:'DELL',n:'Dell'}
+  ]},
+  {title:'[US] Nasdaq Top30',pool:'us',tw:false,stocks:[
+    {c:'LIN',n:'Linde'},{c:'CSCO',n:'Cisco'},{c:'TMUS',n:'T-Mobile'},
+    {c:'INTU',n:'Intuit'},{c:'QCOM',n:'Qualcomm'},{c:'TXN',n:'Texas Inst'},
+    {c:'AMAT',n:'Applied Mat'},{c:'ISRG',n:'Intuitive'},{c:'AMGN',n:'Amgen'},
+    {c:'CMCSA',n:'Comcast'},{c:'HON',n:'Honeywell'},{c:'SBUX',n:'Starbucks'},
+    {c:'GILD',n:'Gilead'},{c:'BKNG',n:'Booking'},{c:'MDLZ',n:'Mondelez'},
+    {c:'ADP',n:'ADP'},{c:'VRTX',n:'Vertex'}
+  ]},
+  {title:'[US] SOX Top20',pool:'us',tw:false,stocks:[
+    {c:'MU',n:'Micron'},{c:'INTC',n:'Intel'},{c:'LRCX',n:'Lam Rsch'},
+    {c:'ADI',n:'Analog Dev'},{c:'KLAC',n:'KLA Corp'},{c:'NXPI',n:'NXP Semi'},
+    {c:'SNPS',n:'Synopsys'},{c:'CDNS',n:'Cadence'},{c:'MRVL',n:'Marvell'},
+    {c:'MPWR',n:'Monolithic'},{c:'MCHP',n:'Microchip'},{c:'ON',n:'ON Semi'},
+    {c:'SWKS',n:'Skyworks'},{c:'TER',n:'Teradyne'}
+  ]},
+  {title:'[CN] 中國科技',pool:'us',tw:false,stocks:[
+    {c:'BABA',n:'阿里巴巴'},{c:'TCEHY',n:'騰訊'},{c:'BIDU',n:'百度'},
+    {c:'JD',n:'京東'},{c:'PDD',n:'拼多多'},{c:'NTES',n:'網易'}
+  ]},
+  {title:'[JP] 日本前10',pool:'us',tw:false,stocks:[
+    {c:'7203.T',n:'豐田'},{c:'6758.T',n:'Sony'},{c:'9984.T',n:'軟銀'},
+    {c:'8306.T',n:'三菱UFJ'},{c:'6501.T',n:'日立'},{c:'7267.T',n:'本田'},
+    {c:'6861.T',n:'Keyence'},{c:'8316.T',n:'三井住友'},{c:'9983.T',n:'迅銷'},
+    {c:'9433.T',n:'KDDI'}
+  ]},
+  {title:'光學精密',pool:'tw',tw:true,stocks:[
+    {c:'3008',n:'大立光'},{c:'3406',n:'玉晶光'}
+  ]},
+  {title:'半導體',pool:'tw',tw:true,stocks:[
+    {c:'2330',n:'台積電'},{c:'2454',n:'聯發科'},{c:'2303',n:'聯電'},
+    {c:'3711',n:'日月光'},{c:'2344',n:'華邦電'},{c:'2368',n:'金像電'},
+    {c:'2449',n:'京元電子'},{c:'2408',n:'南亞科'},{c:'3034',n:'聯詠'},
+    {c:'2379',n:'瑞昱'},{c:'2337',n:'旺宏'},{c:'3035',n:'智原'},
+    {c:'6770',n:'力積電'},{c:'3443',n:'創意'},{c:'6415',n:'矽力-KY'},
+    {c:'3014',n:'聯陽'},{c:'4919',n:'新唐'},{c:'2231',n:'為升'},
+    {c:'5269',n:'祥碩'},{c:'3661',n:'世芯-KY'}
+  ]},
+  {title:'工業機械',pool:'tw',tw:true,stocks:[
+    {c:'2059',n:'川湖'},{c:'2049',n:'上銀'},{c:'1590',n:'亞德客'},{c:'2467',n:'志聖'}
+  ]},
+  {title:'工業電腦',pool:'tw',tw:true,stocks:[{c:'2395',n:'研華'}]},
+  {title:'汽車',pool:'tw',tw:true,stocks:[{c:'2207',n:'和泰車'}]},
+  {title:'生技醫療',pool:'tw',tw:true,stocks:[
+    {c:'1789',n:'神隆'},{c:'6446',n:'藥華藥'}
+  ]},
+  {title:'石化',pool:'tw',tw:true,stocks:[
+    {c:'1301',n:'台塑'},{c:'1303',n:'南亞'},{c:'6505',n:'台塑化'},{c:'1326',n:'台化'}
+  ]},
+  {title:'航運',pool:'tw',tw:true,stocks:[
+    {c:'2615',n:'萬海'},{c:'2603',n:'長榮'},{c:'2609',n:'陽明'},
+    {c:'2610',n:'華航'},{c:'2618',n:'長榮航'},{c:'2645',n:'長榮航太'}
+  ]},
+  {title:'金融',pool:'tw',tw:true,stocks:[
+    {c:'2881',n:'富邦金'},{c:'2882',n:'國泰金'},{c:'2884',n:'玉山金'},
+    {c:'2885',n:'元大金'},{c:'2886',n:'兆豐金'},{c:'2887',n:'台新金'},
+    {c:'2891',n:'中信金'},{c:'2892',n:'第一金'},{c:'2883',n:'開發金'},
+    {c:'2880',n:'華南金'},{c:'5880',n:'合庫金'},{c:'2890',n:'永豐金'},
+    {c:'2838',n:'聯邦銀'},{c:'5876',n:'上海商銀'},{c:'5871',n:'中租-KY'},
+    {c:'2812',n:'台中銀'},{c:'2836',n:'高雄銀'}
+  ]},
+  {title:'鋼鐵',pool:'tw',tw:true,stocks:[{c:'2002',n:'中鋼'}]},
+  {title:'電信',pool:'tw',tw:true,stocks:[
+    {c:'2412',n:'中華電'},{c:'3045',n:'台灣大'},{c:'4904',n:'遠傳'},{c:'2345',n:'智邦'}
+  ]},
+  {title:'電子製造',pool:'tw',tw:true,stocks:[
+    {c:'2317',n:'鴻海'},{c:'2382',n:'廣達'},{c:'2308',n:'台達電'},
+    {c:'2301',n:'光寶科'},{c:'2354',n:'鴻準'},{c:'2360',n:'致茂'},
+    {c:'4938',n:'和碩'},{c:'3231',n:'緯創'},{c:'2356',n:'英業達'},
+    {c:'3702',n:'大聯大'},{c:'2385',n:'群光'}
+  ]},
+  {title:'電子零組件',pool:'tw',tw:true,stocks:[
+    {c:'3037',n:'欣興'},{c:'2383',n:'台光電'},{c:'3653',n:'健策'},
+    {c:'3189',n:'景碩'},{c:'3533',n:'嘉澤'},{c:'2327',n:'國巨'},
+    {c:'3017',n:'奇鋐'},{c:'3044',n:'健鼎'},{c:'2492',n:'華新科'},
+    {c:'3665',n:'貿聯-KY'},{c:'8996',n:'高力'},{c:'2474',n:'可成'},
+    {c:'2392',n:'正崴'},{c:'2393',n:'億光'},{c:'6271',n:'同欣電'},
+    {c:'6669',n:'緯穎'},{c:'6781',n:'AES-KY'},{c:'6409',n:'旭隼'},
+    {c:'6805',n:'富世達'},{c:'6515',n:'穎崴'}
+  ]},
+  {title:'電腦周邊',pool:'tw',tw:true,stocks:[
+    {c:'2357',n:'華碩'},{c:'2353',n:'宏碁'},{c:'2324',n:'仁寶'},
+    {c:'2377',n:'微星'},{c:'2376',n:'技嘉'},{c:'3706',n:'神達'}
+  ]},
+  {title:'面板',pool:'tw',tw:true,stocks:[{c:'2409',n:'友達'},{c:'3481',n:'群創'}]},
+  {title:'食品消費',pool:'tw',tw:true,stocks:[
+    {c:'1216',n:'統一企業'},{c:'2912',n:'統一超'},{c:'1210',n:'大成'}
+  ]},
+  {title:'紡織成衣',pool:'tw',tw:true,stocks:[
+    {c:'1476',n:'儒鴻'},{c:'9910',n:'豐泰'},{c:'1434',n:'福懋'},{c:'1440',n:'南紡'}
+  ]},
+  {title:'橡膠汽車',pool:'tw',tw:true,stocks:[
+    {c:'2105',n:'正新'},{c:'2206',n:'三陽工業'},{c:'2201',n:'裕隆'}
+  ]},
+  {title:'建材不動產',pool:'tw',tw:true,stocks:[
+    {c:'2542',n:'興富發'},{c:'5522',n:'遠雄'},{c:'1513',n:'中興電'}
+  ]},
+  {title:'通路流通',pool:'tw',tw:true,stocks:[
+    {c:'2347',n:'聯強'},{c:'2915',n:'潤泰全'},{c:'9904',n:'寶成'},{c:'2903',n:'遠百'}
+  ]}
 ];
 
 function renderPool() {
-  let html = '';
-  POOL_DEF.forEach((g, i) => {
-    html += `<div class="ig"><div class="ih"><span class="in">${g.title}</span></div><div class="ib">`;
-    g.stocks.forEach(s => {
-      html += `<span class="sc act" data-code="${s.c}" data-tw="${s.c.match(/^\d+$/)?1:0}" onclick="this.classList.toggle('act')"><span class="cc">${s.c}</span><span class="cn">${s.n}</span></span>`;
+  var container = document.getElementById('poolContainer');
+  if (!container) return;
+  container.innerHTML = '';
+  POOL_DEF.forEach(function(g, gi) {
+    var ibId = 'ib_g' + gi;
+    var icId = 'ic_g' + gi;
+    var div = document.createElement('div');
+    div.className = 'ig';
+    var total = g.stocks.length;
+    div.innerHTML =
+      '<div class="ih" onclick="toggleInd(this)">' +
+        '<span class="in">' + g.title + '</span>' +
+        '<span class="ic" id="' + icId + '">' + total + '/' + total + '</span>' +
+      '</div>' +
+      '<div class="ib" id="' + ibId + '"></div>';
+    container.appendChild(div);
+    var ib = div.querySelector('.ib');
+    g.stocks.forEach(function(s) {
+      var isUS = !g.tw;
+      var locked = s.locked || s.c === 'SGOV';
+      var chip = document.createElement('span');
+      chip.className = 'sc act' + (isUS ? ' usc' : '');
+      chip.dataset.code = s.c;
+      chip.dataset.type = locked ? 'tw50' : 'mid';
+      chip.dataset.tw = g.tw ? '1' : '0';
+      chip.dataset.on = '1';
+      chip.setAttribute('onclick', "toggleStock('" + s.c + "')");
+      var inner = '<span class="cc">' + s.c + '</span>' +
+                  '<span class="cn">' + s.n + '</span>';
+      if (!locked) {
+        inner += '<span class="cd" onclick="event.stopPropagation();deleteStock(\'' + s.c + '\')">\u00d7</span>';
+      }
+      chip.innerHTML = inner;
+      ib.appendChild(chip);
     });
-    html += `</div></div>`;
+    updCountByIb(ib);
   });
-  $('poolContainer').innerHTML = html;
 }
 
-// --- Data Fetching ---
-async function fetchOHLCV(code, isTw) {
-  const ticker = isTw ? code + '.TW' : code;
-  const proxies = [
-    'https://api.allorigins.win/raw?url=',
-    'https://api.codetabs.com/v1/proxy?quest='
-  ];
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=max`;
-  
-  for (let p of proxies) {
+function getEnabledStocks() {
+  var result = [];
+  document.querySelectorAll('[data-code][data-on="1"]').forEach(function(el) {
+    var cn = el.querySelector('.cn');
+    var code = el.dataset.code;
+    var tw = el.dataset.tw === '1';
+    var igNode = el.closest('.ig');
+    var inSpan = igNode ? igNode.querySelector('.in') : null;
+    var title = inSpan ? inSpan.textContent.toUpperCase() : '';
+    var pool = 'other';
+    if (tw) { pool = 'tw'; }
+    else if (title.indexOf('[ETF]') !== -1) { pool = 'etf'; }
+    else if (title.indexOf('[US]') !== -1 || title.indexOf('[CN]') !== -1 || title.indexOf('[JP]') !== -1) { pool = 'us'; }
+    result.push({c: code, n: cn ? cn.textContent : '', type: el.dataset.type, tw: tw, pool: pool});
+  });
+  return result;
+}
+
+function buildProxies() {
+  var p = $('proxyUrl') ? $('proxyUrl').value.trim() : '';
+  if (p && !p.includes('url=')) p += p.endsWith('/') ? '?url=' : '/?url=';
+  return [p, 'https://api.allorigins.win/raw?url=', 'https://api.codetabs.com/v1/proxy?quest='].filter(Boolean);
+}
+
+async function fp(url, proxies) {
+  var last;
+  for (var i = 0; i < proxies.length; i++) {
     try {
-      const resp = await fetch(p + encodeURIComponent(url));
-      const j = await resp.json();
-      const res = j.chart.result[0];
-      return res.timestamp.map((t, i) => ({
-        date: new Date(t * 1000).toISOString().slice(0, 10),
-        c: res.indicators.adjclose[0].adjclose[i] || res.indicators.quote[0].close[i]
-      })).filter(v => v.c != null);
-    } catch (e) { continue; }
+      var r = await fetch(proxies[i] + encodeURIComponent(url));
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r;
+    } catch (e) {
+      last = e;
+    }
   }
-  throw new Error(code + ' fetch failed');
+  throw last || new Error('all proxies failed');
+}
+
+function buildTicker(s){if(!s.tw)return s.c;if(s.c.charAt(0)==='^'||s.c.indexOf('.')>=0)return s.c;return s.c+'.TW';}
+
+async function fetchOHLCV(s, interval, range = 'max') {
+  const tk = buildTicker(s);
+  const proxies = buildProxies(); 
+  
+  let queryStr = `range=${range}&interval=${interval}`;
+  if (range === 'max') {
+    const nowUnix = Math.floor(Date.now() / 1000);
+    queryStr = `period1=0&period2=${nowUnix}&interval=${interval}`;
+  }
+  
+  const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${tk}?${queryStr}`;
+  const r = await fp(targetUrl, proxies); 
+  const j = await r.json();
+  const ch = j.chart?.result?.[0];
+  
+  if (!ch || !ch.timestamp) throw new Error('No Data for ' + tk);
+  
+  return ch.timestamp.map((ts, i) => {
+    const q = ch.indicators.quote[0];
+    const adj = ch.indicators.adjclose?.[0]?.adjclose?.[i]; 
+    return {
+      date: new Date(ts * 1000).toISOString().slice(0, 10),
+      o: q.open[i], h: q.high[i], l: q.low[i], 
+      c: adj !== undefined && adj !== null ? adj : q.close[i], 
+      v: q.volume[i] || 0
+    };
+  }).filter(v => v.c != null);
 }
 
 async function fetchAll() {
-  const selected = document.querySelectorAll('.sc.act');
-  if (!selected.length) return alert('Select stocks first');
-  showL('Fetching History Data...');
-  for (let el of selected) {
-    const c = el.dataset.code;
+  const stocks = getEnabledStocks();
+  if(!stocks.length) return alert('請先選擇股池');
+  showL('抓取全歷史日線資料庫...'); 
+  $('fetchProg').classList.remove('hidden');
+  let success = 0;
+  for (let i = 0; i < stocks.length; i++) {
+    $('loadTxt').textContent = '抓取中: ' + stocks[i].c + ' (' + (i+1) + '/' + stocks.length + ')';
     try {
-      DAILY[c] = await fetchOHLCV(c, el.dataset.tw === "1");
-    } catch (e) { console.error(e); }
+      DAILY[stocks[i].c] = await fetchOHLCV(stocks[i], '1d', 'max');
+      success++;
+      $('fetchFill').style.width = `${((i+1)/stocks.length)*100}%`;
+      updFetchStat();
+    } catch(e) { console.error(stocks[i].c, e); }
+    await new Promise(r => setTimeout(r, 2000));
   }
-  // Fetch TNX
-  try { DAILY['^TNX'] = await fetchOHLCV('^TNX', false); } catch(e) {}
   
-  CACHE_BUILT = true;
-  hideL();
-  alert('Data Sync Complete');
+  try {
+    $('loadTxt').textContent = '同步大盤基準與公債利率...';
+    DAILY['^TNX'] = await fetchOHLCV({c:'^TNX', tw:false}, '1d', 'max');
+    DAILY['^TWII'] = await fetchOHLCV({c:'^TWII', tw:true}, '1d', 'max');
+    DAILY['^GSPC'] = await fetchOHLCV({c:'^GSPC', tw:false}, '1d', 'max');
+  } catch(e) { console.error("Bench Fetch Error", e); }
+  
+  hideL(); $('fetchProg').classList.add('hidden');
+  await buildCache();
 }
 
-// --- Backtest & Signal (Core Logic) ---
+async function fetchUpdate() {
+  var stocks = getEnabledStocks();
+  var twCut = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  var usCut = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  var missing = [], stale = [];
+  
+  stocks.forEach(function(s) {
+    if (!DAILY[s.c] || !DAILY[s.c].length) { missing.push(s); return; }
+    if (DAILY[s.c][DAILY[s.c].length - 1].date < (s.tw ? twCut : usCut)) stale.push(s);
+  });
+  if (!missing.length && !stale.length) { sl('updateLog', '所有資料已是最新狀態。', true); return; }
+  
+  var toFetch = missing.concat(stale), failed = [];
+  showL('智慧更新 ' + toFetch.length + ' 檔標的...');
+  
+  for (var i = 0; i < toFetch.length; i++) {
+    var s = toFetch[i];
+    $('loadTxt').textContent = '[UPD] ' + s.c + ' (' + (i + 1) + '/' + toFetch.length + ')';
+    try {
+      var range = 'max';
+      if (DAILY[s.c] && DAILY[s.c].length > 0) {
+        var lastDate = new Date(DAILY[s.c][DAILY[s.c].length - 1].date);
+        var delayDays = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
+        if (delayDays <= 7) range = '5d';
+        else if (delayDays <= 30) range = '1mo';
+        else if (delayDays <= 90) range = '3mo';
+        else if (delayDays <= 180) range = '6mo';
+        else if (delayDays <= 365) range = '1y';
+      }
+      DAILY[s.c] = mergeArr(DAILY[s.c], await fetchOHLCV(s, '1d', range));
+    } catch (e) { failed.push(s.c); }
+    await new Promise(function(r) { setTimeout(r, 350); });
+  }
+  
+  hideL(); updFetchStat();
+  sl('updateLog', '更新完成。新增:' + missing.length + ' 續接:' + stale.length + ' 失敗:' + failed.length, failed.length === 0);
+  
+  var benchList = [{ c: '^TNX', tw: false }, { c: '^TWII', tw: true }, { c: '^GSPC', tw: false }];
+  for (var bi = 0; bi < benchList.length; bi++) {
+    var bs = benchList[bi];
+    if (!DAILY[bs.c] || !DAILY[bs.c].length) continue;
+    var lastBenchDate = DAILY[bs.c][DAILY[bs.c].length - 1].date;
+    var benchCut = bs.tw ? twCut : usCut;
+    if (lastBenchDate >= benchCut) continue;
+    try {
+      var bDelayDays = Math.floor((new Date() - new Date(lastBenchDate)) / (1000 * 60 * 60 * 24));
+      var bRange = bDelayDays <= 7 ? '5d' : bDelayDays <= 30 ? '1mo' : bDelayDays <= 90 ? '3mo' : '6mo';
+      DAILY[bs.c] = mergeArr(DAILY[bs.c], await fetchOHLCV(bs, '1d', bRange));
+    } catch (e) { console.warn('Bench update failed: ' + bs.c, e); }
+    await new Promise(function(r) { setTimeout(r, 350); });
+  }
+  await buildCache();
+}
+
+function updTNX(){
+  var bars = DAILY['^TNX'];
+  if(!bars || !bars.length) return;
+  var last = bars[bars.length-1];
+  var sp = gv('btSpread')||0.5;
+  var el = $('tnxVal'); if(el) el.textContent = last.c.toFixed(2)+'% ('+last.date+')';
+  var el2 = $('tnxThresh'); if(el2) el2.textContent = 'TS: '+(last.c+sp).toFixed(2)+'%';
+}
+
+function updFetchStat(){
+  var bar=$('fetchStat');if(!bar)return;var stocks=getEnabledStocks();
+  bar.innerHTML=stocks.map(function(s){
+    var ok=(DAILY[s.c]&&DAILY[s.c].length>0);
+    var col=ok?(s.tw?'var(--te)':'var(--us)'):'var(--mu)', bg=ok?(s.tw?'var(--ted)':'var(--usd)'):'var(--sf2)', bd=ok?(s.tw?'var(--te)':'var(--us)'):'var(--bd)';
+    return '<span class="bdg" style="background:'+bg+';color:'+col+';border:1px solid '+bd+'">'+s.c+'</span>';
+  }).join('');
+}
+
+function calcVolatility(bars, win) {
+  if (!bars || bars.length < win) return null;
+  var rets = [];
+  for (var j = bars.length - win + 1; j < bars.length; j++) {
+    if (bars[j-1] && bars[j].c > 0 && bars[j-1].c > 0) {
+      rets.push(bars[j].c / bars[j-1].c - 1);
+    }
+  }
+  if (rets.length < 10) return null;
+  var mean = rets.reduce(function(a, b) { return a + b; }, 0) / rets.length;
+  var variance = rets.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / (rets.length > 1 ? rets.length - 1 : 1);
+  return Math.sqrt(variance * 252);
+}
+
+function calcSimpleMA(bars, dateStr, period) {
+  if (!bars || !bars.length) return null;
+  var idx = -1;
+  for (var i = bars.length - 1; i >= 0; i--) {
+    if (bars[i].date <= dateStr) { idx = i; break; }
+  }
+  if (idx < period - 1) return null;
+  var sum = 0;
+  for (var i = idx - period + 1; i <= idx; i++) {
+    sum += bars[i].c;
+  }
+  return sum / period;
+}
+
+function getPriceOnDate(bars, dateStr) { 
+  if (!bars || !bars.length || dateStr < bars[0].date) return null;
+  let best = bars[0].c;
+  for(let i=0; i<bars.length; i++) { 
+    if (bars[i].date <= dateStr) best = bars[i].c;
+    else break; 
+  }
+  return best; 
+}
+
+function getPrevWorkDay(bars, dateStr, offset = 1) {
+  if (!bars || !bars.length) return dateStr;
+  let targetIdx = -1;
+  for (let i = bars.length - 1; i >= 0; i--) {
+    if (bars[i].date <= dateStr) {
+      targetIdx = i;
+      break;
+    }
+  }
+  if (targetIdx === -1) return bars[0].date;
+  if (targetIdx < offset) return bars[0].date;
+  return bars[targetIdx - offset].date;
+}
+
+function isBearishRegime(bars, dateStr, period) { // BUG
+  period = period || 60;
+  var ma = calcSimpleMA(bars, dateStr, period), price = getPriceOnDate(bars, dateStr);
+  if (!ma || !price) return false;
+  var prevDate = getPrevWorkDay(bars, dateStr, 5), prevMA = calcSimpleMA(bars, prevDate, period);
+  return price < ma && (prevMA ? ma < prevMA : true);
+}
+
+function getPreciseRebalanceDates(bars, freq) {
+  const dates = [];
+  let currentMonth = "";
+  let monthBars = [];
+  function processMonth(mBars) {
+    if(!mBars.length) return;
+    if (freq === "2") {
+      let midBar = mBars.find(b => parseInt(b.date.slice(8, 10)) >= 15);
+      if (midBar) dates.push(midBar.date);
+    }
+    dates.push(mBars[mBars.length - 1].date);
+  }
+  bars.forEach(bar => {
+    const ym = bar.date.slice(0, 7);
+    if (ym !== currentMonth) {
+      if (currentMonth !== "") processMonth(monthBars); 
+      currentMonth = ym;
+      monthBars = [];
+    }
+    monthBars.push(bar);
+  });
+  if (monthBars.length > 0) processMonth(monthBars); 
+  return [...new Set(dates)].sort();
+}
+
+function mergeArr(oldBars, newBars) {
+  if (!oldBars || !oldBars.length) return newBars || [];
+  if (!newBars || !newBars.length) return oldBars || [];
+  var seen = {};
+  oldBars.forEach(function(b) { seen[b.date] = b; });
+  newBars.forEach(function(b) { seen[b.date] = b; });
+  return Object.values(seen).sort(function(a, b) { return a.date.localeCompare(b.date); });
+}
+
+function calcVWMA(bars,n){if(bars.length<n)return null;var sl=bars.slice(-n),sp=0,sv=0;sl.forEach(function(b){var vol = b.v > 0 ? b.v : 1; sp+=b.c*vol;sv+=vol;});return sv>0?sp/sv:null;}
+function calcBias(bars,N){var v=calcVWMA(bars,N);return v?(bars[bars.length-1].c-v)/v:null;}
+function calcSlope(bars,N){if(bars.length<N+3)return null;var va=[];for(var i=bars.length-N;i<bars.length;i++){var sl=bars.slice(Math.max(0,i-N+1),i+1);var sp=0,sv=0;sl.forEach(function(b){var vol = b.v > 0 ? b.v : 1; sp+=b.c*vol;sv+=vol;});if(sv>0)va.push(sp/sv);}if(va.length<Math.floor(N/2))return null;var n=va.length,sx=0,sy=0,sxy=0,sx2=0;for(var j=0;j<n;j++){sx+=j;sy+=va[j];sxy+=j*va[j];sx2+=j*j;}var den=n*sx2-sx*sx;if(!den)return 0;return (n*sxy-sx*sy)/den/(va[0]||1);}
+function calcVol(bars,N){if(bars.length<N+1)return null;var sl=bars.slice(-N),sc=[];for(var i=1;i<sl.length;i++){var pr=(sl[i].c-sl[i-1].c)/(sl[i-1].c||1);var vr=sl[i-1].v>0?sl[i].v/sl[i-1].v:1;sc.push((pr>=0?1:-1)*(pr>=0?(vr-1):(1-vr)));}return sc.length?sc.reduce(function(a,b){return a+b;},0)/sc.length:null;}
+function calcKbar(bars,N){if(bars.length<N)return null;var sl=bars.slice(-N);var v=sl.map(function(b){var r=b.h-b.l;return r>0?(b.c-b.l)/r:0.5;});return v.reduce(function(a,b){return a+b;},0)/v.length;}
+
+function momZ(bars, idx, period) {
+  if (idx < period) return null;
+  let ret = bars[idx].c / bars[idx - period].c - 1;
+  let rets = [], start = Math.max(period, idx - 250);
+  for (let i = start; i <= idx; i++) rets.push(bars[i].c / bars[i - period].c - 1);
+  let mean = rets.reduce((a, b) => a + b, 0) / rets.length;
+  let std = Math.sqrt(rets.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (rets.length > 1 ? rets.length - 1 : 1)) || 0.01;
+  return (ret - mean) / std;
+}
+
+function rawMom(daily, idx) {
+  if (idx < 240) return null;
+  let z240 = momZ(daily, idx, 240), z120 = momZ(daily, idx, 120), z60 = momZ(daily, idx, 60);
+  if (z240 === null || z120 === null || z60 === null) return null;
+  let score = 0.5 * z240 + 0.3 * z120 + 0.2 * z60;
+  if (z240 > 0 && z120 > 0 && z60 > 0) score *= MOM_CONSISTENCY_MULT;
+  return score;
+}
+
+async function buildCache() {
+  const stocks = getEnabledStocks();
+  var withData = stocks.filter(function(s){return DAILY[s.c] && DAILY[s.c].length > 0;});
+  if(!withData.length){updCacheSt();return;}
+  showL('Building Cache...'); 
+  RAW_SCORES={};
+  var freq = $('btFreq') ? $('btFreq').value : "1";
+  var masterTicker = DAILY['^TWII'] ? '^TWII' : (DAILY['0050'] ? '0050' : (DAILY['SPY'] ? 'SPY' : withData[0].c));
+  var refDaily = DAILY[masterTicker];
+  var globalRebalDates = getPreciseRebalanceDates(refDaily, freq);
+  
+  var neededDates = [];
+  globalRebalDates.forEach(function(d) {
+    neededDates.push(d); 
+    neededDates.push(getPrevWorkDay(refDaily, d, 1)); 
+    neededDates.push(getPrevWorkDay(refDaily, d, 2)); 
+  });
+  var cacheDates = [...new Set(neededDates)].sort();
+
+  for(var si=0;si<withData.length;si++){
+    var s=withData[si];
+    $('loadTxt').textContent='Cache: '+s.c+' ('+(si+1)+'/'+withData.length+')';
+    var bars=DAILY[s.c];
+    RAW_SCORES[s.c]={};
+    
+    let bIdx = 0;
+    cacheDates.forEach(function(d){
+      while(bIdx < bars.length - 1 && bars[bIdx + 1].date <= d) { bIdx++; }
+      if(bars[bIdx].date <= d && bIdx >= 240){
+        var cut = bars.slice(0, bIdx+1);
+        RAW_SCORES[s.c][d]={ 
+          rm: rawMom(bars, bIdx), 
+          rb: calcBias(cut, N_TREND), 
+          rs: calcSlope(cut, N_TREND), 
+          rv: calcVol(cut, N_TREND), 
+          rk: calcKbar(cut, N_TREND), 
+          r240: bars[bIdx].c/(bars[bIdx-240]?bars[bIdx-240].c:1)-1 
+        };
+      }
+    });
+    if(si%5===4) await new Promise(function(r){setTimeout(r,0);});
+  }
+  CACHE_BUILT=true; CACHE_TS=new Date().toISOString(); CACHE_SKIP_MO=SKIP_MO;
+  hideL(); updCacheSt(); updTNX();
+}
+
+function updCacheSt(){var el=$('cacheTxt');if(!el)return;if(!CACHE_BUILT){el.textContent='Cache: not built';el.style.color='var(--mu)';return;}var n=Object.keys(RAW_SCORES).length;var dt=new Date(CACHE_TS).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'});el.textContent='Cache OK ('+n+' stocks, '+dt+')';el.style.color='var(--gr)';}
+
+function crossZ(arr,cap){
+  cap=cap||2;
+  var vals=arr.filter(function(v){return v!==null&&!isNaN(v);});
+  if(vals.length<3)return arr.map(function(v){return v===null?null:0;});
+  var mean=vals.reduce(function(a,b){return a+b;},0)/vals.length;
+  var std=Math.sqrt(vals.reduce(function(a,b){return a+(b-mean)*(b-mean);},0)/(vals.length>1?vals.length-1:1))||1;
+  return arr.map(function(v){if(v===null)return null;return Math.max(-cap,Math.min(cap,(v-mean)/std));});
+}
+
+function getTNXRate(dateStr) {
+   var rate = getPriceOnDate(DAILY['^TNX'], dateStr);
+   return rate ? (rate / 100) : 0.04;
+}
+
+function getHurdle(dateStr){return Math.max(0,getTNXRate(dateStr)+(gv('btSpread')||0.5)/100);}
+
+function isStrictTechnicalPass(code, dateStr) {
+  var bars = DAILY[code];
+  if (!bars || bars.length < 65) return false;
+  var ma60 = calcSimpleMA(bars, dateStr, 60);
+  var price = getPriceOnDate(bars, dateStr);
+  var prevDate = getPrevWorkDay(bars, dateStr, 5); 
+  var prevMa60 = calcSimpleMA(bars, prevDate, 60);
+  if (!ma60 || !price || !prevMa60) return false;
+  return (price > ma60 && ma60 >= prevMa60);
+}
+
+function calcAllScores(dateStr) {
+  var stocks = getEnabledStocks().filter(s => RAW_SCORES[s.c] && RAW_SCORES[s.c][dateStr]);
+  if (stocks.length < 3) return [];
+  const mode = document.getElementById('poolMode').value;
+  var w = {m:gv('wMom')/100, b:gv('wBias')/100, s:gv('wSlope')/100, v:gv('wVol')/100, k:gv('wKbar')/100};
+  
+  if (mode === 'large') {
+    var rMs=[], rBs=[], rSs=[], rVs=[], rKs=[], infos = stocks.map(s => {
+      var r = RAW_SCORES[s.c][dateStr];
+      rMs.push(r.rm); rBs.push(r.rb); rSs.push(r.rs); rVs.push(r.rv); rKs.push(r.rk);
+      return {s: s, raw: r};
+    });
+    var zMs=crossZ(rMs,99), zBs=crossZ(rBs,2), zSs=crossZ(rSs,99), zVs=crossZ(rVs,2), zKs=crossZ(rKs,99);
+    return infos.map((d, i) => ({
+      s: d.s, score: (w.m*zMs[i] + w.b*zBs[i] + w.s*zSs[i] + w.v*zVs[i] + w.k*zKs[i]),
+      zm: zMs[i], zb: zBs[i], zs: zSs[i], zv: zVs[i], zk: zKs[i], r240: d.raw.r240
+    }));
+  } else {
+    var poolGroups = { 'tw':[], 'us':[], 'etf':[], 'other':[] };
+    stocks.forEach(s => { if(poolGroups[s.pool]) poolGroups[s.pool].push(s); });
+    var finalScores = [];
+    Object.keys(poolGroups).forEach(p => {
+      var pStocks = poolGroups[p]; if (!pStocks.length) return;
+      var rMs=[], rBs=[], rSs=[], rVs=[], rKs=[], pinfos = pStocks.map(s => {
+        var r = RAW_SCORES[s.c][dateStr];
+        rMs.push(r.rm); rBs.push(r.rb); rSs.push(r.rs); rVs.push(r.rv); rKs.push(r.rk);
+        return {s: s, raw: r};
+      });
+      var zMs=crossZ(rMs,99), zBs=crossZ(rBs,2), zSs=crossZ(rSs,99), zVs=crossZ(rVs,2), zKs=crossZ(rKs,99);
+      pinfos.forEach((d,i) => {
+        finalScores.push({
+          s:d.s, score: (w.m*zMs[i]+w.b*zBs[i]+w.s*zSs[i]+w.v*zVs[i]+w.k*zKs[i]),
+          zm:zMs[i], zb:zBs[i], zs:zSs[i], zv:zVs[i], zk:zKs[i], r240:d.raw.r240
+        });
+      });
+    });
+    return finalScores;
+  }
+}
+
+function calcCorr(c1, c2, dateStr) {
+  var b1 = DAILY[c1], b2 = DAILY[c2];
+  if (!b1 || !b2) return 0;
+  let i1 = -1, i2 = -1;
+  for(let i=b1.length-1; i>=0; i--) { if(b1[i].date <= dateStr) { i1=i; break; } }
+  for(let i=b2.length-1; i>=0; i--) { if(b2[i].date <= dateStr) { i2=i; break; } }
+  var requiredDays = CORR_WIN * 20;
+  if (i1 < requiredDays || i2 < requiredDays) return 0;
+  var r1 = [], r2 = [];
+  for (var i = 0; i < CORR_WIN; i++) {
+    var curr1 = i1 - (i * 20), prev1 = i1 - ((i + 1) * 20);
+    var curr2 = i2 - (i * 20), prev2 = i2 - ((i + 1) * 20);
+    r1.push(b1[curr1].c / b1[prev1].c - 1);
+    r2.push(b2[curr2].c / b2[prev2].c - 1);
+  }
+  var m1 = r1.reduce((a,b)=>a+b,0)/r1.length, m2 = r2.reduce((a,b)=>a+b,0)/r2.length;
+  var num = 0, d1 = 0, d2 = 0;
+  r1.forEach((v, i) => {
+    num += (v - m1) * (r2[i] - m2);
+    d1 += (v - m1) ** 2; d2 += (r2[i] - m2) ** 2;
+  });
+  let denominator = Math.sqrt(d1 * d2);
+  return denominator === 0 ? 0 : (num / denominator);
+}
+
+function runBTcore(mh, mode) { // BUG
+  if (!CACHE_BUILT) return null;
+  var stocks = getEnabledStocks().filter(function(s) { return DAILY[s.c]; });
+  if (stocks.length < 3) return null;
+  var masterTicker = DAILY['^TWII'] ? '^TWII' : (DAILY['0050'] ? '0050' : (DAILY['SPY'] ? 'SPY' : stocks[0].c));
+  var refDaily = DAILY[masterTicker]; if (!refDaily) return null;
+  var freq = $('btFreq') ? $('btFreq').value : "1";
+  
+  var allM = getPreciseRebalanceDates(refDaily, freq);
+  var rawS = $('btS') ? ($('btS').value || '').trim().slice(0, 10) : '';
+  var rawE = $('btE') ? ($('btE').value || '').trim().slice(0, 10) : '';
+  var LAG = document.querySelector('input[name="lagMode"]:checked') ? parseInt(document.querySelector('input[name="lagMode"]:checked').value) : 1;
+  var cS = 1;
+  if (rawS) { for (var i = cS; i < allM.length; i++) { if (allM[i] >= rawS) { cS = i; break; } } }
+  var cE = allM.length - 1;
+  if (rawE) { for (var i2 = cE; i2 >= cS; i2--) { if (allM[i2] <= rawE) { cE = i2; break; } } }
+  if (cS > cE) return null;
+
+  var INIT = gv('btCap') || 100000, COST = (gv('btC') || 0.3) / 100, ct = gv('corrT') || 0.75;
+  var wtMode = document.querySelector('input[name="wtMode"]:checked') ? document.querySelector('input[name="wtMode"]:checked').value : 'eq';
+  var regimeOn = $('btRegime') && $('btRegime').value === 'on';
+  var regimeExp = gv('btRegimeExp') || 100;
+  var useMA60 = $('ma60Filter') ? $('ma60Filter').value === 'on' : true;
+
+  window.BUB_CD=0; window.BUB_CD_LV=0;
+  var nav = INIT, bNav = INIT, records = [], holdings = { CASH: 1.0 };
+  var DEFENSIVE = ['TLT', 'GLD', 'SGOV'];
+
+  for (var idx = cS; idx <= cE; idx++) {
+    var sigM = allM[idx], prevM = allM[idx - 1];       
+    var scoreM = (LAG === 1) ? getPrevWorkDay(refDaily, prevM, 1) : (LAG === 2 ? getPrevWorkDay(refDaily, prevM, 2) : prevM);
+    var hurdle = getHurdle(scoreM);
+    var skipMoOn = !!($('btSkipMo') && $('btSkipMo').checked);
+    var scoringM = skipMoOn ? getPrevWorkDay(refDaily, scoreM, 22) : scoreM;
+    var sc2 = calcAllScores(scoringM);
+
+    var valid = sc2.filter(function(r) { return r.score !== null; });
+    valid.sort(function(a, b) { return b.score - a.score; });
+
+    if (valid.length < 5) {
+      var b0x = getPriceOnDate(refDaily, prevM), b1x = getPriceOnDate(refDaily, sigM);
+      if (b0x && b1x && b0x > 0) bNav *= (1 + (b1x / b0x - 1));
+      records.push({ month: sigM, nav: nav, bNav: bNav, holdings: { CASH: 1.0 }, pRet: 0, hurdle: hurdle });
+      holdings = { CASH: 1.0 }; continue;
+    }
+   
+    var poolModeSetting = document.getElementById('poolMode').value;
+    var exitMap = {};
+    if (useMA60) {
+      Object.keys(holdings).forEach(function(c) {
+        if (c === 'CASH') return;
+        var bars = DAILY[c]; if (!bars) return;
+        var ma = calcSimpleMA(bars, scoreM, 60);
+        var price = getPriceOnDate(bars, scoreM);
+        if (ma && price && price < ma) exitMap[c] = true;
+      });
+    }
+
+    var mainCands = valid.filter(function(r) {
+      if (r.r240 === null || r.r240 <= hurdle) return false;
+      if (DEFENSIVE.indexOf(r.s.c) !== -1) return false;
+      if (exitMap[r.s.c]) return false;
+      return true;
+    });
+
+    var sel = [];
+    if (poolModeSetting === 'large') {
+      var totalMax = parseInt(document.getElementById('btH').value) || 5;
+      for (var ci = 0; ci < mainCands.length && sel.length < totalMax; ci++) {
+        var cand = mainCands[ci];
+        if (sel.every(function(x) { return Math.abs(calcCorr(cand.s.c, x.s.c, scoreM)) < ct; })) sel.push(cand);
+      }
+    } else {
+      var qTW = gv('btQuotaTW'), qUS = gv('btQuotaUS'), qETF = gv('btQuotaETF');
+      var localPools = { 'tw': [], 'us': [], 'etf': [] };
+      mainCands.forEach(r => { if(localPools[r.s.pool]) localPools[r.s.pool].push(r); });
+      ['us', 'tw', 'etf'].forEach(p => {
+        var quota = { 'tw': qTW, 'us': qUS, 'etf': qETF }[p], picked = 0;
+        for (var j = 0; j < localPools[p].length && picked < quota; j++) {
+          var cand = localPools[p][j];
+          if (sel.every(x => Math.abs(calcCorr(cand.s.c, x.s.c, scoreM)) < ct)) { sel.push(cand); picked++; }
+        }
+      });
+    }
+
+    var exposure = 1.0;
+    if (regimeOn && isBearishRegime(refDaily, scoreM, 60)) exposure = regimeExp / 100;
+
+    var target = {};
+    if (!sel.length) target['CASH'] = 1.0;
+    else {
+      var lw = (1.0 / sel.length) * exposure;
+      sel.forEach(function(r) { target[r.s.c] = lw; });
+    }
+    var totalW = 0; Object.keys(target).forEach(c => totalW += target[c]);
+    if (totalW < 1.0) target['CASH'] = (target['CASH'] || 0) + (1.0 - totalW);
+
+    var turnover = 0;
+    new Set([...Object.keys(holdings), ...Object.keys(target)]).forEach(c => {
+      turnover += Math.abs((target[c]||0) - (holdings[c]||0));
+    });
+    var friction = (turnover / 2) * COST; // BUG
+
+    var grossRet = 0, stockRets = {};
+    for (var c in target) {
+      if (c === 'CASH') {
+        var cr = getTNXRate(scoreM), cashRet = cr / 12;
+        grossRet += target[c] * cashRet;
+        stockRets[c] = { ret: cashRet, w: target[c] };
+      } else {
+        var p0 = getPriceOnDate(DAILY[c], prevM), p1 = getPriceOnDate(DAILY[c], sigM);
+        var r = (p0 && p1 && p0 > 0) ? (p1 / p0 - 1) : 0;
+        grossRet += target[c] * r;
+        stockRets[c] = { ret: r, w: target[c] };
+      }
+    }
+    
+    var netRet = (1 - friction) * (1 + grossRet) - 1;
+    nav *= (1 + netRet);
+    var b0 = getPriceOnDate(refDaily, prevM), b1 = getPriceOnDate(refDaily, sigM);
+    if (b0 && b1 && b0 > 0) bNav *= (1 + (b1 / b0 - 1));
+    
+    records.push({ month: sigM, nav: nav, bNav: bNav, holdings: target, pRet: netRet, hurdle: hurdle, stockRets: stockRets });
+    holdings = target;
+  }
+  return records;
+}
+
+function kpi(records, init) {
+  if (!records || !records.length) return { cagr: 0, mdd: 0, sharpe: 0, nav: init };
+  var last = records[records.length - 1];
+  var yrs = (new Date(last.month) - new Date(records[0].month)) / (365.25 * 86400000);
+  var tr = last.nav / init - 1, cagr = yrs > 0 ? Math.pow(1 + Math.max(tr, -0.999), 1 / yrs) - 1 : 0;
+  var pk = init, mdd = 0;
+  records.forEach(function(r) { if (r.nav > pk) pk = r.nav; var dd = (r.nav - pk) / pk; if (dd < mdd) mdd = dd; });
+  var rets = records.map(function(r) { return r.pRet; });
+  var avg = rets.reduce(function(a, b) { return a + b; }, 0) / rets.length;
+  var std = Math.sqrt(rets.reduce(function(a, b) { return a + Math.pow(b - avg, 2); }, 0) / rets.length) * Math.sqrt(12) || 1;
+  return { cagr: cagr, mdd: mdd, sharpe: (cagr - 0.015) / std, nav: last.nav };
+}
+
 function runBT() {
-  if (!CACHE_BUILT) return alert('Fetch data first');
-  const hCount = gv('btH') || 5;
-  const initCap = gv('btCap') || 1000000;
-  // Simplified BT logic for UI display
-  $('btRes').classList.remove('hidden');
-  $('btMetrics').innerHTML = `<div class="card">Backtest logic initialized. Processing ${hCount} positions...</div>`;
+  if (!CACHE_BUILT) return;
+  sl('btLog', '計算中...', null);
+  setTimeout(async function() {
+    var mh = parseInt($('btH').value) || 5, init = gv('btCap') || 100000;
+    var records = runBTcore(mh, 'large');
+    if (!records) return;
+    BT_RESULT = { records: records, initial: init };
+    renderBT(records, init);
+    sl('btLog', '回測完成', true);
+  }, 80);
 }
 
-function runMonteCarlo() {
-  alert('Monte Carlo simulation requires backtest data.');
+function renderBT(records, init) {
+  var last = records[records.length - 1];
+  var k = kpi(records, init);
+  $('btMetrics').innerHTML = `CAGR: ${(k.cagr*100).toFixed(2)}% | MDD: ${(k.mdd*100).toFixed(2)}% | Sharpe: ${k.sharpe.toFixed(2)}`;
 }
 
-window.onload = renderPool;
+function checkDataHealth() {
+  const stocks = getEnabledStocks(); const now = new Date(); const tbody = $('healthBody');
+  let staleNum = 0, totalDelay = 0, html = '';
+  stocks.forEach(s => {
+    const data = DAILY[s.c]; let delay = 999, lastD = '無資料';
+    if (data && data.length > 0) { const lastDate = new Date(data[data.length - 1].date); lastD = data[data.length - 1].date; delay = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24)); }
+    const isStale = delay > 5; if (isStale) staleNum++; if (delay !== 999) totalDelay += delay;
+    const statusLabel = isStale ? `<span style="color:var(--re)">需更新</span>` : `<span style="color:var(--te)">正常</span>`;
+    html += `<tr><td>${s.tw?'TW':'US'}</td><td>${s.c}</td><td>${lastD}</td><td>${delay===999?'?':delay+'d'}</td><td>${statusLabel}</td></tr>`;
+  });
+  tbody.innerHTML = html;
+  $('staleCount').textContent = staleNum; $('avgDelay').textContent = stocks.length ? (totalDelay / stocks.length).toFixed(1) : 0;
+}
+
+function sl(id, txt, ok) {
+  var el = document.getElementById(id); if (!el) return;
+  el.textContent = txt; el.style.color = ok === null ? 'var(--mu)' : (ok ? 'var(--gr)' : 'var(--re)');
+}
+function gv(id) { return parseFloat(document.getElementById(id).value); }
+function $(id) { return document.getElementById(id); }
+function showL(txt) { $('loadEl').classList.remove('hidden'); $('loadTxt').textContent = txt; }
+function hideL() { $('loadEl').classList.add('hidden'); }
+function getStockName(c){var s=getEnabledStocks().find(x=>x.c===c);return s?s.n:c;}
+function dlBlob(b, n) { var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = n; a.click(); }
+function dlText(t, n, m) { dlBlob(new Blob([t], { type: m }), n); }
+async function loadFromDB() { return false; }
+function toggleInd(el) { var ib = el.nextElementSibling; ib.style.display = (ib.style.display === 'none' ? 'flex' : 'none'); }
+function toggleStock(c) { var el = document.querySelector(`[data-code="${c}"]`); if(el) { var on = el.dataset.on === '1' ? '0' : '1'; el.dataset.on = on; el.classList.toggle('act', on === '1'); updCountByIb(el.parentElement); } }
+function updCountByIb(ib) { var ig = ib.parentElement; var ic = ig.querySelector('.ic'); var all = ib.querySelectorAll('.sc').length, act = ib.querySelectorAll('.sc.act').length; ic.textContent = act + '/' + all; }
+
 </script>
 </body>
 </html>
