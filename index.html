@@ -433,19 +433,19 @@ function updTotalH() {
 }
 
 function togglePoolUI() {
-  const isLarge = document.getElementById('poolMode').value === 'large';
-  ['btQuotaTW', 'btQuotaUS', 'btQuotaETF'].forEach(id => {
-    const el = document.getElementById(id);
+  var isLarge = document.getElementById('poolMode').value === 'large';
+  ['btQuotaTW', 'btQuotaUS', 'btQuotaETF'].forEach(function(id) {
+    var el = document.getElementById(id);
     if(el) { el.disabled = isLarge; el.style.opacity = isLarge ? "0.3" : "1"; }
   });
-  const hInput = document.getElementById('btH');
+  var hInput = document.getElementById('btH');
   if(hInput) { hInput.disabled = !isLarge; hInput.style.background = isLarge ? "var(--bg)" : "rgba(255,255,255,0.05)"; }
   if (!isLarge) updTotalH(); 
 }
 
 // removed ghost vars BENCH_MONTHLY / TNX_MONTHLY
 var DAILY={}, RAW_SCORES={}, BT_RESULT=null, CHART={}, CACHE_BUILT=false, CACHE_TS=null, SKIP_MO=false, CACHE_SKIP_MO=false, CORR_WIN=24;
-var N_TREND=60; const MOM_CONSISTENCY_MULT=1.2; var REBAL_FREQ="1";
+var N_TREND=60; var MOM_CONSISTENCY_MULT=1.2; var REBAL_FREQ="1";
 
 var POOL_DEF = [
   {title:'[ETF] iShares ETF',pool:'etf',tw:false,stocks:[
@@ -665,49 +665,49 @@ async function fp(url, proxies) {
 function buildTicker(s){if(!s.tw)return s.c;if(s.c.charAt(0)==='^'||s.c.indexOf('.')>=0)return s.c;return s.c+'.TW';}
 
 async function fetchOHLCV(s, interval, range = 'max') {
-  const tk = buildTicker(s);
-  const proxies = buildProxies(); 
+  var tk = buildTicker(s);
+  var proxies = buildProxies(); 
   
-  let queryStr = `range=${range}&interval=${interval}`;
+  var queryStr = 'range=' + range + '&interval=' + interval;
   if (range === 'max') {
-    const nowUnix = Math.floor(Date.now() / 1000);
-    queryStr = `period1=0&period2=${nowUnix}&interval=${interval}`;
+    var nowUnix = Math.floor(Date.now() / 1000);
+    queryStr = 'period1=0&period2=' + nowUnix + '&interval=' + interval;
   }
   
-  const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${tk}?${queryStr}`;
-  const r = await fp(targetUrl, proxies); 
-  const j = await r.json();
-  const ch = j.chart?.result?.[0];
+  var targetUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + tk + '?' + queryStr;
+  var r = await fp(targetUrl, proxies); 
+  var j = await r.json();
+  var ch = j.chart?.result?.[0];
   
   if (!ch || !ch.timestamp) throw new Error('No Data for ' + tk);
   
-  return ch.timestamp.map((ts, i) => {
-    const q = ch.indicators.quote[0];
-    const adj = ch.indicators.adjclose?.[0]?.adjclose?.[i]; 
+  return ch.timestamp.mapfunction((ts, i) {
+    var q = ch.indicators.quote[0];
+    var adj = ch.indicators.adjclose?.[0]?.adjclose?.[i]; 
     return {
       date: new Date(ts * 1000).toISOString().slice(0, 10),
       o: q.open[i], h: q.high[i], l: q.low[i], 
       c: adj !== undefined && adj !== null ? adj : q.close[i], 
       v: q.volume[i] || 0
     };
-  }).filter(v => v.c != null);
+  }).filter(function(v) { return v.c != null; });
 }
 
 async function fetchAll() {
-  const stocks = getEnabledStocks();
+  var stocks = getEnabledStocks();
   if(!stocks.length) return alert('\u8acb\u5148\u9078\u64c7\u80a1\u6c60');
   showL('\u6293\u53d6\u5168\u6b77\u53f2\u65e5\u7dda\u8cc7\u6599\u5eab (\u653e\u6162\u901f\u5ea6\u78ba\u4fdd\u7a69\u5b9a)...'); 
   $('fetchProg').classList.remove('hidden');
-  let success = 0;
-  for (let i = 0; i < stocks.length; i++) {
+  var success = 0;
+  for (var i = 0; i < stocks.length; i++) {
     $('loadTxt').textContent = '\u6293\u53d6\u4e2d: ' + stocks[i].c + ' (' + (i+1) + '/' + stocks.length + ')';
     try {
       DAILY[stocks[i].c] = await fetchOHLCV(stocks[i], '1d', 'max');
       success++;
-      $('fetchFill').style.width = `${((i+1)/stocks.length)*100}%`;
+      $('fetchFill').style.width = (((i+1)/stocks.length)*100) + '%';
       updFetchStat();
     } catch(e) { console.error(stocks[i].c, e); }
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(function(r){ setTimeout(r,2000); });
   }
   
   try {
@@ -824,8 +824,8 @@ function calcSimpleMA(bars, dateStr, period) {
 
 function getPriceOnDate(bars, dateStr) { 
   if (!bars || !bars.length || dateStr < bars[0].date) return null;
-  let best = bars[0].c;
-  for(let i=0; i<bars.length; i++) { 
+  var best = bars[0].c;
+  for(var i=0; i<bars.length; i++) { 
     if (bars[i].date <= dateStr) best = bars[i].c;
     else break; 
   }
@@ -834,8 +834,8 @@ function getPriceOnDate(bars, dateStr) {
 
 function getPrevWorkDay(bars, dateStr, offset = 1) {
   if (!bars || !bars.length) return dateStr;
-  let targetIdx = -1;
-  for (let i = bars.length - 1; i >= 0; i--) {
+  var targetIdx = -1;
+  for (var i = bars.length - 1; i >= 0; i--) {
     if (bars[i].date <= dateStr) {
       targetIdx = i;
       break;
@@ -856,19 +856,19 @@ function isBearishRegime(bars, dateStr, period) {
 }
 
 function getPreciseRebalanceDates(bars, freq) {
-  const dates = [];
-  let currentMonth = "";
-  let monthBars = [];
+  var dates = [];
+  var currentMonth = "";
+  var monthBars = [];
   function processMonth(mBars) {
     if(!mBars.length) return;
     if (freq === "2") {
-      let midBar = mBars.find(b => parseInt(b.date.slice(8, 10)) >= 15);
+      var midBar = mBars.find(function(b){ return parseInt(b.date.slice(8,10)) >= 15; });
       if (midBar) dates.push(midBar.date);
     }
     dates.push(mBars[mBars.length - 1].date);
   }
-  bars.forEach(bar => {
-    const ym = bar.date.slice(0, 7);
+  bars.forEach(function(bar) {
+    var ym = bar.date.slice(0, 7);
     if (ym !== currentMonth) {
       if (currentMonth !== "") processMonth(monthBars); 
       currentMonth = ym;
@@ -897,25 +897,25 @@ function calcKbar(bars,N){if(bars.length<N)return null;var sl=bars.slice(-N);var
 
 function momZ(bars, idx, period) {
   if (idx < period) return null;
-  let ret = bars[idx].c / bars[idx - period].c - 1;
-  let rets = [], start = Math.max(period, idx - 250);
-  for (let i = start; i <= idx; i++) rets.push(bars[i].c / bars[i - period].c - 1);
-  let mean = rets.reduce((a, b) => a + b, 0) / rets.length;
-  let std = Math.sqrt(rets.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (rets.length > 1 ? rets.length - 1 : 1)) || 0.01;
+  var ret = bars[idx].c / bars[idx - period].c - 1;
+  var rets = [], start = Math.max(period, idx - 250);
+  for (var i = start; i <= idx; i++) rets.push(bars[i].c / bars[i - period].c - 1);
+  var mean = rets.reduce(function(a,b){return a+b;}, 0) / rets.length;
+  var std = Math.sqrt(rets.reduce(function(a,b){return a+Math.pow(b-mean,2);}, 0) / (rets.length > 1 ? rets.length - 1 : 1)) || 0.01;
   return (ret - mean) / std;
 }
 
 function rawMom(daily, idx) {
   if (idx < 240) return null;
-  let z240 = momZ(daily, idx, 240), z120 = momZ(daily, idx, 120), z60 = momZ(daily, idx, 60);
+  var z240 = momZ(daily, idx, 240), z120 = momZ(daily, idx, 120), z60 = momZ(daily, idx, 60);
   if (z240 === null || z120 === null || z60 === null) return null;
-  let score = 0.5 * z240 + 0.3 * z120 + 0.2 * z60;
+  var score = 0.5 * z240 + 0.3 * z120 + 0.2 * z60;
   if (z240 > 0 && z120 > 0 && z60 > 0) score *= MOM_CONSISTENCY_MULT;
   return score;
 }
 
 async function buildCache() {
-  const stocks = getEnabledStocks();
+  var stocks = getEnabledStocks();
   var withData = stocks.filter(function(s){return DAILY[s.c] && DAILY[s.c].length > 0;});
   if(!withData.length){updCacheSt();return;}
   showL('Building V1.9 Cache...'); 
@@ -939,7 +939,7 @@ async function buildCache() {
     var bars=DAILY[s.c];
     RAW_SCORES[s.c]={};
     
-    let bIdx = 0;
+    var bIdx = 0;
     cacheDates.forEach(function(d){
       while(bIdx < bars.length - 1 && bars[bIdx + 1].date <= d) { bIdx++; }
       if(bars[bIdx].date <= d && bIdx >= 240){
@@ -991,35 +991,35 @@ function isStrictTechnicalPass(code, dateStr) {
 }
 
 function calcAllScores(dateStr) {
-  var stocks = getEnabledStocks().filter(s => RAW_SCORES[s.c] && RAW_SCORES[s.c][dateStr]);
+  var stocks = getEnabledStocks().filter(function(s) { return RAW_SCORES[s.c] && RAW_SCORES[s.c][dateStr]; });
   if (stocks.length < 3) return [];
-  const mode = document.getElementById('poolMode').value;
+  var mode = document.getElementById('poolMode').value;
   var w = {m:gv('wMom')/100, b:gv('wBias')/100, s:gv('wSlope')/100, v:gv('wVol')/100, k:gv('wKbar')/100};
   
   if (mode === 'large') {
-    var rMs=[], rBs=[], rSs=[], rVs=[], rKs=[], infos = stocks.map(s => {
+    var rMs=[], rBs=[], rSs=[], rVs=[], rKs=[], infos = stocks.map(function(s) {
       var r = RAW_SCORES[s.c][dateStr];
       rMs.push(r.rm); rBs.push(r.rb); rSs.push(r.rs); rVs.push(r.rv); rKs.push(r.rk);
       return {s: s, raw: r};
     });
     var zMs=crossZ(rMs,99), zBs=crossZ(rBs,2), zSs=crossZ(rSs,99), zVs=crossZ(rVs,2), zKs=crossZ(rKs,99);
-    return infos.map((d, i) => ({
+    return infos.map(function(d,i){ return {
       s: d.s, score: (w.m*zMs[i] + w.b*zBs[i] + w.s*zSs[i] + w.v*zVs[i] + w.k*zKs[i]),
       zm: zMs[i], zb: zBs[i], zs: zSs[i], zv: zVs[i], zk: zKs[i], r240: d.raw.r240
-    }));
+    }; });
   } else {
     var poolGroups = { 'tw':[], 'us':[], 'etf':[], 'other':[] };
-    stocks.forEach(s => { if(poolGroups[s.pool]) poolGroups[s.pool].push(s); });
+    stocks.forEach(function(s) { if(poolGroups[s.pool]) poolGroups[s.pool].push(s); });
     var finalScores = [];
-    Object.keys(poolGroups).forEach(p => {
+    Object.keys(poolGroups).forEach(function(p) {
       var pStocks = poolGroups[p]; if (!pStocks.length) return;
-      var rMs=[], rBs=[], rSs=[], rVs=[], rKs=[], pinfos = pStocks.map(s => {
+      var rMs=[], rBs=[], rSs=[], rVs=[], rKs=[], pinfos = pStocks.map(function(s) {
         var r = RAW_SCORES[s.c][dateStr];
         rMs.push(r.rm); rBs.push(r.rb); rSs.push(r.rs); rVs.push(r.rv); rKs.push(r.rk);
         return {s: s, raw: r};
       });
       var zMs=crossZ(rMs,99), zBs=crossZ(rBs,2), zSs=crossZ(rSs,99), zVs=crossZ(rVs,2), zKs=crossZ(rKs,99);
-      pinfos.forEach((d,i) => {
+      pinfos.forEachfunction((d,i) {
         finalScores.push({
           s:d.s, score: (w.m*zMs[i]+w.b*zBs[i]+w.s*zSs[i]+w.v*zVs[i]+w.k*zKs[i]),
           zm:zMs[i], zb:zBs[i], zs:zSs[i], zv:zVs[i], zk:zKs[i], r240:d.raw.r240
@@ -1033,9 +1033,9 @@ function calcAllScores(dateStr) {
 function calcCorr(c1, c2, dateStr) {
   var b1 = DAILY[c1], b2 = DAILY[c2];
   if (!b1 || !b2) return 0;
-  let i1 = -1, i2 = -1;
-  for(let i=b1.length-1; i>=0; i--) { if(b1[i].date <= dateStr) { i1=i; break; } }
-  for(let i=b2.length-1; i>=0; i--) { if(b2[i].date <= dateStr) { i2=i; break; } }
+  var i1 = -1, i2 = -1;
+  for(var i=b1.length-1; i>=0; i--) { if(b1[i].date <= dateStr) { i1=i; break; } }
+  for(var i=b2.length-1; i>=0; i--) { if(b2[i].date <= dateStr) { i2=i; break; } }
   var requiredDays = CORR_WIN * 20;
   if (i1 < requiredDays || i2 < requiredDays) return 0;
   var r1 = [], r2 = [];
@@ -1045,13 +1045,13 @@ function calcCorr(c1, c2, dateStr) {
     r1.push(b1[curr1].c / b1[prev1].c - 1);
     r2.push(b2[curr2].c / b2[prev2].c - 1);
   }
-  var m1 = r1.reduce((a,b)=>a+b,0)/r1.length, m2 = r2.reduce((a,b)=>a+b,0)/r2.length;
+  var m1 = r1.reduce(function(a,b){return a+b;},0)/r1.length, m2 = r2.reduce(function(a,b){return a+b;},0)/r2.length;
   var num = 0, d1 = 0, d2 = 0;
-  r1.forEach((v, i) => {
+  r1.forEachfunction((v, i) {
     num += (v - m1) * (r2[i] - m2);
     d1 += (v - m1) ** 2; d2 += (r2[i] - m2) ** 2;
   });
-  let denominator = Math.sqrt(d1 * d2);
+  var denominator = Math.sqrt(d1 * d2);
   return denominator === 0 ? 0 : (num / denominator);
 }
 
@@ -1242,7 +1242,7 @@ function runBTcore(mh, mode) {
         var volSum = 0;
         var ivolArr = sel.map(function(r) {
           var bars = DAILY[r.s.c];
-          var cut = bars.filter(b => b.date <= scoreM);
+          var cut = bars.filter(function(b) { return b.date <= scoreM; });
           var v = calcVolatility(cut, 60);
           v = (v && v > 0) ? v : 0.20;
           volSum += 1 / v;
@@ -1290,7 +1290,7 @@ function runBTcore(mh, mode) {
       cashRet = s1 / s0 - 1;
     } else {
       var cr = getTNXRate(scoreM), cashDivisor = (freq === "2") ? 24 : 12;
-      const CASH_FACTOR = 0.7; // \u4fee\u6b63 6
+      var CASH_FACTOR = 0.7; // \u4fee\u6b63 6
       cashRet = (cr * CASH_FACTOR) / cashDivisor;
     }
 
@@ -1333,7 +1333,7 @@ function runBTcore(mh, mode) {
     var b0 = getPriceOnDate(refDaily, prevM), b1 = getPriceOnDate(refDaily, sigM);
     if (b0 && b1 && b0 > 0) bNav *= (1 + (b1 / b0 - 1));
     
-    var hCopy = {}; Object.keys(target).forEach(k => hCopy[k] = target[k]);
+    var hCopy = {}; Object.keys(target).forEach(function(k) { return hCopy[k] = target[k]; });
     var periodStr = prevM + " ~ " + sigM;
     records.push({ month: sigM, period: periodStr, nav: nav, bNav: bNav, holdings: hCopy, pRet: netRet, hurdle: hurdle, stockRets: stockRets });
     
@@ -1458,32 +1458,15 @@ function renderBT(records, init, mode) {
   var fmt = function(v, p, pl) { return (pl && v >= 0 ? '+' : '') + (p ? (v * 100).toFixed(2) + '%' : v.toFixed(2)); };
   var modeLabel = mode === 'rank' ? 'Rank-Weighted' : 'Equal-Weighted';
   
-  $('btMetrics').innerHTML = `
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-      <div class="card" style="border-top:3px solid var(--tw);">
-        <div class="ct">Strategy V2.0 (${modeLabel})</div>
-        <div class="mr"><span>Final NAV</span><span class="mv wh">$${Math.round(last.nav).toLocaleString()}</span></div>
-        <div class="mr"><span>Return</span><span class="mv ${tr >= 0 ? 'tg' : 'tr'}">${fmt(tr, true, true)}</span></div>
-        <div class="mr"><span>CAGR</span><span class="mv">${fmt(cagr, true)}</span></div>
-        <div class="mr"><span>MDD</span><span class="mv tr">${fmt(mdd, true)}</span></div>
-        <div class="mr"><span>Sharpe</span><span class="mv tg">${sh.toFixed(2)}</span></div>
-      </div>
-      <div class="card" style="border-top:3px solid var(--mu);">
-        <div class="ct">TAIEX Benchmark</div>
-        <div class="mr"><span>Return</span><span class="mv ${btr >= 0 ? 'tg' : 'tr'}">${fmt(btr, true, true)}</span></div>
-        <div class="mr"><span>CAGR</span><span class="mv">${fmt(bcagr, true)}</span></div>
-        <div class="mr"><span>Alpha</span><span class="mv ${(cagr - bcagr) >= 0 ? 'tg' : 'tr'}">${fmt(cagr - bcagr, true, true)}</span></div>
-      </div>
-    </div>
-  `;
+  $('btMetrics').innerHTML = '\n    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">\n      <div class="card" style="border-top:3px solid var(--tw);">\n        <div class="ct">Strategy V2.0 (' + (modeLabel) + ')</div>\n        <div class="mr"><span>Final NAV</span><span class="mv wh">$' + (Math.round(last.nav).toLocaleString()) + '</span></div>\n        <div class="mr"><span>Return</span><span class="mv ' + (tr >= 0 ? 'tg' : 'tr') + '">' + (fmt(tr, true, true)) + '</span></div>\n        <div class="mr"><span>CAGR</span><span class="mv">' + (fmt(cagr, true)) + '</span></div>\n        <div class="mr"><span>MDD</span><span class="mv tr">' + (fmt(mdd, true)) + '</span></div>\n        <div class="mr"><span>Sharpe</span><span class="mv tg">' + (sh.toFixed(2)) + '</span></div>\n      </div>\n      <div class="card" style="border-top:3px solid var(--mu);">\n        <div class="ct">TAIEX Benchmark</div>\n        <div class="mr"><span>Return</span><span class="mv ' + (btr >= 0 ? 'tg' : 'tr') + '">' + (fmt(btr, true, true)) + '</span></div>\n        <div class="mr"><span>CAGR</span><span class="mv">' + (fmt(bcagr, true)) + '</span></div>\n        <div class="mr"><span>Alpha</span><span class="mv ' + ((cagr - bcagr) >= 0 ? 'tg' : 'tr') + '">' + (fmt(cagr - bcagr, true, true)) + '</span></div>\n      </div>\n    </div>\n  ';
 
   if ($('chartArea').style.display !== 'none') {
     if (CHART.n) CHART.n.destroy(); if (CHART.d) CHART.d.destroy();
-    var lbs = recs.map(r => r.month.slice(2, 7));
-    var navs = recs.map(r => r.nav), bnavs = recs.map(r => r.bNav);
+    var lbs = recs.map(function(r){ return r.month.slice(2,7); });
+    var navs = recs.map(function(r) { return r.nav; }), bnavs = recs.map(function(r) { return r.bNav; });
     var dds = [], bdds = [];
     var p = init, bp = init;
-    recs.forEach(r => { 
+    recs.forEach(function(r) { 
         if (r.nav > p) p = r.nav; 
         dds.push((r.nav - p) / p * 100);
         if (r.bNav > bp) bp = r.bNav; 
@@ -1530,20 +1513,10 @@ function renderBT(records, init, mode) {
       var nm = getStockName(k);
       var pct = Math.abs(wt * 100).toFixed(0) + '%';
       var lbl = (isShort ? 'S ' : '') + k + (nm && nm !== k ? ' ' + nm : '');
-      return `<span style="background:${bg}; color:${col}; border:1px ${bst} ${col}; padding:1px 6px; border-radius:3px; font-size:10px; font-family:monospace; margin:1px;">${lbl} ${pct}</span>`;
+      return '<span style="background:' + bg + '; color:' + col + '; border:1px ' + bst + ' ' + col + '; padding:1px 6px; border-radius:3px; font-size:10px; font-family:monospace; margin:1px;">' + lbl + ' ' + pct + '</span>';
     }).join('');
     
-    var summaryRow = `
-      <tr style="border-top:2px solid var(--bd);">
-        <td class="mono" style="font-weight:700; vertical-align:top;">${r.month}</td>
-        <td style="vertical-align:top;">${holdStr}</td>
-        <td class="mono" style="font-size:10px; color:var(--bl); vertical-align:top;">${(r.hurdle * 100).toFixed(1)}%</td>
-        <td class="mono" style="color:${rc}; font-weight:700; vertical-align:top;">${r.pRet >= 0 ? '+' : ''}${(r.pRet * 100).toFixed(2)}%</td>
-        <td class="mono" style="color:var(--tw); font-weight:700; vertical-align:top;">$${Math.round(r.nav).toLocaleString()}</td>
-        <td class="mono" style="color:var(--mu); vertical-align:top;">$${Math.round(r.bNav).toLocaleString()}</td>
-        <td class="mono" style="color:${ec}; font-weight:700; vertical-align:top;">${ex >= 0 ? '+' : ''}${(ex * 100).toFixed(2)}pp</td>
-      </tr>
-    `;
+    var summaryRow = '\n      <tr style="border-top:2px solid var(--bd);">\n        <td class="mono" style="font-weight:700; vertical-align:top;">' + (r.month) + '</td>\n        <td style="vertical-align:top;">' + (holdStr) + '</td>\n        <td class="mono" style="font-size:10px; color:var(--bl); vertical-align:top;">' + ((r.hurdle * 100).toFixed(1)) + '%</td>\n        <td class="mono" style="color:' + (rc) + '; font-weight:700; vertical-align:top;">' + (r.pRet >= 0 ? '+' : '') + '' + ((r.pRet * 100).toFixed(2)) + '%</td>\n        <td class="mono" style="color:var(--tw); font-weight:700; vertical-align:top;">$' + (Math.round(r.nav).toLocaleString()) + '</td>\n        <td class="mono" style="color:var(--mu); vertical-align:top;">$' + (Math.round(r.bNav).toLocaleString()) + '</td>\n        <td class="mono" style="color:' + (ec) + '; font-weight:700; vertical-align:top;">' + (ex >= 0 ? '+' : '') + '' + ((ex * 100).toFixed(2)) + 'pp</td>\n      </tr>\n    ';
 
     var detailRows = '';
     if (r.stockRets) {
@@ -1558,25 +1531,7 @@ function renderBT(records, init, mode) {
         var dirLabel = isShortPos ? '[S] ' : '';
         var absPct = Math.abs(w * 100).toFixed(0) + '%';
         
-        detailRows += `
-          <tr style="background:var(--bg); opacity:0.85;">
-            <td style="padding:3px 8px; border-bottom:1px solid var(--bd);"></td>
-            <td style="padding:3px 8px; border-bottom:1px solid var(--bd); font-family:monospace; font-size:11px; color:${col};">
-              ${dirLabel}${k}${nm && nm !== k ? ` <span style="color:var(--mu); font-size:10px;">${nm}</span>` : ''} 
-              <span style="color:var(--mu); font-size:10px;">${absPct}</span>
-            </td>
-            <td style="padding:3px 8px; border-bottom:1px solid var(--bd);"></td>
-            <td class="mono" style="padding:3px 8px; border-bottom:1px solid var(--bd); font-size:11px; color:var(--mu);">
-              ${ret >= 0 ? '+' : ''}${(ret * 100).toFixed(2)}%
-            </td>
-            <td class="mono" style="padding:3px 8px; border-bottom:1px solid var(--bd); font-size:11px; color:${rc2};">
-              ${pnl >= 0 ? '+$' : '-$'}${Math.abs(Math.round(pnl)).toLocaleString()}
-            </td>
-            <td colspan="2" style="padding:3px 8px; border-bottom:1px solid var(--bd); font-size:10px; color:${rc2};">
-              contrib: ${contrib >= 0 ? '+' : ''}${(contrib * 100).toFixed(2)}%
-            </td>
-          </tr>
-        `;
+        detailRows += '\n          <tr style="background:var(--bg); opacity:0.85;">\n            <td style="padding:3px 8px; border-bottom:1px solid var(--bd);"></td>\n            <td style="padding:3px 8px; border-bottom:1px solid var(--bd); font-family:monospace; font-size:11px; color:' + (col) + ';">\n              ' + (dirLabel) + '' + (k) + '' + (nm && nm !== k ? ' <span style="color:var(--mu); font-size:10px;">' + nm + '</span>' : '') + ' \n              <span style="color:var(--mu); font-size:10px;">' + (absPct) + '</span>\n            </td>\n            <td style="padding:3px 8px; border-bottom:1px solid var(--bd);"></td>\n            <td class="mono" style="padding:3px 8px; border-bottom:1px solid var(--bd); font-size:11px; color:var(--mu);">\n              ' + (ret >= 0 ? '+' : '') + '' + ((ret * 100).toFixed(2)) + '%\n            </td>\n            <td class="mono" style="padding:3px 8px; border-bottom:1px solid var(--bd); font-size:11px; color:' + (rc2) + ';">\n              ' + (pnl >= 0 ? '+$' : '-$') + '' + (Math.abs(Math.round(pnl)).toLocaleString()) + '\n            </td>\n            <td colspan="2" style="padding:3px 8px; border-bottom:1px solid var(--bd); font-size:10px; color:' + (rc2) + ';">\n              contrib: ' + (contrib >= 0 ? '+' : '') + '' + ((contrib * 100).toFixed(2)) + '%\n            </td>\n          </tr>\n        ';
       });
     }
     return summaryRow + detailRows;
@@ -1710,13 +1665,13 @@ function dlBtCsv() {
 
 // \u4fee\u6b63 5: \u62d4\u9664 Emoji
 function checkDataHealth() {
-  const stocks = getEnabledStocks(); const now = new Date(); const tbody = $('healthBody');
-  let staleNum = 0, totalDelay = 0, html = '';
-  stocks.forEach(s => {
-    const data = DAILY[s.c]; let delay = 999, lastD = '\u7121\u8cc7\u6599';
-    if (data && data.length > 0) { const lastDate = new Date(data[data.length - 1].date); lastD = data[data.length - 1].date; delay = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24)); }
-    const isStale = delay > 5; if (isStale) staleNum++; if (delay !== 999) totalDelay += delay;
-    const statusLabel = isStale ? `<span style="color:var(--re)">\u2718 \u9700\u66f4\u65b0</span>` : `<span style="color:var(--te)">\u2714 \u6b63\u5e38</span>`;
+  var stocks = getEnabledStocks(); var now = new Date(); var tbody = $('healthBody');
+  var staleNum = 0, totalDelay = 0, html = '';
+  stocks.forEach(function(s) {
+    var data = DAILY[s.c]; var delay = 999, lastD = '\u7121\u8cc7\u6599';
+    if (data && data.length > 0) { var lastDate = new Date(data[data.length - 1].date); lastD = data[data.length - 1].date; delay = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24)); }
+    var isStale = delay > 5; if (isStale) staleNum++; if (delay !== 999) totalDelay += delay;
+    var statusLabel = isStale ? '<span style="color:var(--re)">\u2718 \u9700\u66f4\u65b0</span>' : '<span style="color:var(--te)">\u2714 \u6b63\u5e38</span>';
     html += '<tr>'
       + '<td>' + (s.tw ? 'TW \u53f0\u80a1' : 'US \u7f8e\u80a1') + '</td>'
       + '<td class="mono">' + s.c + '</td>'
@@ -1833,40 +1788,40 @@ async function calcSignal() {
   if (!CACHE_BUILT) { alert('\u8acb\u5148\u6293\u53d6\u8cc7\u6599'); return; }
   SKIP_MO = !!($('btSkipMo') && $('btSkipMo').checked);
   if (CACHE_SKIP_MO !== SKIP_MO) { await buildCache(); }
-  var stocks = getEnabledStocks().filter(s => RAW_SCORES[s.c]);
+  var stocks = getEnabledStocks().filter(function(s) { return RAW_SCORES[s.c]; });
   if (!stocks.length) return;
   var latestDate = Object.keys(RAW_SCORES[stocks[0].c]).sort().pop();
   var hurdle = getHurdle(latestDate);
   var allScores = calcAllScores(latestDate);
-  const mode = $('poolMode').value, useMA = $('ma60Filter').value === 'on', ct = gv('corrT') || 0.75;
+  var mode = $('poolMode').value, useMA = $('ma60Filter').value === 'on', ct = gv('corrT') || 0.75;
   var sel = [], rejectedMap = {}; 
 
   allScores.forEach(function(r) {
     if (r.r240 <= hurdle) rejectedMap[r.s.c] = 'TS \u6DD8\u6C70';
   });
   if (mode === 'large') {
-    var candidates = allScores.filter(r => !rejectedMap[r.s.c]).sort((a,b)=>b.score-a.score);
-    const totalMax = parseInt($('btH').value) || 5;
+    var candidates = allScores.filter(function(r) { return !rejectedMap[r.s.c]; }).sort(function(a,b){return b.score-a.score;});
+    var totalMax = parseInt($('btH').value) || 5;
     for (var cand of candidates) {
       if (sel.length >= totalMax) { rejectedMap[cand.s.c] = "\u540d\u984d\u5df2\u6eff"; continue; }
-      if (sel.every(x => Math.abs(calcCorr(cand.s.c, x.s.c, latestDate)) < ct)) sel.push(cand);
+      if (sel.every(function(x){ return Math.abs(calcCorr(cand.s.c,x.s.c,latestDate)) < ct; })) sel.push(cand);
       else rejectedMap[cand.s.c] = "\u76f8\u95dc\u6027\u904e\u9ad8";
     }
   } else {
     var sub = { 'tw': [], 'us': [], 'etf': [] };
-    allScores.filter(r => !rejectedMap[r.s.c]).forEach(r => { if(sub[r.s.pool]) sub[r.s.pool].push(r); });
-    ['us', 'tw', 'etf'].forEach(p => {
+    allScores.filter(function(r) { return !rejectedMap[r.s.c]; }).forEach(function(r) { if(sub[r.s.pool]) sub[r.s.pool].push(r); });
+    ['us', 'tw', 'etf'].forEach(function(p) {
       var q = { 'tw':gv('btQuotaTW'), 'us':gv('btQuotaUS'), 'etf':gv('btQuotaETF') }[p], picked = 0;
-      var list = sub[p].sort((a,b)=>b.score-a.score);
+      var list = sub[p].sort(function(a,b){return b.score-a.score;});
       for (var cand of list) {
         if (picked >= q) { rejectedMap[cand.s.c] = "\u914d\u984d\u5df2\u6eff"; continue; }
-        if (sel.every(x => Math.abs(calcCorr(cand.s.c, x.s.c, latestDate)) < ct)) { sel.push(cand); picked++; }
+        if (sel.every(function(x){ return Math.abs(calcCorr(cand.s.c,x.s.c,latestDate)) < ct; })) { sel.push(cand); picked++; }
         else { rejectedMap[cand.s.c] = "\u76f8\u95dc\u6027\u904e\u9ad8"; }
       }
     });
   }
-  renderSig(sel, allScores.slice().sort((a,b)=>a.score-b.score).slice(0,3), allScores, latestDate, hurdle);
-  renderST(allScores, hurdle, sel.map(s => s.s.c), rejectedMap, latestDate);
+  renderSig(sel, allScores.slice().sort(function(a,b){return a.score-b.score;}).slice(0,3), allScores, latestDate, hurdle);
+  renderST(allScores, hurdle, sel.map(function(s) { return s.s.c; }), rejectedMap, latestDate);
   renderBubbleMonitor();
 }
 
@@ -1910,16 +1865,16 @@ function renderSig(sel, wk, all, date, hurdle) {
 
 function renderST(all, hurdle, selectedCodes, rejectedMap, scoreM) {
   $('stCard').classList.remove('hidden');
-  var zf = v => (v !== null ? (v >= 0 ? '+' : '') + v.toFixed(2) : '-'), pf = v => (v !== null ? (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%' : '-');
+  var zf = function(v){ return v !== null ? (v >= 0 ? '+' : '') + v.toFixed(2) : '-'; }, pf = function(v){ return v !== null ? (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%' : '-'; };
   var html = '';
-  ['tw', 'us', 'etf'].forEach(pKey => {
-    var pStocks = all.filter(r => r.s.pool === pKey).sort((a,b) => b.score - a.score);
+  ['tw', 'us', 'etf'].forEach(function(pKey) {
+    var pStocks = all.filter(function(r) { return r.s.pool === pKey; }).sort(function(a,b){ return b.score - a.score; });
     if (!pStocks.length) return;
-    html += `<tr><td colspan="12" style="background:var(--sf2); color:var(--tx); font-weight:700; text-align:center; padding:8px;">${pKey.toUpperCase()} \u7af6\u722d\u6392\u884c</td></tr>`;
-    pStocks.forEach((r, i) => {
+    html += '<tr><td colspan="12" style="background:var(--sf2); color:var(--tx); font-weight:700; text-align:center; padding:8px;">' + pKey.toUpperCase() + ' \u7af6\u722d\u6392\u884c</td></tr>';
+    pStocks.forEach(function((r, i) {
       var isSel = selectedCodes.includes(r.s.c), reason = rejectedMap[r.s.c] || "\u540d\u6b21\u9760\u5f8c";
-      var status = isSel ? '<span style="color:var(--gr)">\u2605 \u5165\u9078</span>' : `<span style="color:var(--mu);font-size:11px">${reason}</span>`;
-      html += `<tr><td>${i+1}</td><td style="color:${r.s.tw?'var(--tw)':'var(--us)'}">${r.s.c}</td><td>${r.s.n}</td><td>${status}</td><td>${zf(r.score)}</td><td>${zf(r.zm)}</td><td>${zf(r.zb)}</td><td>${zf(r.zs)}</td><td>${zf(r.zv)}</td><td>${zf(r.zk)}</td><td style="color:${r.r240>hurdle?'var(--gr)':'var(--re)'}">${pf(r.r240)}</td><td>${isStrictTechnicalPass(r.s.c, scoreM)?'Y':'N'}</td></tr>`;
+      var status = isSel ? '<span style="color:var(--gr)">\u2605 \u5165\u9078</span>' : '<span style="color:var(--mu);font-size:11px">' + reason + '</span>';
+      html += '<tr><td>' + (i+1) + '</td><td style="color:' + (r.s.tw?'var(--tw)':'var(--us)') + '">' + r.s.c + '</td><td>' + r.s.n + '</td><td>' + status + '</td><td>' + zf(r.score) + '</td><td>' + zf(r.zm) + '</td><td>' + zf(r.zb) + '</td><td>' + zf(r.zs) + '</td><td>' + zf(r.zv) + '</td><td>' + zf(r.zk) + '</td><td style="color:' + (r.r240>hurdle?'var(--gr)':'var(--re)') + '">' + pf(r.r240) + '</td><td>' + (isStrictTechnicalPass(r.s.c,scoreM)?'Y':'N') + '</td></tr>';
     });
   });
   $('stBody').innerHTML = html;
