@@ -1123,7 +1123,8 @@ function runBTcore(mh, mode) {
   var useMA60=$('ma60Filter')?$('ma60Filter').value==='on':true;
 
   var nav=INIT, bNav=INIT, records=[], holdings={CASH:1.0};
-  var DEFENSIVE=['TLT','GLD','SGOV'];
+  var DEFENSIVE=['SGOV'];
+
 
   for (var idx=cS; idx<=cE; idx++) {
     var sigM=allM[idx];
@@ -1195,15 +1196,13 @@ function runBTcore(mh, mode) {
       });
     }
 
-    var totalQuota = poolModeSetting==='large' ? (parseInt(document.getElementById('btH').value)||5) : (parseInt($('btQuotaTW')?$('btQuotaTW').value:'2')||0)+(parseInt($('btQuotaUS')?$('btQuotaUS').value:'2')||0)+(parseInt($('btQuotaETF')?$('btQuotaETF').value:'1')||0);
+        var totalQuota = poolModeSetting==='large' ? (parseInt(document.getElementById('btH').value)||5) : (parseInt($('btQuotaTW')?$('btQuotaTW').value:'2')||0)+(parseInt($('btQuotaUS')?$('btQuotaUS').value:'2')||0)+(parseInt($('btQuotaETF')?$('btQuotaETF').value:'1')||0);
     var slots = totalQuota - sel.length;
     if (slots > 0) {
-      var defCands = sc2.filter(function(r){ return (r.s.c==='TLT'||r.s.c==='GLD')&&r.r240!==null&&r.r240>hurdle+0.01; }).sort(function(a,b){ return b.r240-a.r240; });
-      for (var jd=0; jd<defCands.length&&slots>0; jd++) { sel.push(defCands[jd]); slots--; }
-      if (slots > 0) {
+      var hasSGOV = DAILY['SGOV'] && DAILY['SGOV'].length > 0 && getPriceOnDate(DAILY['SGOV'], scoreM) !== null;
+      if (hasSGOV) {
         var sgovFill={s:{c:'SGOV',n:'0-3M Treasury',pool:'etf',tw:false},score:0,r240:0,zm:0,zb:0,zs:0,zv:0,zk:0};
         for (var ks2=0; ks2<slots; ks2++) sel.push(sgovFill);
-        slots=0;
       }
     }
 
