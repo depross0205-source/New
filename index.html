@@ -101,13 +101,19 @@ tr:hover{background:var(--sf2)}
 </div>
 <div class="wrap">
 <h1>TW 台股動能選股 <span class="tag">V1.9</span></h1>
-<div class="sub">台50+中100+US ETF+Mag7 | TS=^TNX+0.5% | 匓13週/美50日 | Long/Short + IVOL 完整支援</div>
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+  <span id="drsBadge" style="font-size:11px;padding:3px 10px;border-radius:3px;font-family:monospace;background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">DRS: --</span>
+  <span style="font-size:10px;color:var(--mu)">Drawdown Risk Score | HYG+TLT+VIX 完整宏觀預警</span>
+</div>
+  <div class="sub">台50+中100+US ETF+Mag7 | TS=^TNX+0.5% | 匓13週/美50日 | Long/Short + IVOL 完整支援</div>
+  
 <div class="tabs">
   <button class="tab active" onclick="switchTab('pool',this)">股池</button>
   <button class="tab" onclick="switchTab('fetch',this)">抓取</button>
   <button class="tab" onclick="switchTab('signal',this)">信號</button>
   <button class="tab" onclick="switchTab('backtest',this)">回測</button>
-  <button class="tab" onclick="switchTab('stress',this)">壓力測試</button>
+<button class="tab" onclick="switchTab('stress',this)">壓力測試</button>
+  <button class="tab" onclick="switchTab('drs',this)" style="color:var(--re)">DRS 風險</button>
 </div>
 
 <div class="panel active" id="panel-pool">
@@ -400,6 +406,54 @@ tr:hover{background:var(--sf2)}
     <div id="rollingRes" class="hidden" style="margin-top:10px"></div>
   </div>
 </div>
+</div>
+  <div class="panel" id="panel-drs">
+  <div class="card" style="border-left:4px solid var(--re)">
+    <div class="ct">
+      風險預警 - Drawdown Risk Score (DRS)
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="bo sm" onclick="fetchDRS()" style="color:var(--re);border-color:var(--re)">抓取 HYG/TLT/VIX</button>
+        <button class="bo sm" onclick="calcDRSCurrent()" style="color:var(--ye);border-color:var(--ye)">重算 DRS</button>
+      </div>
+    </div>
+    <div id="drsPanel" style="color:var(--mu);font-size:12px;padding:8px 0">
+      請先點擊「抓取 HYG/TLT/VIX」從 Yahoo Finance 自動對準。
+    </div>
+    <div class="log" id="drsLog"></div>
+  </div>
+  <div class="card">
+    <div class="ct">DRS 參數設定</div>
+    <div class="g3">
+      <div class="fi"><label>HY 權重 (%)</label><input type="number" id="drsWHY" value="30" min="0" max="100" onchange="updateDRSWeights()"></div>
+      <div class="fi"><label>YC 權重 (%)</label><input type="number" id="drsWYC" value="25" min="0" max="100" onchange="updateDRSWeights()"></div>
+      <div class="fi"><label>VIX 權重 (%)</label><input type="number" id="drsWVIX" value="20" min="0" max="100" onchange="updateDRSWeights()"></div>
+      <div class="fi"><label>Breadth 權重 (%)</label><input type="number" id="drsWBRD" value="15" min="0" max="100" onchange="updateDRSWeights()"></div>
+      <div class="fi"><label>EMA 平滑 (日)</label><input type="number" id="drsSmooth" value="21" min="5" max="63" onchange="updateDRSWeights()"></div>
+      <div class="fi"><label>窗口 (日)</label><input type="number" id="drsWin" value="252" min="126" max="504" onchange="updateDRSWeights()"></div>
+      <div class="fi"><label>警戒持續 (日)</label><input type="number" id="drsHold" value="30" min="10" max="60" onchange="updateDRSWeights()"></div>
+      <div class="fi"><label>回測啟用 DRS Gate</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;margin-top:6px">
+          <input type="checkbox" id="useDRSGate" style="width:14px;accent-color:var(--re)" checked>
+          <span>主動降區</span>
+        </label>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="border-left:4px solid var(--us)">
+    <div class="ct">防過擬合工具
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <input type="number" id="drsTrials" value="20" min="1" max="500"
+          style="width:60px;padding:4px 6px;font-size:11px;background:var(--bg);border:1px solid var(--bhi);color:var(--wh);border-radius:3px;font-family:monospace">
+        <button class="bo sm" onclick="runDRSPermutation()" style="color:var(--us);border-color:var(--us)">Permutation Test</button>
+        <button class="bo sm" onclick="runDeflatedSharpe()" style="color:var(--ac);border-color:var(--ac)">Deflated Sharpe</button>
+      </div>
+    </div>
+    <div class="ib2">
+      <b>Permutation Test</b>: 報酬序列打亂 1000 次，p &lt; 0.05 = 有效信號。<br>
+      <b>Deflated Sharpe</b> (Bailey &amp; Lopez de Prado 2014): 調整多重比較偏差。<br>
+      Trials = 實際嘗試的參數組數。 結果顯示在 stressMetrics 區塊。
+    </div>
+  </div>
 </div>
 <script>
 function updTotalH() {
@@ -1203,6 +1257,8 @@ function runBTcore(mh, mode) {
       }
     }
 
+    var useDRSEl=document.getElementById('useDRSGate');
+    if(useDRSEl&&useDRSEl.checked) target=applyDRSGate(target,scoreM,true);
     var totalW=0;
     Object.keys(target).forEach(function(c){ totalW+=target[c]; });
     var cashW=1.0-totalW;
@@ -2549,12 +2605,315 @@ function renderCostSensitivity(results, N) {
   var el = document.getElementById('stressMetrics');
   if (el) el.innerHTML = el.innerHTML + html;
 }
+  // ============================================================
+// DRS - Drawdown Risk Score Module  v1.0
+// Tickers: HYG (HY proxy) | TLT (YC proxy) | ^VIX (volatility)
+// Fetched via existing proxy infrastructure
+// All strings pure ASCII / \uXXXX escaped
+// ============================================================
+
+var DRS_DATA={};
+var DRS_RESULT=null;
+var DRS_CHART=null;
+var DRS_CFG={w_hy:0.30,w_yc:0.25,w_vix:0.20,w_brd:0.15,w_cape:0.10,smooth:21,hold:30,win:252};
+
+function rollMean(arr,i,n){var sum=0,cnt=0;for(var k=Math.max(0,i-n+1);k<=i;k++){sum+=arr[k];cnt++;}return cnt>0?sum/cnt:null;}
+function rollStd(arr,i,n){var m=rollMean(arr,i,n);if(m===null)return null;var sq=0,cnt=0;for(var k=Math.max(0,i-n+1);k<=i;k++){sq+=Math.pow(arr[k]-m,2);cnt++;}return cnt>1?Math.sqrt(sq/(cnt-1)):null;}
+function rollZ(arr,i,n){var m=rollMean(arr,i,n),s=rollStd(arr,i,n);if(m===null||s===null||s<1e-8)return 0;return(arr[i]-m)/s;}
+function emaArr(arr,span){var k=2/(span+1),result=[];for(var i=0;i=63){
+      var hygNow=hygBars[hygIdx].c,hyg63=hygBars[Math.max(0,hygIdx-63)].c;
+      if(hyg63>0)lastHY=-(hygNow/hyg63-1);
+    }
+    hyArr.push(lastHY);
+    while(tltIdx=63){
+      var tltNow=tltBars[tltIdx].c,tlt63=tltBars[Math.max(0,tltIdx-63)].c;
+      if(tlt63>0)lastYC=tltNow/tlt63-1;
+    }
+    ycArr.push(lastYC);
+    while(vixIdx=63&&ewIdx>=63&&ewBars.length>1){
+      var spNow=refBars[spIdx].c,sp63=refBars[Math.max(0,spIdx-63)].c;
+      var ewNow=ewBars[ewIdx].c,ew63=ewBars[Math.max(0,ewIdx-63)].c;
+      if(sp63>0&&ew63>0&&ewNow>0)lastBrd=(spNow/sp63)/(ewNow/ew63)-1;
+    }
+    brdArr.push(lastBrd);
+  }
+  var n=DRS_CFG.win;
+  var rawDRS=[];
+  for(var j=0;j=n?-rollZ(hyArr,k,n):0,
+      z_yc:k>=n? rollZ(ycArr,k,n):0,
+      z_vix:k>=n?rollZ(vixArr,k,n):0,
+      z_brd:k>=n?rollZ(brdArr,k,n):0
+    };
+  }
+  return{map:out,dates:allDates,smoothed:smoothed};
+}
+
+function drsLevel(v){
+  if(v>=2.0)return{level:3,label:'RED  -60%',color:'#ff4d6d',reduce:0.60};
+  if(v>=1.5)return{level:2,label:'ORANGE -40%',color:'#ff8c42',reduce:0.40};
+  if(v>=1.0)return{level:1,label:'YELLOW -20%',color:'#ffb830',reduce:0.20};
+  return{level:0,label:'GREEN  OK',color:'#00e5a0',reduce:0.0};
+}
+
+function calcDRSCurrent(){
+  var ts=buildDRSTimeSeries();
+  if(!ts||!ts.dates.length){updateDRSBadge();return;}
+  DRS_RESULT=ts;
+  var lastDate=ts.dates[ts.dates.length-1];
+  var pt=ts.map[lastDate];
+  if(!pt){updateDRSBadge();return;}
+  var lv=drsLevel(pt.drs);
+  updateDRSPanel(lastDate,pt,lv,ts);
+  updateDRSBadge(lv,pt.drs);
+}
+
+function updateDRSBadge(lv,val){
+  var badge=document.getElementById('drsBadge');if(!badge)return;
+  if(!lv){badge.textContent='DRS: --';badge.style.background='var(--sf2)';badge.style.color='var(--mu)';badge.style.borderColor='var(--bd)';return;}
+  badge.textContent='DRS '+(val>=0?'+':'')+val.toFixed(2)+' '+lv.label;
+  badge.style.background=lv.color+'22';badge.style.color=lv.color;badge.style.borderColor=lv.color;
+}
+
+function updateDRSPanel(date,pt,lv,ts){
+  var panel=document.getElementById('drsPanel');if(!panel)return;
+  var gaugePct=Math.max(0,Math.min(100,((pt.drs+2)/5)*100));
+  var gc=lv.color;
+  function zBar(z,label){
+    var pct=Math.max(0,Math.min(100,(z+2)/4*100));
+    var col=z>0.5?'#ff4d6d':z>0?'#ffb830':'#00e5a0';
+    return '
+'
+      +'
+'+label+'
+'
+      +'
+'
+      +'
+'
+      +'
+'
+      +(z>=0?'+':'')+z.toFixed(2)+'
+';
+  }
+  var breachDates=[];
+  if(ts&&ts.dates){
+    for(var bi=ts.dates.length-1;bi>=0&&breachDates.length<3;bi--){
+      var bpt=ts.map[ts.dates[bi]];
+      if(bpt&&bpt.drs>=1.5){
+        if(!breachDates.length||ts.dates[bi].slice(0,7)!==breachDates[breachDates.length-1].slice(0,7))
+          breachDates.push(ts.dates[bi]);
+      }
+    }
+  }
+  var breachHtml=breachDates.length
+    ?'
+\u8fd1\u671f\u8b66\u6212: '
+      +breachDates.map(function(d){var v=ts.map[d].drs;var bc=drsLevel(v).color;return''+d.slice(0,7)+'('+v.toFixed(1)+')';}).join(' / ')
+      +'
+':''
+  ;
+  panel.innerHTML=
+    '
+'
+    +'
+DRAWDOWN RISK SCORE (DRS)
+'
+    +'
+\u57fa\u6e96\u65e5: '+date+' | EMA-'+DRS_CFG.smooth+' \u5e73\u6ed1
+'
+    +'
+'+(pt.drs>=0?'+':'')+pt.drs.toFixed(2)+'
+'
+    +'
+'
+    +'
+'
+    +'
+'
+    +''
+    +lv.label+(lv.reduce>0?' | \u5efa\u8b70\u964d\u5310 '+(lv.reduce*100).toFixed(0)+'%':'')+''
+    +(lv.level>0?'
+\u8b66\u6212\u89e3\u9664\u9700 '+DRS_CFG.hold+' \u500b\u4ea4\u6613\u65e5 DRS < 1.0
+':'')
+    +'
+'
+    +'
+\U56E0\U5B50\U5206\U89E3
+'
+    +zBar(pt.z_hy,'HY Sprd')+zBar(-pt.z_yc,'YC Slope')+zBar(pt.z_vix,'VIX Chg')+zBar(pt.z_brd,'Breadth')
+    +'
+'
+    +breachHtml
+    +'
+'
+    +'\u6b0a\u91cd: HY 30% | YC 25% | VIX 20% | Breadth 15% | \u6efe\u52d5\u7a97\u53e3 '+DRS_CFG.win+' \u65e5
+'
+    +'HYG=HY\u4ee3\u7406 | TLT=YC\u4ee3\u7406 | SPY/RSP=Breadth | ^VIX=\u6ce2\u52d5\u7387
+';
+}
+
+function applyDRSGate(target,dateStr,useDRS){
+  if(!useDRS||!DRS_RESULT)return target;
+  var pt=DRS_RESULT.map[dateStr];
+  if(!pt){
+    var keys=Object.keys(DRS_RESULT.map).sort();
+    for(var i=keys.length-1;i>=0;i--){if(keys[i]<=dateStr){pt=DRS_RESULT.map[keys[i]];break;}}
+  }
+  if(!pt)return target;
+  var lv=drsLevel(pt.drs);
+  if(lv.reduce<=0)return target;
+  var reduction=lv.reduce,newTarget={},cashExtra=0;
+  for(var c in target){
+    var w=target[c];
+    if(c==='CASH'||c==='SGOV'){newTarget[c]=w;}
+    else{var scaled=w*(1-reduction);newTarget[c]=scaled;cashExtra+=w-scaled;}
+  }
+  newTarget['CASH']=(newTarget['CASH']||0)+cashExtra;
+  return newTarget;
+}
+
+function runDRSPermutation(){
+  if(!BT_RESULT){alert('Run backtest first');return;}
+  var simN=parseInt(document.getElementById('stSimN')?document.getElementById('stSimN').value:'1000')||1000;
+  var rets=BT_RESULT.records.map(function(r){return r.pRet;});
+  var init=BT_RESULT.initial,n=rets.length;
+  sl('stressLog','DRS Permutation Test x'+simN+'...',null);showL('DRS Permutation Test...');
+  setTimeout(function(){
+    try{
+      var nav=init;rets.forEach(function(r){nav*=(1+r);});
+      var yrs=n/12,realCagr=Math.pow(nav/init,1/yrs)-1;
+      var avg0=rets.reduce(function(a,b){return a+b;},0)/n;
+      var std0=Math.sqrt(rets.reduce(function(a,b){return a+Math.pow(b-avg0,2);},0)/n)*Math.sqrt(12);
+      var realSharpe=std0>0?(realCagr-0.015)/std0:0;
+      var sharpesDist=[];
+      for(var s=0;s0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=perm[i];perm[i]=perm[j];perm[j]=tmp;}
+        var pNav=init;perm.forEach(function(r){pNav*=(1+r);});
+        var pCagr=Math.pow(pNav/init,1/yrs)-1;
+        var pavg=perm.reduce(function(a,b){return a+b;},0)/n;
+        var pstd=Math.sqrt(perm.reduce(function(a,b){return a+Math.pow(b-pavg,2);},0)/n)*Math.sqrt(12);
+        sharpesDist.push(pstd>0?(pCagr-0.015)/pstd:0);
+      }
+      var pVal=sharpesDist.filter(function(v){return v>=realSharpe;}).length/simN;
+      var verdict=pVal<=0.05?'PASS p<0.05':pVal<=0.10?'WARN p<0.10':'FAIL p='+pVal.toFixed(2);
+      var vcol=pVal<=0.05?'var(--gr)':pVal<=0.10?'var(--ye)':'var(--re)';
+      var html='
+'
+        +'
+PERMUTATION TEST (x'+simN+')
+'
+        +'
+'
+        +'
+p-value
+'+pVal.toFixed(3)+'
+'
+        +'
+Real Sharpe
+'+realSharpe.toFixed(2)+'
+'
+        +'
+Verdict
+'+verdict+'
+'
+        +'
+'
+        +'
+Null: Sharpe indistinguishable from random sequence. p<0.05 rejects null.
+'
+        +'
+';
+      var el=document.getElementById('stressMetrics');if(el)el.innerHTML=el.innerHTML+html;
+      var sr=document.getElementById('stressRes');if(sr)sr.classList.remove('hidden');
+      sl('stressLog','Permutation p='+pVal.toFixed(3)+' | '+verdict,pVal<=0.05);
+    }catch(e){sl('stressLog','Error: '+e.message,false);}
+    hideL();
+  },80);
+}
+
+function calcDeflatedSharpe(sharpe,n,skew,kurt,trials){
+  var adj=Math.max(0.01,1-skew*sharpe+((kurt-1)/4)*sharpe*sharpe);
+  var srStar=(sharpe*Math.sqrt(n-1))/Math.sqrt(adj);
+  var expectedMax=Math.sqrt(2*Math.log(trials));
+  var deflated=(srStar-expectedMax)/Math.sqrt(1+expectedMax*expectedMax/2);
+  return{srStar:srStar,deflated:deflated,expectedMax:expectedMax};
+}
+
+function runDeflatedSharpe(){
+  if(!BT_RESULT){alert('Run backtest first');return;}
+  var rets=BT_RESULT.records.map(function(r){return r.pRet;});
+  var n=rets.length;
+  var avg=rets.reduce(function(a,b){return a+b;},0)/n;
+  var variance=rets.reduce(function(a,b){return a+Math.pow(b-avg,2);},0)/n;
+  var std=Math.sqrt(variance)*Math.sqrt(12);
+  var skew=rets.reduce(function(a,b){return a+Math.pow((b-avg)/Math.sqrt(variance),3);},0)/n;
+  var kurt=rets.reduce(function(a,b){return a+Math.pow((b-avg)/Math.sqrt(variance),4);},0)/n;
+  var init=BT_RESULT.initial;
+  var last=BT_RESULT.records[BT_RESULT.records.length-1];
+  var yrs=(new Date(last.month)-new Date(BT_RESULT.records[0].month))/(365.25*86400000);
+  var cagr=Math.pow(last.nav/init,1/yrs)-1;
+  var rawSharpe=std>0?(cagr-0.015)/std:0;
+  var trialsEl=document.getElementById('drsTrials');
+  var trials=trialsEl?(parseInt(trialsEl.value)||20):20;
+  var ds=calcDeflatedSharpe(rawSharpe,n,skew,kurt,trials);
+  var vcol=ds.deflated>0?'var(--gr)':'var(--re)';
+  var verdict=ds.deflated>0?'PASS - Edge survives multiple testing':'WARN - May be overfitted';
+  function mkDSCard(title,val,color){return'
+'+title+'
+'+val+'
+';}
+  var html='
+'
+    +'
+DEFLATED SHARPE RATIO (Bailey & Lopez de Prado 2014)
+'
+    +'
+'
+    +mkDSCard('Raw Sharpe',rawSharpe.toFixed(2),'var(--ye)')
+    +mkDSCard('SR*',ds.srStar.toFixed(2),'var(--ac)')
+    +mkDSCard('E[max SR]',ds.expectedMax.toFixed(2),'var(--mu)')
+    +mkDSCard('Deflated SR',ds.deflated.toFixed(2),vcol)
+    +'
+'
+    +'
+'
+    +'Skewness: '+skew.toFixed(2)+' | Kurtosis: '+kurt.toFixed(2)+' | Trials: '+trials+'
+'
+    +'\u7d50\u8ad6: '+verdict+''
+    +'
+'
+    +'
+Deflated SR > 0 = \u7b56\u7565\u5728\u8003\u616e\u591a\u91cd\u6e2c\u8a66\u504f\u5dee\u5f8c\u4ecd\u5177\u7d71\u8a08\u986f\u8457\u6027
+'
+    +'
+';
+  var el=document.getElementById('stressMetrics');if(el)el.innerHTML=el.innerHTML+html;
+  var sr2=document.getElementById('stressRes');if(sr2)sr2.classList.remove('hidden');
+  sl('stressLog','Deflated Sharpe: '+ds.deflated.toFixed(3)+' | '+verdict,ds.deflated>0);
+}
+
+function updateDRSWeights(){
+  var wHY  =parseFloat(document.getElementById('drsWHY')   ?document.getElementById('drsWHY').value  :'30')/100||0.30;
+  var wYC  =parseFloat(document.getElementById('drsWYC')   ?document.getElementById('drsWYC').value  :'25')/100||0.25;
+  var wVIX =parseFloat(document.getElementById('drsWVIX')  ?document.getElementById('drsWVIX').value :'20')/100||0.20;
+  var wBRD =parseFloat(document.getElementById('drsWBRD')  ?document.getElementById('drsWBRD').value :'15')/100||0.15;
+  var sm   =parseInt(document.getElementById('drsSmooth')  ?document.getElementById('drsSmooth').value:'21')||21;
+  var win  =parseInt(document.getElementById('drsWin')     ?document.getElementById('drsWin').value   :'252')||252;
+  var hold =parseInt(document.getElementById('drsHold')    ?document.getElementById('drsHold').value  :'30')||30;
+  DRS_CFG.w_hy=wHY;DRS_CFG.w_yc=wYC;DRS_CFG.w_vix=wVIX;DRS_CFG.w_brd=wBRD;
+  DRS_CFG.w_cape=Math.max(0,1-wHY-wYC-wVIX-wBRD);
+  DRS_CFG.smooth=sm;DRS_CFG.win=win;DRS_CFG.hold=hold;
+  calcDRSCurrent();
+}
+// ============================================================
+// END DRS MODULE
+// ===========================================
 window.onload = async function() {
   renderPool();
   initGroupToggles();
   togglePoolUI();
   var hasData = await loadFromDB();
   if(!hasData) console.log('No local data found in IndexedDB.');
+  if(Object.keys(DRS_DATA).length>0||DAILY['^VIX']) calcDRSCurrent();
 };
 </script>
 </body>
