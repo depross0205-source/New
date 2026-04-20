@@ -2681,19 +2681,14 @@ function updateDRSPanel(date,pt,lv,ts){
   function zBar(z,label){
     var pct=Math.max(0,Math.min(100,(z+2)/4*100));
     var col=z>0.5?'#ff4d6d':z>0?'#ffb830':'#00e5a0';
-    return '
-'
-      +'
-'+label+'
-'
-      +'
-'
-      +'
-'
-      +'
-'
-      +(z>=0?'+':'')+z.toFixed(2)+'
-';
+    return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'
+      +'<span style="width:52px;font-size:10px;color:var(--mu)">'+label+'</span>'
+      +'<div style="flex:1;height:4px;background:var(--bd);border-radius:2px;">'
+      +'<div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:2px;"></div>'
+      +'</div>'
+      +'<span style="width:36px;text-align:right;font-family:monospace;font-size:10px;color:'+col+';">'
+      +(z>=0?'+':'')+z.toFixed(2)+'</span>'
+      +'</div>';
   }
   var breachDates=[];
   if(ts&&ts.dates){
@@ -2706,51 +2701,35 @@ function updateDRSPanel(date,pt,lv,ts){
     }
   }
   var breachHtml=breachDates.length
-    ?'
-\u8fd1\u671f\u8b66\u6212: '
-      +breachDates.map(function(d){var v=ts.map[d].drs;var bc=drsLevel(v).color;return''+d.slice(0,7)+'('+v.toFixed(1)+')';}).join(' / ')
-      +'
-':''
+    ?'<div style="font-size:10px;color:var(--re);margin-top:6px;">\u8fd1\u671f\u8b66\u6212: '
+      +breachDates.map(function(d){var v=ts.map[d].drs;var bc=drsLevel(v).color;return '<b style="color:'+bc+'">'+d.slice(0,7)+'('+v.toFixed(1)+')</b>';}).join(' / ')
+      +'</div>':''
   ;
   panel.innerHTML=
-    '
-'
-    +'
-DRAWDOWN RISK SCORE (DRS)
-'
-    +'
-\u57fa\u6e96\u65e5: '+date+' | EMA-'+DRS_CFG.smooth+' \u5e73\u6ed1
-'
-    +'
-'+(pt.drs>=0?'+':'')+pt.drs.toFixed(2)+'
-'
-    +'
-'
-    +'
-'
-    +'
-'
-    +''
-    +lv.label+(lv.reduce>0?' | \u5efa\u8b70\u964d\u5310 '+(lv.reduce*100).toFixed(0)+'%':'')+''
-    +(lv.level>0?'
-\u8b66\u6212\u89e3\u9664\u9700 '+DRS_CFG.hold+' \u500b\u4ea4\u6613\u65e5 DRS < 1.0
-':'')
-    +'
-'
-    +'
-\U56E0\U5B50\U5206\U89E3
-'
+    '<div style="background:var(--sf2);border:1px solid var(--bd);padding:10px;border-radius:3px;">'
+    +'<div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:6px">DRAWDOWN RISK SCORE (DRS)</div>'
+    +'<div style="font-size:10px;color:var(--mu);margin-bottom:8px">\u57fa\u6e96\u65e5: '+date+' | EMA-'+DRS_CFG.smooth+' \u5e73\u6ed1</div>'
+    +'<div style="font-size:32px;font-weight:700;font-family:monospace;color:'+gc+';margin-bottom:6px">'+(pt.drs>=0?'+':'')+pt.drs.toFixed(2)+'</div>'
+    +'<div style="height:6px;background:var(--bd);border-radius:3px;margin-bottom:8px;">'
+    +'<div style="width:'+gaugePct+'%;height:100%;background:'+gc+';border-radius:3px;transition:width .4s;"></div>'
+    +'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:'+gc+';margin-bottom:4px;">'
+    +'<span style="background:'+gc+'22;border:1px solid '+gc+';padding:2px 8px;border-radius:3px;">'
+    +lv.label+(lv.reduce>0?' | \u5efa\u8b70\u964d\u5310 '+(lv.reduce*100).toFixed(0)+'%':'')+' </span>'
+    +(lv.level>0?'<div style="font-size:10px;color:var(--mu);margin-top:4px;">\u8b66\u6212\u89e3\u9664\u9700 '+DRS_CFG.hold+' \u500b\u4ea4\u6613\u65e5 DRS &lt; 1.0</div>':'')
+    +'</div>'
+    +'<div style="margin-top:8px;">'
+    +'<div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px;">\u56e0\u5b50\u5206\u89e3</div>'
     +zBar(pt.z_hy,'HY Sprd')+zBar(-pt.z_yc,'YC Slope')+zBar(pt.z_vix,'VIX Chg')+zBar(pt.z_brd,'Breadth')
-    +'
-'
+    +'</div>'
     +breachHtml
-    +'
-'
-    +'\u6b0a\u91cd: HY 30% | YC 25% | VIX 20% | Breadth 15% | \u6efe\u52d5\u7a97\u53e3 '+DRS_CFG.win+' \u65e5
-'
-    +'HYG=HY\u4ee3\u7406 | TLT=YC\u4ee3\u7406 | SPY/RSP=Breadth | ^VIX=\u6ce2\u52d5\u7387
-';
+    +'<div style="margin-top:8px;font-size:10px;color:var(--mu);">'
+    +'\u6b0a\u91cd: HY 30% | YC 25% | VIX 20% | Breadth 15% | \u6efe\u52d5\u7a97\u53e3 '+DRS_CFG.win+' \u65e5'
+    +'</div>'
+    +'<div style="font-size:10px;color:var(--mu);">HYG=HY\u4ee3\u7406 | TLT=YC\u4ee3\u7406 | SPY/RSP=Breadth | ^VIX=\u6ce2\u52d5\u7387</div>'
+    +'</div>';
 }
+
 
 function applyDRSGate(target,dateStr,useDRS){
   if(!useDRS||!DRS_RESULT)return target;
@@ -2786,7 +2765,9 @@ function runDRSPermutation(){
       var std0=Math.sqrt(rets.reduce(function(a,b){return a+Math.pow(b-avg0,2);},0)/n)*Math.sqrt(12);
       var realSharpe=std0>0?(realCagr-0.015)/std0:0;
       var sharpesDist=[];
-      for(var s=0;s0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=perm[i];perm[i]=perm[j];perm[j]=tmp;}
+      for(var s=0;s<simN;s++){
+        var perm=rets.slice();
+        for(var i=perm.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=perm[i];perm[i]=perm[j];perm[j]=tmp;}
         var pNav=init;perm.forEach(function(r){pNav*=(1+r);});
         var pCagr=Math.pow(pNav/init,1/yrs)-1;
         var pavg=perm.reduce(function(a,b){return a+b;},0)/n;
@@ -2796,32 +2777,15 @@ function runDRSPermutation(){
       var pVal=sharpesDist.filter(function(v){return v>=realSharpe;}).length/simN;
       var verdict=pVal<=0.05?'PASS p<0.05':pVal<=0.10?'WARN p<0.10':'FAIL p='+pVal.toFixed(2);
       var vcol=pVal<=0.05?'var(--gr)':pVal<=0.10?'var(--ye)':'var(--re)';
-      var html='
-'
-        +'
-PERMUTATION TEST (x'+simN+')
-'
-        +'
-'
-        +'
-p-value
-'+pVal.toFixed(3)+'
-'
-        +'
-Real Sharpe
-'+realSharpe.toFixed(2)+'
-'
-        +'
-Verdict
-'+verdict+'
-'
-        +'
-'
-        +'
-Null: Sharpe indistinguishable from random sequence. p<0.05 rejects null.
-'
-        +'
-';
+      var html='<div class="card" style="border-top:3px solid var(--us);margin-bottom:10px;">'
+        +'<div class="ct">PERMUTATION TEST (x'+simN+')</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">'
+        +'<div class="card" style="padding:8px;border-top:2px solid '+vcol+'"><div style="font-size:10px;color:var(--mu)">p-value</div><div class="mono" style="font-size:20px;color:'+vcol+'">'+pVal.toFixed(3)+'</div></div>'
+        +'<div class="card" style="padding:8px;border-top:2px solid var(--ac)"><div style="font-size:10px;color:var(--mu)">Real Sharpe</div><div class="mono" style="font-size:20px;color:var(--ac)">'+realSharpe.toFixed(2)+'</div></div>'
+        +'<div class="card" style="padding:8px;border-top:2px solid '+vcol+'"><div style="font-size:10px;color:var(--mu)">Verdict</div><div class="mono" style="font-size:13px;color:'+vcol+'">'+verdict+'</div></div>'
+        +'</div>'
+        +'<div style="font-size:10px;color:var(--mu);">Null: Sharpe indistinguishable from random sequence. p&lt;0.05 rejects null.</div>'
+        +'</div>';
       var el=document.getElementById('stressMetrics');if(el)el.innerHTML=el.innerHTML+html;
       var sr=document.getElementById('stressRes');if(sr)sr.classList.remove('hidden');
       sl('stressLog','Permutation p='+pVal.toFixed(3)+' | '+verdict,pVal<=0.05);
@@ -2829,6 +2793,7 @@ Null: Sharpe indistinguishable from random sequence. p<0.05 rejects null.
     hideL();
   },80);
 }
+
 
 function calcDeflatedSharpe(sharpe,n,skew,kurt,trials){
   var adj=Math.max(0.01,1-skew*sharpe+((kurt-1)/4)*sharpe*sharpe);
@@ -2857,39 +2822,28 @@ function runDeflatedSharpe(){
   var ds=calcDeflatedSharpe(rawSharpe,n,skew,kurt,trials);
   var vcol=ds.deflated>0?'var(--gr)':'var(--re)';
   var verdict=ds.deflated>0?'PASS - Edge survives multiple testing':'WARN - May be overfitted';
-  function mkDSCard(title,val,color){return'
-'+title+'
-'+val+'
-';}
-  var html='
-'
-    +'
-DEFLATED SHARPE RATIO (Bailey & Lopez de Prado 2014)
-'
-    +'
-'
+  function mkDSCard(title,val,color){
+    return '<div class="card" style="padding:8px;border-top:2px solid '+color+'"><div style="font-size:10px;color:var(--mu)">'+title+'</div><div class="mono" style="font-size:18px;color:'+color+'">'+val+'</div></div>';
+  }
+  var html='<div class="card" style="border-top:3px solid var(--ac);margin-bottom:10px;">'
+    +'<div class="ct">DEFLATED SHARPE RATIO (Bailey &amp; Lopez de Prado 2014)</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px;">'
     +mkDSCard('Raw Sharpe',rawSharpe.toFixed(2),'var(--ye)')
     +mkDSCard('SR*',ds.srStar.toFixed(2),'var(--ac)')
     +mkDSCard('E[max SR]',ds.expectedMax.toFixed(2),'var(--mu)')
     +mkDSCard('Deflated SR',ds.deflated.toFixed(2),vcol)
-    +'
-'
-    +'
-'
-    +'Skewness: '+skew.toFixed(2)+' | Kurtosis: '+kurt.toFixed(2)+' | Trials: '+trials+'
-'
-    +'\u7d50\u8ad6: '+verdict+''
-    +'
-'
-    +'
-Deflated SR > 0 = \u7b56\u7565\u5728\u8003\u616e\u591a\u91cd\u6e2c\u8a66\u504f\u5dee\u5f8c\u4ecd\u5177\u7d71\u8a08\u986f\u8457\u6027
-'
-    +'
-';
+    +'</div>'
+    +'<div style="background:var(--sf2);border:1px solid var(--bd);padding:8px;font-size:11px;">'
+    +'Skewness: '+skew.toFixed(2)+' | Kurtosis: '+kurt.toFixed(2)+' | Trials: '+trials+'<br>'
+    +'<span style="color:'+vcol+'">\u7d50\u8ad6: '+verdict+'</span>'
+    +'</div>'
+    +'<div style="font-size:10px;color:var(--mu);margin-top:6px;">Deflated SR &gt; 0 = \u7b56\u7565\u5728\u8003\u616e\u591a\u91cd\u6e2c\u8a66\u504f\u5dee\u5f8c\u4ecd\u5177\u7d71\u8a08\u986f\u8457\u6027</div>'
+    +'</div>';
   var el=document.getElementById('stressMetrics');if(el)el.innerHTML=el.innerHTML+html;
   var sr2=document.getElementById('stressRes');if(sr2)sr2.classList.remove('hidden');
   sl('stressLog','Deflated Sharpe: '+ds.deflated.toFixed(3)+' | '+verdict,ds.deflated>0);
 }
+
 
 function updateDRSWeights(){
   var wHY  =parseFloat(document.getElementById('drsWHY')   ?document.getElementById('drsWHY').value  :'30')/100||0.30;
@@ -2907,14 +2861,16 @@ function updateDRSWeights(){
 // ============================================================
 // END DRS MODULE
 // ===========================================
-window.onload = async function() {
+window.onload = function() {
   renderPool();
   initGroupToggles();
   togglePoolUI();
-  var hasData = await loadFromDB();
-  if(!hasData) console.log('No local data found in IndexedDB.');
-  if(Object.keys(DRS_DATA).length>0||DAILY['^VIX']) calcDRSCurrent();
+  loadFromDB().then(function(hasData) {
+    if (!hasData) console.log('No local data found in IndexedDB.');
+    if (Object.keys(DRS_DATA).length > 0 || DAILY['^VIX']) calcDRSCurrent();
+  });
 };
+
 </script>
 </body>
 </html>
