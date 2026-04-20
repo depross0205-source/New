@@ -2861,7 +2861,27 @@ function updateDRSWeights(){
 // ============================================================
 // END DRS MODULE
 // ===========================================
-window.onload = function() {
+async function fetchDRS() {
+  var tickers = [{c:'HYG',tw:false},{c:'TLT',tw:false},{c:'RSP',tw:false},{c:'^VIX',tw:false}];
+  sl('drsLog','Fetching HYG / TLT / ^VIX / RSP...',null);
+  showL('Fetching DRS tickers...');
+  for (var i = 0; i < tickers.length; i++) {
+    var s = tickers[i];
+    try {
+      DRS_DATA[s.c] = await fetchOHLCV(s, '1d', 'max');
+      DAILY[s.c] = DRS_DATA[s.c];
+      sl('drsLog', s.c + ' OK (' + DRS_DATA[s.c].length + ' days)', true);
+    } catch(e) {
+      sl('drsLog', s.c + ' FAIL: ' + e.message, false);
+    }
+    await new Promise(function(r){ setTimeout(r, 500); });
+  }
+  hideL();
+  calcDRSCurrent();
+  sl('drsLog', 'DRS fetch complete', true);
+}
+
+  window.onload = function() {
   renderPool();
   initGroupToggles();
   togglePoolUI();
