@@ -2908,102 +2908,174 @@ function calcDRSCurrent(){
 // ==========================
 // DRS COMPARE
 // ==========================
-function runDRSCompare(){
-  if(!CACHE_BUILT){alert('Build cache first');return;}
+function runDRSCompare() {
+  if (!CACHE_BUILT) { alert('Build cache first'); return; }
 
-  var old=$('useDRSGate')?$('useDRSGate').checked:true;
-  var mh=parseInt($('btH').value)||5;
-  var mode=getWeightMode();
-  var init=gv('btCap')||100000;
+  var oldChecked = document.getElementById('useDRSGate') ? document.getElementById('useDRSGate').checked : true;
+  var mh = parseInt($('btH') ? $('btH').value : '5') || 5;
+  var mode = getWeightMode();
+  var init = gv('btCap') || 100000;
 
-  if($('useDRSGate'))$('useDRSGate').checked=false;
-  var off=runBTcore(mh,mode);
+  sl('drsLog', 'Running DRS On/Off compare...', null);
+  showL('DRS On/Off Compare...');
 
-  if($('useDRSGate'))$('useDRSGate').checked=true;
-  var on=runBTcore(mh,mode);
+  setTimeout(function() {
+    try {
+      if ($('useDRSGate')) $('useDRSGate').checked = false;
+      var recOff = runBTcore(mh, mode);
+      if (!recOff) throw new Error('DRS OFF 回測失敗');
 
-  if($('useDRSGate'))$('useDRSGate').checked=old;
+      if ($('useDRSGate')) $('useDRSGate').checked = true;
+      var recOn = runBTcore(mh, mode);
+      if (!recOn) throw new Error('DRS ON 回測失敗');
 
-  var k0=kpi(off,init),k1=kpi(on,init);
+      var kOff = kpi(recOff, init);
+      var kOn = kpi(recOn, init);
 
-  console.log('DRS OFF',k0);
-  console.log('DRS ON',k1);
+      var html = '<div class="card" style="border-top:3px solid var(--re);margin-bottom:10px;">'
+        + '<div class="ct">DRS BACKTEST COMPARE (ON vs OFF)</div>'
+        + '<div class="tw-wrap"><table><thead><tr>'
+        + '<th>Mode</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Final NAV</th>'
+        + '</tr></thead><tbody>'
+        + '<tr>'
+        + '<td class="mono" style="color:var(--mu)">DRS OFF</td>'
+        + '<td class="mono" style="color:' + (kOff.cagr >= 0 ? 'var(--gr)' : 'var(--re)') + '">' + (kOff.cagr * 100).toFixed(2) + '%</td>'
+        + '<td class="mono" style="color:var(--re)">' + (kOff.mdd * 100).toFixed(2) + '%</td>'
+        + '<td class="mono" style="color:' + (kOff.sharpe >= 0 ? 'var(--gr)' : 'var(--re)') + '">' + kOff.sharpe.toFixed(2) + '</td>'
+        + '<td class="mono" style="color:var(--wh)">$' + Math.round(kOff.nav).toLocaleString() + '</td>'
+        + '</tr>'
+        + '<tr>'
+        + '<td class="mono" style="color:var(--re)">DRS ON</td>'
+        + '<td class="mono" style="color:' + (kOn.cagr >= 0 ? 'var(--gr)' : 'var(--re)') + '">' + (kOn.cagr * 100).toFixed(2) + '%</td>'
+        + '<td class="mono" style="color:var(--re)">' + (kOn.mdd * 100).toFixed(2) + '%</td>'
+        + '<td class="mono" style="color:' + (kOn.sharpe >= 0 ? 'var(--gr)' : 'var(--re)') + '">' + kOn.sharpe.toFixed(2) + '</td>'
+        + '<td class="mono" style="color:var(--wh)">$' + Math.round(kOn.nav).toLocaleString() + '</td>'
+        + '</tr>'
+        + '</tbody></table></div>'
+        + '</div>';
+
+      var targetRes = document.getElementById('stressRes');
+      if (targetRes) targetRes.classList.remove('hidden');
+      var el = document.getElementById('stressMetrics');
+      if (el) el.innerHTML = el.innerHTML + html;
+
+      sl('drsLog', 'DRS On/Off compare done', true);
+    } catch (e) {
+      console.error(e);
+      sl('drsLog', 'DRS compare error: ' + e.message, false);
+    } finally {
+      if ($('useDRSGate')) $('useDRSGate').checked = oldChecked;
+      hideL();
+    }
+  }, 80);
 }
 
-// ==========================
-// PERMUTATION TEST
-// ==========================
-function runDRSPermutation(){
-  if(!BT_RESULT){alert('Run backtest first');return;}
+function runDRSPermutation() {
+  if (!BT_RESULT) { alert('Run backtest first'); return; }
 
-  var rets=BT_RESULT.records.map(r=>r.pRet);
-  var init=BT_RESULT.initial,n=rets.length;
+  var simN = parseInt(document.getElementById('drsTrials') ? document.getElementById('drsTrials').value : '1000', 10) || 1000;
+  var rets = BT_RESULT.records.map(function(r){ return r.pRet; });
+  var init = BT_RESULT.initial, n = rets.length;
 
-  var nav=init;
-  rets.forEach(r=>nav*=(1+r));
-  var yrs=n/12;
-  var cagr=Math.pow(nav/init,1/yrs)-1;
+  sl('stressLog', 'DRS Permutation Test x' + simN + '...', null);
+  showL('DRS Permutation Test...');
 
-  var avg=rets.reduce((a,b)=>a+b,0)/n;
-  var std=Math.sqrt(rets.reduce((a,b)=>a+(b-avg)**2,0)/n)*Math.sqrt(12);
-  var sharpe=std>0?(cagr-0.015)/std:0;
+  setTimeout(function() {
+    try {
+      var nav = init;
+      rets.forEach(function(r){ nav *= (1 + r); });
+      var yrs = n / 12;
+      var realCagr = Math.pow(nav / init, 1 / yrs) - 1;
+      var avg0 = rets.reduce(function(a,b){ return a + b; }, 0) / n;
+      var std0 = Math.sqrt(rets.reduce(function(a,b){ return a + Math.pow(b - avg0, 2); }, 0) / n) * Math.sqrt(12);
+      var realSharpe = std0 > 0 ? (realCagr - 0.015) / std0 : 0;
 
-  var sims=500;
-  var dist=[];
+      var sharpesDist = [];
+      for (var s = 0; s < simN; s++) {
+        var perm = rets.slice();
+        for (var i = perm.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = perm[i]; perm[i] = perm[j]; perm[j] = tmp;
+        }
+        var pNav = init;
+        perm.forEach(function(r){ pNav *= (1 + r); });
+        var pCagr = Math.pow(pNav / init, 1 / yrs) - 1;
+        var pavg = perm.reduce(function(a,b){ return a + b; }, 0) / n;
+        var pstd = Math.sqrt(perm.reduce(function(a,b){ return a + Math.pow(b - pavg, 2); }, 0) / n) * Math.sqrt(12);
+        sharpesDist.push(pstd > 0 ? (pCagr - 0.015) / pstd : 0);
+      }
 
-  for(let s=0;s<sims;s++){
-    let p=rets.slice().sort(()=>Math.random()-0.5);
-    let pn=init;
-    p.forEach(r=>pn*=(1+r));
-    let pc=Math.pow(pn/init,1/yrs)-1;
-    let pa=p.reduce((a,b)=>a+b,0)/n;
-    let ps=Math.sqrt(p.reduce((a,b)=>a+(b-pa)**2,0)/n)*Math.sqrt(12);
-    dist.push(ps>0?(pc-0.015)/ps:0);
-  }
+      var pVal = sharpesDist.filter(function(v){ return v >= realSharpe; }).length / simN;
+      var verdict = pVal <= 0.05 ? 'PASS p<0.05' : pVal <= 0.10 ? 'WARN p<0.10' : 'FAIL p=' + pVal.toFixed(2);
 
-  var pval=dist.filter(v=>v>=sharpe).length/sims;
-  console.log('Permutation p=',pval);
+      var html = '<div class="card" style="border-top:3px solid var(--us);margin-bottom:10px;">'
+        + '<div class="ct">DRS PERMUTATION TEST (x' + simN + ')</div>'
+        + '<div style="font-size:12px">p-value: <b>' + pVal.toFixed(3) + '</b> | Sharpe: <b>' + realSharpe.toFixed(2) + '</b> | ' + verdict + '</div>'
+        + '</div>';
+
+      var targetRes = document.getElementById('stressRes');
+      if (targetRes) targetRes.classList.remove('hidden');
+      var el = document.getElementById('stressMetrics');
+      if (el) el.innerHTML = el.innerHTML + html;
+
+      sl('stressLog', 'Permutation done', true);
+    } catch (e) {
+      console.error(e);
+      sl('stressLog', 'Error: ' + e.message, false);
+    } finally {
+      hideL();
+    }
+  }, 80);
 }
 
-// ==========================
-// DEFLATED SHARPE
-// ==========================
-function calcDeflatedSharpe(sharpe,n,skew,kurt,trials){
-  var adj=Math.max(0.01,1-skew*sharpe+((kurt-1)/4)*sharpe*sharpe);
-  var srStar=(sharpe*Math.sqrt(n-1))/Math.sqrt(adj);
-  var exp=Math.sqrt(2*Math.log(trials));
-  var def=(srStar-exp)/Math.sqrt(1+exp*exp/2);
-  return {def:def};
+function calcDeflatedSharpe(sharpe, n, skew, kurt, trials) {
+  var adj = Math.max(0.01, 1 - skew * sharpe + ((kurt - 1) / 4) * sharpe * sharpe);
+  var srStar = (sharpe * Math.sqrt(n - 1)) / Math.sqrt(adj);
+  var expectedMax = Math.sqrt(2 * Math.log(trials));
+  var deflated = (srStar - expectedMax) / Math.sqrt(1 + expectedMax * expectedMax / 2);
+  return { srStar: srStar, deflated: deflated, expectedMax: expectedMax };
 }
 
-function runDeflatedSharpe(){
-  if(!BT_RESULT){alert('Run backtest first');return;}
+function runDeflatedSharpe() {
+  if (!BT_RESULT) { alert('Run backtest first'); return; }
 
-  var r=BT_RESULT.records.map(x=>x.pRet);
-  var n=r.length;
-  var avg=r.reduce((a,b)=>a+b,0)/n;
-  var varr=r.reduce((a,b)=>a+(b-avg)**2,0)/n;
+  var rets = BT_RESULT.records.map(function(r){ return r.pRet; });
+  var n = rets.length;
+  var avg = rets.reduce(function(a,b){ return a + b; }, 0) / n;
+  var variance = rets.reduce(function(a,b){ return a + Math.pow(b - avg, 2); }, 0) / n;
+  var std = Math.sqrt(variance) * Math.sqrt(12);
+  var skew = rets.reduce(function(a,b){ return a + Math.pow((b - avg) / Math.sqrt(variance || 1), 3); }, 0) / n;
+  var kurt = rets.reduce(function(a,b){ return a + Math.pow((b - avg) / Math.sqrt(variance || 1), 4); }, 0) / n;
+  var init = BT_RESULT.initial;
+  var last = BT_RESULT.records[BT_RESULT.records.length - 1];
+  var yrs = (new Date(last.month) - new Date(BT_RESULT.records[0].month)) / (365.25 * 86400000);
+  var cagr = Math.pow(last.nav / init, 1 / yrs) - 1;
+  var rawSharpe = std > 0 ? (cagr - 0.015) / std : 0;
 
-  var std=Math.sqrt(varr)*Math.sqrt(12);
-  var skew=r.reduce((a,b)=>a+((b-avg)/Math.sqrt(varr||1))**3,0)/n;
-  var kurt=r.reduce((a,b)=>a+((b-avg)/Math.sqrt(varr||1))**4,0)/n;
+  var trialsEl = document.getElementById('drsTrials');
+  var trials = trialsEl ? (parseInt(trialsEl.value, 10) || 20) : 20;
+  var ds = calcDeflatedSharpe(rawSharpe, n, skew, kurt, trials);
 
-  var last=BT_RESULT.records.slice(-1)[0];
-  var yrs=n/12;
-  var cagr=Math.pow(last.nav/BT_RESULT.initial,1/yrs)-1;
+  var html = '<div class="card" style="border-top:3px solid var(--ac);margin-bottom:10px;">'
+    + '<div class="ct">DEFLATED SHARPE RATIO</div>'
+    + '<div style="font-size:12px">Raw Sharpe: <b>' + rawSharpe.toFixed(2) + '</b> | Deflated SR: <b>' + ds.deflated.toFixed(2) + '</b></div>'
+    + '</div>';
 
-  var sr=std>0?(cagr-0.015)/std:0;
-  var ds=calcDeflatedSharpe(sr,n,skew,kurt,20);
+  var targetRes = document.getElementById('stressRes');
+  if (targetRes) targetRes.classList.remove('hidden');
+  var el = document.getElementById('stressMetrics');
+  if (el) el.innerHTML = el.innerHTML + html;
 
-  console.log('Deflated Sharpe',ds.def);
+  sl('stressLog', 'Deflated Sharpe done', true);
 }
+
 window.onload = async function() {
   renderPool();
   initGroupToggles();
   togglePoolUI();
   var hasData = await loadFromDB();
   if(!hasData) console.log('No local data found in IndexedDB.');
-  if(Object.keys(DRS_DATA).length>0||DAILY['^VIX']) calcDRSCurrent();
+  if(Object.keys(DRS_DATA).length > 0 || DAILY['^VIX']) calcDRSCurrent();
 };
 </script>
 </body>
