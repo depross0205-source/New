@@ -3043,7 +3043,9 @@ function runDeflatedSharpe() {
   var n = rets.length;
 
   var avg = rets.reduce(function(a,b){ return a + b; }, 0) / n;
-  var variance = rets.reduce(function(a,b){ return a + Math.pow(b - avg, 2); }, 0) / n;
+  var variance = rets.reduce(function(a,b){
+    return a + Math.pow(b - avg, 2);
+  }, 0) / n;
   var std = Math.sqrt(variance) * Math.sqrt(12);
 
   var skew = rets.reduce(function(a,b){
@@ -3077,8 +3079,8 @@ window.onload = async function() {
   initGroupToggles();
   togglePoolUI();
   var hasData = await loadFromDB();
-  if(!hasData) console.log('No local data found in IndexedDB.');
-  if(Object.keys(DRS_DATA).length > 0 || DAILY['^VIX']) calcDRSCurrent();
+  if (!hasData) console.log('No local data found in IndexedDB.');
+  if (Object.keys(DRS_DATA).length > 0 || DAILY['^VIX']) calcDRSCurrent();
 };
 </script>
 </body>
