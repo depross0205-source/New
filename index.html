@@ -3076,7 +3076,7 @@ window.onload = async function() {
   var hasData = await loadFromDB();
   if(!hasData) console.log('No local data found in IndexedDB.');
   if(Object.keys(DRS_DATA).length > 0 || DAILY['^VIX']) calcDRSCurrent();
-};
+}
 </script>
 </body>
 </html>
