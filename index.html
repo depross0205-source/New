@@ -1414,16 +1414,16 @@ var fillAsset = hasSGOV ? 'SGOV' : 'CASH';
     }
   }
 
-  if (shortN > 0 && selS && selS.length > 0) {
+    if (shortN > 0 && selS && selS.length > 0) {
     var sdenom = wtMode === 'rank' ? selS.length * (selS.length + 1) / 2 : selS.length;
     selS.forEach(function(r, i) {
       var weight = (wtMode === 'rank') ? ((selS.length - i) / sdenom) : (1 / sdenom);
       target[r.s.c] = -sScale * weight * exposure;
     });
   }
-}
-    var useDRSEl=document.getElementById('useDRSGate');
-    if(useDRSEl&&useDRSEl.checked) target=applyDRSGate(target,scoreM,true);
+
+  var useDRSEl = document.getElementById('useDRSGate');
+  if (useDRSEl && useDRSEl.checked) target = applyDRSGate(target, scoreM, true);
     var totalW=0;
     Object.keys(target).forEach(function(c){ totalW+=target[c]; });
 
@@ -2778,7 +2778,7 @@ function renderCostSensitivity(results, N) {
 }
 
   
-  
+
   
 var DRS_DATA = {};
 var DRS_RESULT = null;
