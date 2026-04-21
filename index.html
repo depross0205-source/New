@@ -1329,13 +1329,26 @@ function runBTcore(mh, mode) {
 
     var totalQuota = poolModeSetting==='large' ? (parseInt(document.getElementById('btH').value)||5) : (parseInt($('btQuotaTW')?$('btQuotaTW').value:'2')||0)+(parseInt($('btQuotaUS')?$('btQuotaUS').value:'2')||0)+(parseInt($('btQuotaETF')?$('btQuotaETF').value:'1')||0);
     var slots = totalQuota - sel.length;
-    if (slots > 0) {
-      var hasSGOV = DAILY['SGOV'] && DAILY['SGOV'].length > 0 && getPriceOnDate(DAILY['SGOV'], scoreM) !== null;
-      if (hasSGOV) {
-        var sgovFill={s:{c:'SGOV',n:'0-3M Treasury',pool:'etf',tw:false},score:0,r240:0,zm:0,zb:0,zs:0,zv:0,zk:0};
-        for (var ks2=0; ks2<slots; ks2++) sel.push(sgovFill);
-      }
+if (slots > 0) {
+  var hasSGOV = DAILY['SGOV'] && DAILY['SGOV'].length > 0 && getPriceOnDate(DAILY['SGOV'], scoreM) !== null;
+  for (var ks2 = 0; ks2 < slots; ks2++) {
+    if (hasSGOV) {
+      sel.push({
+        s:{c:'SGOV',n:'0-3M Treasury',pool:'etf',tw:false},
+        score:-999,
+        r240:0, zm:0, zb:0, zs:0, zv:0, zk:0,
+        isFill:true
+      });
+    } else {
+      sel.push({
+        s:{c:'CASH',n:'Cash',pool:'cash',tw:false},
+        score:-999,
+        r240:0, zm:0, zb:0, zs:0, zv:0, zk:0,
+        isFill:true
+      });
     }
+  }
+}
 
     var selS=[];
     if (shortN>0) {
@@ -1355,37 +1368,76 @@ function runBTcore(mh, mode) {
 
     var target={};
     if (!sel.length) {
-      target['CASH']=1.0;
-    } else {
-      var is1330=capMode==='1330';
-      var lScale=1.0, sScale=0.0;
-      if (shortN>0&&selS&&selS.length>0) { lScale=is1330?1.3:0.5; sScale=is1330?0.3:0.5; }
-      if (wtMode==='rank') {
-        var ldenom=sel.length*(sel.length+1)/2;
-        sel.forEach(function(r,i){ target[r.s.c]=lScale*((sel.length-i)/ldenom)*exposure; });
-      } else if (wtMode==='ivol') {
-        var volSum=0;
-        var ivolArr=sel.map(function(r){
-          var bars=DAILY[r.s.c];
-          var cut=bars.filter(function(b){ return b.date<=scoreM; });
-          var v=calcVolatility(cut,60);
-          v=(v&&v>0)?v:0.20;
-          volSum+=1/v;
-          return {c:r.s.c,iv:1/v};
-        });
-        ivolArr.forEach(function(x){ target[x.c]=(lScale*x.iv/volSum)*exposure; });
-      } else {
-        var lw=(lScale/sel.length)*exposure;
-        sel.forEach(function(r){ target[r.s.c]=lw; });
-      }
-      if (shortN>0&&selS&&selS.length>0) {
-        var sdenom=wtMode==='rank'?selS.length*(selS.length+1)/2:selS.length;
-        selS.forEach(function(r,i){
-          var weight=(wtMode==='rank')?((selS.length-i)/sdenom):(1/sdenom);
-          target[r.s.c]=-sScale*weight*exposure;
-        });
-      }
+  target['CASH'] = 1.0;
+} else {
+  var is1330 = capMode === '1330';
+  var lScale = 1.0, sScale = 0.0;
+  if (shortN > 0 && selS && selS.length > 0) {
+    lScale = is1330 ? 1.3 : 0.5;
+    sScale = is1330 ? 0.3 : 0.5;
+  }
+
+  var longSel = sel.slice();
+
+  if (wtMode === 'rank') {
+    var rankable = longSel.filter(function(r){ return r.s.c !== 'CASH'; });
+    var ldenom = rankable.length * (rankable.length + 1) / 2;
+    var usedWeight = 0;
+
+    rankable.forEach(function(r, i) {
+      var w = lScale * ((rankable.length - i) / ldenom) * exposure;
+      target[r.s.c] = (target[r.s.c] || 0) + w;
+      usedWeight += w;
+    });
+
+    longSel.forEach(function(r) {
+      if (r.s.c === 'CASH') target['CASH'] = (target['CASH'] || 0) + ((lScale * exposure) - usedWeight);
+    });
+
+  } else if (wtMode === 'ivol') {
+    var ivolCandidates = longSel.filter(function(r){ return r.s.c !== 'CASH' && r.s.c !== 'SGOV'; });
+    var safeCandidates = longSel.filter(function(r){ return r.s.c === 'SGOV' || r.s.c === 'CASH'; });
+
+    var volSum = 0;
+    var ivolArr = ivolCandidates.map(function(r) {
+      var bars = DAILY[r.s.c];
+      var cut = bars.filter(function(b){ return b.date <= scoreM; });
+      var v = calcVolatility(cut, 60);
+      v = (v && v > 0) ? v : 0.20;
+      volSum += 1 / v;
+      return { c:r.s.c, iv:1 / v };
+    });
+
+    var usedWeight = 0;
+    ivolArr.forEach(function(x) {
+      var w = (lScale * x.iv / volSum) * exposure;
+      target[x.c] = (target[x.c] || 0) + w;
+      usedWeight += w;
+    });
+
+    if (safeCandidates.length > 0) {
+      var rem = (lScale * exposure) - usedWeight;
+      var safeW = rem / safeCandidates.length;
+      safeCandidates.forEach(function(r) {
+        target[r.s.c] = (target[r.s.c] || 0) + safeW;
+      });
     }
+
+  } else {
+    var lw = (lScale / longSel.length) * exposure;
+    longSel.forEach(function(r) {
+      target[r.s.c] = (target[r.s.c] || 0) + lw;
+    });
+  }
+
+  if (shortN > 0 && selS && selS.length > 0) {
+    var sdenom = wtMode === 'rank' ? selS.length * (selS.length + 1) / 2 : selS.length;
+    selS.forEach(function(r, i) {
+      var weight = (wtMode === 'rank') ? ((selS.length - i) / sdenom) : (1 / sdenom);
+      target[r.s.c] = -sScale * weight * exposure;
+    });
+  }
+}
     var useDRSEl=document.getElementById('useDRSGate');
     if(useDRSEl&&useDRSEl.checked) target=applyDRSGate(target,scoreM,true);
     var totalW=0;
@@ -1743,12 +1795,20 @@ function dlOHLCV() {
 function dlMonthly() { alert('V1.9 uses DAILY data natively. Please use OHLCV export.'); }
 function dlBtCsv() {
   if (!BT_RESULT) { sl('btLog','Run backtest first',false); return; }
-  var recs=BT_RESULT.records, init=BT_RESULT.initial, rows=['Date,Holdings,Hurdle%,Return%,NAV,BenchNav,Alpha%'];
+  var recs=BT_RESULT.records, init=BT_RESULT.initial, rows=['Date,Cooldown,Holdings,Hurdle%,Return%,NAV,BenchNav,Alpha%'];
   recs.forEach(function(r,i){
     var pb=i>0?recs[i-1].bNav:init; var ex=r.pRet-(r.bNav/pb-1);
     var hold=Object.keys(r.holdings).map(function(k){ var nm=getStockName(k); return k+(nm&&nm!==k?'('+nm+')':'')+(r.holdings[k]<0.99?' '+(r.holdings[k]*100).toFixed(0)+'%':''); }).join('+');
-    rows.push([r.month,hold,(r.hurdle*100).toFixed(2),(r.pRet*100).toFixed(3),Math.round(r.nav),Math.round(r.bNav),(ex*100).toFixed(3)].join(','));
-  });
+    rows.push([
+  r.month,
+  r.cdActive ? 'Y' : 'N',
+  '"' + hold.replace(/"/g,'""') + '"',
+  (r.hurdle*100).toFixed(2),
+  (r.pRet*100).toFixed(3),
+  Math.round(r.nav),
+  Math.round(r.bNav),
+  (ex*100).toFixed(3)
+].join(','));
   dlText(rows.join('\n'),'V1.9_Backtest_'+new Date().toISOString().slice(0,10)+'.csv','text/csv;charset=utf-8');
 }
 async function upJson(el) {
