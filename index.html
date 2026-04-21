@@ -2722,9 +2722,8 @@ function renderCostSensitivity(results, N) {
   if(targetRes) targetRes.classList.remove('hidden');
   var el = document.getElementById('stressMetrics');
   if (el) el.innerHTML = el.innerHTML + html;
-}var DRS_DATA = {};
 }
-
+var DRS_DATA = {};
 function runDRSPermutation() {
   if (!BT_RESULT) { alert('Run backtest first'); return; }
   var simN = parseInt(document.getElementById('drsTrials') ? document.getElementById('drsTrials').value : '1000', 10) || 1000;
