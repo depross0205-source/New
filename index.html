@@ -1422,11 +1422,12 @@ var fillAsset = hasSGOV ? 'SGOV' : 'CASH';
     });
   }
 
-  var useDRSEl = document.getElementById('useDRSGate');
+    var useDRSEl = document.getElementById('useDRSGate');
   if (useDRSEl && useDRSEl.checked) target = applyDRSGate(target, scoreM, true);
-    var totalW=0;
-    Object.keys(target).forEach(function(c){ totalW+=target[c]; });
+}   // ← 補這個，關閉 if (!sel.length) 的 else 區塊
 
+var totalW=0;
+Object.keys(target).forEach(function(k){ totalW+=Math.abs(target[k]); });
     var turnover=0;
     var allT=Object.keys(holdings).concat(Object.keys(target));
     var seenT={};
