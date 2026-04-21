@@ -2734,11 +2734,8 @@ function renderCostSensitivity(results, N) {
   var el = document.getElementById('stressMetrics');
   if (el) el.innerHTML = el.innerHTML + html;
 }
-  // ============================================================
+ // ============================================================
 // DRS - Drawdown Risk Score Module  v1.0
-// Tickers: HYG (HY proxy) | TLT (YC proxy) | ^VIX (volatility)
-// Fetched via existing proxy infrastructure
-// All strings pure ASCII / \uXXXX escaped
 // ============================================================
 
 var DRS_DATA={};
@@ -2749,32 +2746,57 @@ var DRS_CFG={w_hy:0.30,w_yc:0.25,w_vix:0.20,w_brd:0.15,w_cape:0.10,smooth:21,hol
 function rollMean(arr,i,n){var sum=0,cnt=0;for(var k=Math.max(0,i-n+1);k<=i;k++){sum+=arr[k];cnt++;}return cnt>0?sum/cnt:null;}
 function rollStd(arr,i,n){var m=rollMean(arr,i,n);if(m===null)return null;var sq=0,cnt=0;for(var k=Math.max(0,i-n+1);k<=i;k++){sq+=Math.pow(arr[k]-m,2);cnt++;}return cnt>1?Math.sqrt(sq/(cnt-1)):null;}
 function rollZ(arr,i,n){var m=rollMean(arr,i,n),s=rollStd(arr,i,n);if(m===null||s===null||s<1e-8)return 0;return(arr[i]-m)/s;}
-function emaArr(arr,span){var k=2/(span+1),result=[];for(var i=0;i=63){
-      var hygNow=hygBars[hygIdx].c,hyg63=hygBars[Math.max(0,hygIdx-63)].c;
-      if(hyg63>0)lastHY=-(hygNow/hyg63-1);
-    }
-    hyArr.push(lastHY);
-    while(tltIdx=63){
-      var tltNow=tltBars[tltIdx].c,tlt63=tltBars[Math.max(0,tltIdx-63)].c;
-      if(tlt63>0)lastYC=tltNow/tlt63-1;
-    }
-    ycArr.push(lastYC);
-    while(vixIdx=63&&ewIdx>=63&&ewBars.length>1){
-      var spNow=refBars[spIdx].c,sp63=refBars[Math.max(0,spIdx-63)].c;
-      var ewNow=ewBars[ewIdx].c,ew63=ewBars[Math.max(0,ewIdx-63)].c;
-      if(sp63>0&&ew63>0&&ewNow>0)lastBrd=(spNow/sp63)/(ewNow/ew63)-1;
-    }
-    brdArr.push(lastBrd);
+function emaArr(arr,span){
+  var k=2/(span+1),result=[];
+  for(var i=0; i<arr.length; i++){
+    if(i===0) result.push(arr[0]);
+    else result.push(arr[i]*k + result[i-1]*(1-k));
   }
+  return result;
+}
+
+function buildDRSTimeSeries(){
+  var hygBars=DAILY['HYG']||[], tltBars=DAILY['TLT']||[], vixBars=DAILY['^VIX']||[], refBars=DAILY['SPY']||[], ewBars=DAILY['RSP']||[];
+  var datesMap={};
+  hygBars.forEach(function(b){datesMap[b.date]=1;});
+  var allDates=Object.keys(datesMap).sort();
+  if(!allDates.length) return null;
+
+  var hyArr=[], ycArr=[], vixArr=[], brdArr=[];
+  for(var i=0; i<allDates.length; i++) {
+    var d = allDates[i];
+    var hygP = getPriceOnDate(hygBars, d), hyg63 = getPriceOnDate(hygBars, getPrevWorkDay(hygBars, d, 63));
+    hyArr.push(hyg63 && hygP ? -(hygP/hyg63-1) : 0);
+
+    var tltP = getPriceOnDate(tltBars, d), tlt63 = getPriceOnDate(tltBars, getPrevWorkDay(tltBars, d, 63));
+    ycArr.push(tlt63 && tltP ? (tltP/tlt63-1) : 0);
+
+    var vixP = getPriceOnDate(vixBars, d), vix63 = getPriceOnDate(vixBars, getPrevWorkDay(vixBars, d, 63));
+    vixArr.push(vix63 && vixP ? (vixP/vix63-1) : 0);
+
+    var spP = getPriceOnDate(refBars, d), sp63 = getPriceOnDate(refBars, getPrevWorkDay(refBars, d, 63));
+    var ewP = getPriceOnDate(ewBars, d), ew63 = getPriceOnDate(ewBars, getPrevWorkDay(ewBars, d, 63));
+    if(sp63>0 && ew63>0 && ewP>0 && spP>0){
+       brdArr.push((spP/sp63) / (ewP/ew63) - 1);
+    } else {
+       brdArr.push(0);
+    }
+  }
+
   var n=DRS_CFG.win;
-  var rawDRS=[];
-  for(var j=0;j=n?-rollZ(hyArr,k,n):0,
-      z_yc:k>=n? rollZ(ycArr,k,n):0,
-      z_vix:k>=n?rollZ(vixArr,k,n):0,
-      z_brd:k>=n?rollZ(brdArr,k,n):0
-    };
+  var out={}, smoothed=[];
+  for(var j=0; j<allDates.length; j++){
+     var pt = {
+       drs: 0,
+       z_hy: j>=n ? rollZ(hyArr,j,n) : 0,
+       z_yc: j>=n ? rollZ(ycArr,j,n) : 0,
+       z_vix: j>=n ? rollZ(vixArr,j,n) : 0,
+       z_brd: j>=n ? rollZ(brdArr,j,n) : 0
+     };
+     pt.drs = pt.z_hy*DRS_CFG.w_hy + (-pt.z_yc)*DRS_CFG.w_yc + pt.z_vix*DRS_CFG.w_vix + pt.z_brd*DRS_CFG.w_brd;
+     out[allDates[j]] = pt;
   }
-  return{map:out,dates:allDates,smoothed:smoothed};
+  return {map:out, dates:allDates, smoothed:smoothed};
 }
 
 function drsLevel(v){
@@ -2805,80 +2827,41 @@ function updateDRSBadge(lv,val){
 
 function updateDRSPanel(date,pt,lv,ts){
   var panel=document.getElementById('drsPanel');if(!panel)return;
-  var gaugePct=Math.max(0,Math.min(100,((pt.drs+2)/5)*100));
   var gc=lv.color;
   function zBar(z,label){
     var pct=Math.max(0,Math.min(100,(z+2)/4*100));
     var col=z>0.5?'#ff4d6d':z>0?'#ffb830':'#00e5a0';
-    return '
-'
-      +'
-'+label+'
-'
-      +'
-'
-      +'
-'
-      +'
-'
-      +(z>=0?'+':'')+z.toFixed(2)+'
-';
+    return '<div style="margin-bottom:4px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--mu);margin-bottom:2px"><span>'+label+'</span><span>'+(z>=0?'+':'')+z.toFixed(2)+'</span></div>'
+      +'<div style="height:4px;background:var(--bd);border-radius:2px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+col+'"></div></div>'
+      +'</div>';
   }
   var breachDates=[];
   if(ts&&ts.dates){
     for(var bi=ts.dates.length-1;bi>=0&&breachDates.length<3;bi--){
       var bpt=ts.map[ts.dates[bi]];
       if(bpt&&bpt.drs>=1.5){
-        if(!breachDates.length||ts.dates[bi].slice(0,7)!==breachDates[breachDates.length-1].slice(0,7))
-          breachDates.push(ts.dates[bi]);
+        if(!breachDates.length||ts.dates[bi].slice(0,7)!==breachDates[breachDates.length-1].slice(0,7)) breachDates.push(ts.dates[bi]);
       }
     }
   }
   var breachHtml=breachDates.length
-    ?'
-\u8fd1\u671f\u8b66\u6212: '
-      +breachDates.map(function(d){var v=ts.map[d].drs;var bc=drsLevel(v).color;return''+d.slice(0,7)+'('+v.toFixed(1)+')';}).join(' / ')
-      +'
-':''
-  ;
+    ?'<div style="color:var(--re);font-size:11px;margin-top:8px;">近期警戒: '
+      +breachDates.map(function(d){var v=ts.map[d].drs;var bc=drsLevel(v).color;return'<span style="color:'+bc+'">'+d.slice(0,7)+'('+v.toFixed(1)+')</span>';}).join(' / ')
+      +'</div>'
+    :'';
   panel.innerHTML=
-    '
-'
-    +'
-DRAWDOWN RISK SCORE (DRS)
-'
-    +'
-\u57fa\u6e96\u65e5: '+date+' | EMA-'+DRS_CFG.smooth+' \u5e73\u6ed1
-'
-    +'
-'+(pt.drs>=0?'+':'')+pt.drs.toFixed(2)+'
-'
-    +'
-'
-    +'
-'
-    +'
-'
-    +''
-    +lv.label+(lv.reduce>0?' | \u5efa\u8b70\u964d\u5310 '+(lv.reduce*100).toFixed(0)+'%':'')+''
-    +(lv.level>0?'
-\u8b66\u6212\u89e3\u9664\u9700 '+DRS_CFG.hold+' \u500b\u4ea4\u6613\u65e5 DRS < 1.0
-':'')
-    +'
-'
-    +'
-\U56E0\U5B50\U5206\U89E3
-'
+    '<div style="font-size:14px;font-weight:700;color:'+gc+';margin-bottom:6px;">DRAWDOWN RISK SCORE (DRS)</div>'
+    +'<div style="font-size:11px;color:var(--mu);margin-bottom:10px;">基準日: '+date+' | EMA-'+DRS_CFG.smooth+' 平滑</div>'
+    +'<div style="font-size:24px;font-weight:700;color:'+gc+';margin-bottom:4px;">'+(pt.drs>=0?'+':'')+pt.drs.toFixed(2)+'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:'+gc+';margin-bottom:10px;">'+lv.label+(lv.reduce>0?' | 建議降配 '+(lv.reduce*100).toFixed(0)+'%':'')+'</div>'
+    +(lv.level>0?'<div style="font-size:11px;color:var(--ye);margin-bottom:10px;">警戒解除需 '+DRS_CFG.hold+' 個交易日 DRS < 1.0</div>':'')
+    +'<div style="border-top:1px dashed var(--bd);padding-top:10px;margin-top:10px;">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--tw);margin-bottom:8px;">因子分解</div>'
     +zBar(pt.z_hy,'HY Sprd')+zBar(-pt.z_yc,'YC Slope')+zBar(pt.z_vix,'VIX Chg')+zBar(pt.z_brd,'Breadth')
-    +'
-'
+    +'</div>'
     +breachHtml
-    +'
-'
-    +'\u6b0a\u91cd: HY 30% | YC 25% | VIX 20% | Breadth 15% | \u6efe\u52d5\u7a97\u53e3 '+DRS_CFG.win+' \u65e5
-'
-    +'HYG=HY\u4ee3\u7406 | TLT=YC\u4ee3\u7406 | SPY/RSP=Breadth | ^VIX=\u6ce2\u52d5\u7387
-';
+    +'<div style="font-size:10px;color:var(--mu);margin-top:10px;line-height:1.6;">權重: HY 30% | YC 25% | VIX 20% | Breadth 15% | 滾動窗口 '+DRS_CFG.win+' 日<br>HYG=HY代理 | TLT=YC代理 | SPY/RSP=Breadth | ^VIX=波動率</div>';
 }
 
 function applyDRSGate(target,dateStr,useDRS){
@@ -2915,7 +2898,12 @@ function runDRSPermutation(){
       var std0=Math.sqrt(rets.reduce(function(a,b){return a+Math.pow(b-avg0,2);},0)/n)*Math.sqrt(12);
       var realSharpe=std0>0?(realCagr-0.015)/std0:0;
       var sharpesDist=[];
-      for(var s=0;s0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=perm[i];perm[i]=perm[j];perm[j]=tmp;}
+      for(var s=0; s<simN; s++){
+        var perm=rets.slice();
+        for(var i=perm.length-1; i>0; i--){
+          var j=Math.floor(Math.random()*(i+1));
+          var tmp=perm[i];perm[i]=perm[j];perm[j]=tmp;
+        }
         var pNav=init;perm.forEach(function(r){pNav*=(1+r);});
         var pCagr=Math.pow(pNav/init,1/yrs)-1;
         var pavg=perm.reduce(function(a,b){return a+b;},0)/n;
@@ -2925,32 +2913,13 @@ function runDRSPermutation(){
       var pVal=sharpesDist.filter(function(v){return v>=realSharpe;}).length/simN;
       var verdict=pVal<=0.05?'PASS p<0.05':pVal<=0.10?'WARN p<0.10':'FAIL p='+pVal.toFixed(2);
       var vcol=pVal<=0.05?'var(--gr)':pVal<=0.10?'var(--ye)':'var(--re)';
-      var html='
-'
-        +'
-PERMUTATION TEST (x'+simN+')
-'
-        +'
-'
-        +'
-p-value
-'+pVal.toFixed(3)+'
-'
-        +'
-Real Sharpe
-'+realSharpe.toFixed(2)+'
-'
-        +'
-Verdict
-'+verdict+'
-'
-        +'
-'
-        +'
-Null: Sharpe indistinguishable from random sequence. p<0.05 rejects null.
-'
-        +'
-';
+      var html='<div class="card" style="border-top:3px solid '+vcol+';margin-bottom:10px;">'
+        +'<div class="ct">PERMUTATION TEST (x'+simN+')</div>'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><div style="font-size:12px;color:var(--mu)">p-value</div><div class="mono" style="font-weight:700;color:'+vcol+'">'+pVal.toFixed(3)+'</div></div>'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><div style="font-size:12px;color:var(--mu)">Real Sharpe</div><div class="mono">'+realSharpe.toFixed(2)+'</div></div>'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><div style="font-size:12px;color:var(--mu)">Verdict</div><div style="font-weight:700;color:'+vcol+'">'+verdict+'</div></div>'
+        +'<div style="font-size:10px;color:var(--mu);margin-top:8px;">Null: Sharpe indistinguishable from random sequence. p<0.05 rejects null.</div>'
+        +'</div>';
       var el=document.getElementById('stressMetrics');if(el)el.innerHTML=el.innerHTML+html;
       var sr=document.getElementById('stressRes');if(sr)sr.classList.remove('hidden');
       sl('stressLog','Permutation p='+pVal.toFixed(3)+' | '+verdict,pVal<=0.05);
@@ -2986,35 +2955,18 @@ function runDeflatedSharpe(){
   var ds=calcDeflatedSharpe(rawSharpe,n,skew,kurt,trials);
   var vcol=ds.deflated>0?'var(--gr)':'var(--re)';
   var verdict=ds.deflated>0?'PASS - Edge survives multiple testing':'WARN - May be overfitted';
-  function mkDSCard(title,val,color){return'
-'+title+'
-'+val+'
-';}
-  var html='
-'
-    +'
-DEFLATED SHARPE RATIO (Bailey & Lopez de Prado 2014)
-'
-    +'
-'
+  function mkDSCard(title,val,color){return'<div class="card" style="border-top:2px solid '+color+';padding:9px;"><div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px">'+title+'</div><div class="mono" style="font-size:20px;color:'+color+'">'+val+'</div></div>';}
+  var html='<div class="card" style="border-top:3px solid var(--ac);margin-bottom:10px;">'
+    +'<div class="ct">DEFLATED SHARPE RATIO (Bailey & Lopez de Prado 2014)</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">'
     +mkDSCard('Raw Sharpe',rawSharpe.toFixed(2),'var(--ye)')
     +mkDSCard('SR*',ds.srStar.toFixed(2),'var(--ac)')
     +mkDSCard('E[max SR]',ds.expectedMax.toFixed(2),'var(--mu)')
     +mkDSCard('Deflated SR',ds.deflated.toFixed(2),vcol)
-    +'
-'
-    +'
-'
-    +'Skewness: '+skew.toFixed(2)+' | Kurtosis: '+kurt.toFixed(2)+' | Trials: '+trials+'
-'
-    +'\u7d50\u8ad6: '+verdict+''
-    +'
-'
-    +'
-Deflated SR > 0 = \u7b56\u7565\u5728\u8003\u616e\u591a\u91cd\u6e2c\u8a66\u504f\u5dee\u5f8c\u4ecd\u5177\u7d71\u8a08\u986f\u8457\u6027
-'
-    +'
-';
+    +'</div>'
+    +'<div style="font-size:11px;color:var(--mu);margin-bottom:8px;">Skewness: '+skew.toFixed(2)+' | Kurtosis: '+kurt.toFixed(2)+' | Trials: '+trials+'<br>結論: <b style="color:'+vcol+'">'+verdict+'</b></div>'
+    +'<div style="font-size:10px;color:var(--mu);">Deflated SR > 0 = 策略在考慮多重測試偏差後仍具統計顯著性</div>'
+    +'</div>';
   var el=document.getElementById('stressMetrics');if(el)el.innerHTML=el.innerHTML+html;
   var sr2=document.getElementById('stressRes');if(sr2)sr2.classList.remove('hidden');
   sl('stressLog','Deflated Sharpe: '+ds.deflated.toFixed(3)+' | '+verdict,ds.deflated>0);
@@ -3035,7 +2987,8 @@ function updateDRSWeights(){
 }
 // ============================================================
 // END DRS MODULE
-// ===========================================
+// ============================================================
+
 window.onload = async function() {
   renderPool();
   initGroupToggles();
