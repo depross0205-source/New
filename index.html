@@ -3023,6 +3023,50 @@ function updateDRSWeights(){
   DRS_CFG.smooth=sm;DRS_CFG.win=win;DRS_CFG.hold=hold;
   calcDRSCurrent();
 }
+  async function fetchDRS() {
+  // 定義 DRS 計算所需的宏觀標的
+  var drsTickers = [
+    {c: 'HYG', tw: false},
+    {c: 'TLT', tw: false},
+    {c: '^VIX', tw: false},
+    {c: 'SPY', tw: false},
+    {c: 'RSP', tw: false}
+  ];
+  
+  showL('抓取 DRS 宏觀數據...');
+  var failed = [];
+  
+  try {
+    for (var i = 0; i < drsTickers.length; i++) {
+      var t = drsTickers[i];
+      $('loadTxt').textContent = '抓取 DRS: ' + t.c + ' (' + (i+1) + '/' + drsTickers.length + ')';
+      try {
+        DAILY[t.c] = await fetchOHLCV(t, '1d', 'max');
+      } catch (err) {
+        console.error("DRS Fetch Error for " + t.c, err);
+        failed.push(t.c);
+      }
+      // 加上延遲避免被 Yahoo Finance 阻擋
+      await new Promise(function(r){ setTimeout(r, 1000); });
+    }
+    
+    if (failed.length > 0) {
+      sl('drsLog', 'DRS 部分抓取失敗: ' + failed.join(', '), false);
+    } else {
+      sl('drsLog', 'HYG / TLT / VIX / SPY / RSP 抓取完成', true);
+    }
+    
+    // 抓取完畢後，自動觸發 DRS 計算並存檔
+    calcDRSCurrent();
+    await saveAllToDB(); 
+    
+  } catch(e) {
+    console.error(e);
+    sl('drsLog', 'DRS 抓取發生嚴重錯誤: ' + e.message, false);
+  } finally {
+    hideL();
+  }
+}
 // ============================================================
 // END DRS MODULE
 // ============================================================
