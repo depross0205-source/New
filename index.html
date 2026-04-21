@@ -1804,7 +1804,7 @@ function dlBtCsv() {
 
  dlText(rows.join('\n'), 'V1.9_Backtest_' + new Date().toISOString().slice(0,10) + '.csv', 'text/csv;charset=utf-8');
 } 
-  function upJson(el) {
+  async function upJson(el) {
   var file=el.files[0]; if(!file)return;
   sl('dlLog','Loading '+file.name+'...',null);
   try {
