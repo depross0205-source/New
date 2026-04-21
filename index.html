@@ -1158,7 +1158,8 @@ function runBTcore(mh, mode) {
     var hurdle=getHurdle(scoreM);
     var skipMoOn=!!($('btSkipMo')&&$('btSkipMo').checked);
     var scoringM=skipMoOn?getPrevWorkDay(refDaily,scoreM,22):scoreM;
-    // ---- CASH RETURN (early calc for cooldown) ----
+    
+    // ---- CASH RETURN ----
     var cashRet=0;
     if (DAILY['SGOV']&&getPriceOnDate(DAILY['SGOV'],prevM)&&getPriceOnDate(DAILY['SGOV'],sigM)) {
       var s0=getPriceOnDate(DAILY['SGOV'],prevM), s1=getPriceOnDate(DAILY['SGOV'],sigM);
@@ -1225,7 +1226,8 @@ function runBTcore(mh, mode) {
               forcedTarget[defKeycd] = 1.0 - cdReduceTo;
             } else { forcedTarget[defKeycd] = 1.0; }
           } else { forcedTarget[defKeycd] = 1.0; }
-          // Compute this month's returns under cooldown
+          
+          // Compute returns under cooldown
           var turnoverCD = 0;
           var allTCD = Object.keys(holdings).concat(Object.keys(forcedTarget));
           var seenTCD = {};
@@ -1252,15 +1254,10 @@ function runBTcore(mh, mode) {
           if (nav>cdPortfolioHigh) cdPortfolioHigh=nav;
           var b0cd=getPriceOnDate(refDaily,prevM), b1cd=getPriceOnDate(refDaily,sigM);
           if(b0cd&&b1cd&&b0cd>0) bNav*=(1+b1cd/b0cd-1);
+          
           var hCopyCD={};
           Object.keys(forcedTarget).forEach(function(k){ hCopyCD[k]=forcedTarget[k]; });
-          if (cdOn && !cdActive) {
-     
-    if (cdOn && !cdActive) {
-      if (cdPortfolioHigh===null) cdPortfolioHigh=nav;
-      if (nav>cdPortfolioHigh) cdPortfolioHigh=nav;
-    }
-    records.push({month:sigM,period:prevM+" ~ "+sigM,nav:nav,bNav:bNav,holdings:hCopy,pRet:netRet,hurdle:hurdle,stockRets:stockRets,cdActive:false});
+          records.push({month:sigM,period:prevM+" ~ "+sigM,nav:nav,bNav:bNav,holdings:hCopyCD,pRet:netRetCD,hurdle:hurdle,stockRets:stockRetsCD,cdActive:true});
           holdings=hCopyCD;
           continue;
         }
@@ -1270,6 +1267,7 @@ function runBTcore(mh, mode) {
       }
     }
     // ---- END COOLDOWN ----
+
     var sc2=calcAllScores(scoringM);
     var valid=sc2.filter(function(r){ return r.score!==null; });
     valid.sort(function(a,b){ return b.score-a.score; });
@@ -1277,13 +1275,11 @@ function runBTcore(mh, mode) {
     if (valid.length < 5) {
       var b0x=getPriceOnDate(refDaily,prevM), b1x=getPriceOnDate(refDaily,sigM);
       if(b0x&&b1x&&b0x>0) bNav*=(1+(b1x/b0x-1));
-      records.push({month:sigM,period:prevM+" ~ "+sigM,nav:nav,bNav:bNav,holdings:{CASH:1.0},pRet:0,hurdle:hurdle,stockRets:{}});
+      records.push({month:sigM,period:prevM+" ~ "+sigM,nav:nav,bNav:bNav,holdings:{CASH:1.0},pRet:0,hurdle:hurdle,stockRets:{},cdActive:false});
       holdings={CASH:1.0}; continue;
     }
 
-    // FIX3: poolModeSetting declared first, exitMap uses calcSimpleMA
     var poolModeSetting = document.getElementById('poolMode').value;
-
     var exitMap = {};
     if (useMA60) {
       Object.keys(holdings).forEach(function(c) {
@@ -1297,7 +1293,6 @@ function runBTcore(mh, mode) {
       });
     }
 
-    // FIX3: single unified candidate list; no double pools variable
     var mainCands = valid.filter(function(r) {
       if (r.r240 === null || r.r240 <= hurdle) return false;
       if (DEFENSIVE.indexOf(r.s.c) !== -1) return false;
@@ -1306,7 +1301,6 @@ function runBTcore(mh, mode) {
     });
 
     var sel = [];
-
     if (poolModeSetting === 'large') {
       var totalMax = parseInt(document.getElementById('btH').value) || 5;
       mainCands.sort(function(a,b){ return b.score-a.score; });
@@ -1333,7 +1327,7 @@ function runBTcore(mh, mode) {
       });
     }
 
-        var totalQuota = poolModeSetting==='large' ? (parseInt(document.getElementById('btH').value)||5) : (parseInt($('btQuotaTW')?$('btQuotaTW').value:'2')||0)+(parseInt($('btQuotaUS')?$('btQuotaUS').value:'2')||0)+(parseInt($('btQuotaETF')?$('btQuotaETF').value:'1')||0);
+    var totalQuota = poolModeSetting==='large' ? (parseInt(document.getElementById('btH').value)||5) : (parseInt($('btQuotaTW')?$('btQuotaTW').value:'2')||0)+(parseInt($('btQuotaUS')?$('btQuotaUS').value:'2')||0)+(parseInt($('btQuotaETF')?$('btQuotaETF').value:'1')||0);
     var slots = totalQuota - sel.length;
     if (slots > 0) {
       var hasSGOV = DAILY['SGOV'] && DAILY['SGOV'].length > 0 && getPriceOnDate(DAILY['SGOV'], scoreM) !== null;
@@ -1415,8 +1409,6 @@ function runBTcore(mh, mode) {
     var impactCost=baseSlippage*impactMultiplier;
     var friction=(turnover*COST)+impactCost;
 
-    
-
     var stockRets={};
     Object.keys(target).forEach(function(c){
       if (c==='CASH') { stockRets[c]={ret:cashRet,w:target[c]}; }
@@ -1452,7 +1444,7 @@ function runBTcore(mh, mode) {
 
     var hCopy={};
     Object.keys(target).forEach(function(k){ hCopy[k]=target[k]; });
-    records.push({month:sigM,period:prevM+" ~ "+sigM,nav:nav,bNav:bNav,holdings:hCopy,pRet:netRet,hurdle:hurdle,stockRets:stockRets});
+    records.push({month:sigM,period:prevM+" ~ "+sigM,nav:nav,bNav:bNav,holdings:hCopy,pRet:netRet,hurdle:hurdle,stockRets:stockRets, cdActive:false});
     holdings=drifted;
   }
   return records.length>=6 ? records : null;
