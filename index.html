@@ -2943,28 +2943,47 @@ return {map:map,dates:dates};
 // ==========================
 // APPLY DRS
 // ==========================
-function applyDRSGate(target,dateStr,useDRS){
-  if(!useDRS||!DRS_RESULT)return target;
+function applyDRSGate(target, dateStr, useDRS) {
+  if (!useDRS || !DRS_RESULT || !DRS_RESULT.dates || !DRS_RESULT.dates.length) return target;
 
-  var pt=DRS_RESULT.map[dateStr];
-  if(!pt)return target;
-
-  var lv=drsLevel(pt.drs);
-  if(lv.reduce<=0)return target;
-
-  var newT={},cash=0;
-
-  for(var c in target){
-    var w=target[c];
-    if(c==='CASH'||c==='SGOV'){newT[c]=w;}
-    else{
-      var s=w*(1-lv.reduce);
-      newT[c]=s;
-      cash+=(w-s);
+  // 先找「<= dateStr 的最近一個 DRS 交易日」
+  var useDate = null;
+  for (var i = DRS_RESULT.dates.length - 1; i >= 0; i--) {
+    if (DRS_RESULT.dates[i] <= dateStr) {
+      useDate = DRS_RESULT.dates[i];
+      break;
     }
   }
 
-  newT.CASH=(newT.CASH||0)+cash;
+  if (!useDate) return target;
+
+  var pt = DRS_RESULT.map[useDate];
+  if (!pt) return target;
+
+  var lv = drsLevel(pt.drs);
+  if (lv.reduce <= 0) return target;
+
+  var newT = {}, cash = 0;
+
+  for (var c in target) {
+    var w = target[c];
+
+    if (c === 'CASH' || c === 'SGOV') {
+      newT[c] = w;
+    } else {
+      var s = w * (1 - lv.reduce);
+      newT[c] = s;
+      cash += (w - s);
+    }
+  }
+
+  // 優先回到 SGOV，其次 CASH
+  if (DAILY['SGOV']) {
+    newT['SGOV'] = (newT['SGOV'] || 0) + cash;
+  } else {
+    newT['CASH'] = (newT['CASH'] || 0) + cash;
+  }
+
   return newT;
 }
 
