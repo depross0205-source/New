@@ -3164,7 +3164,7 @@ function calcDeflatedSharpe(sharpe, n, skew, kurt, trials) {
   return { srStar: srStar, deflated: deflated };
 }
 
-unction runDeflatedSharpe() {
+function runDeflatedSharpe() {
   if (!BT_RESULT) { alert('Run backtest first'); return; }
 
   var rets = BT_RESULT.records.map(function(r){ return r.pRet; }).filter(function(x){ return isFinite(x); });
