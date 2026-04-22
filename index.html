@@ -1243,11 +1243,11 @@ function runBTcore(mh, mode) {
           cdActive = true;
           var cdUntil = new Date(new Date(triggerDate).getTime() + cdDays * 86400000);
           cdUntilDate = cdUntil.toISOString().slice(0, 10);
-          sl(
-  'btLog',
-  'Cooldown 觸發：' + triggerDate + ' | 冷靜期至 ' + cdUntilDate + ' | Reduce To ' + Math.round(cdReduceTo * 100) + '%',
-  false
-);
+         sl(
+    'btLog',
+    'Cooldown 觸發：' + triggerDate + ' | 冷靜期至 ' + cdUntilDate + ' | Reduce To ' + Math.round(cdReduceTo * 100) + '%',
+    false
+  );
           cdPortfolioHigh = null;
         }
       }
@@ -1549,8 +1549,20 @@ Object.keys(target).forEach(function(k){ totalW+=Math.abs(target[k]); });
 
     var hCopy={};
     Object.keys(target).forEach(function(k){ hCopy[k]=target[k]; });
-    records.push({month:sigM,period:prevM+" ~ "+sigM,nav:nav,bNav:bNav,holdings:hCopy,pRet:netRet,hurdle:hurdle,stockRets:stockRets, cdActive:false});
-    holdings=drifted;
+  records.push({
+  month: sigM,
+  period: prevM + " ~ " + sigM,
+  nav: nav,
+  bNav: bNav,
+  holdings: hCopy,
+  pRet: netRet,
+  hurdle: hurdle,
+  stockRets: stockRets,
+  cdActive: false,
+  cooldownTrigger: '',
+  cooldownUntil: ''
+});
+holdings = drifted;
   }
   return records.length>=6 ? records : null;
 }
@@ -1650,122 +1662,198 @@ function renderCompare(results,init,mode) {
   $('btBody').innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:12px;font-size:12px">Run single backtest to see monthly holdings detail.</td></tr>';
 }
 
-function renderBT(records,init,mode) {
-  var recs=records; $('btRes').classList.remove('hidden');
-  var last=recs[recs.length-1];
-  var yrs=(new Date(last.month)-new Date(recs[0].month))/(365.25*86400000);
-  var tr=last.nav/init-1, cagr=yrs>0?Math.pow(1+Math.max(tr,-0.999),1/yrs)-1:0;
-  var btr=last.bNav/init-1, bcagr=yrs>0?Math.pow(1+Math.max(btr,-0.999),1/yrs)-1:0;
-  var pk=init, mdd=0;
-  recs.forEach(function(r){if(r.nav>pk)pk=r.nav;var dd=(r.nav-pk)/pk;if(dd<mdd)mdd=dd;});
-  var rets=recs.map(function(r){return r.pRet;});
-  var avg=rets.reduce(function(a,b){return a+b;},0)/rets.length;
-  var std=Math.sqrt(rets.reduce(function(a,b){return a+Math.pow(b-avg,2);},0)/(rets.length>1?rets.length-1:1))*Math.sqrt(12)||1;
-  var sh=(cagr-0.015)/std;
-  var fmt=function(v,p,pl){return (pl&&v>=0?'+':'')+(p?(v*100).toFixed(2)+'%':v.toFixed(2));};
-  var modeLabel=mode==='rank'?'Rank-Weighted':'Equal-Weighted';
-  $('btMetrics').innerHTML=
+function renderBT(records, init, mode) {
+  var recs = records;
+  $('btRes').classList.remove('hidden');
+
+  var last = recs[recs.length - 1];
+  var yrs = (new Date(last.month) - new Date(recs[0].month)) / (365.25 * 86400000);
+
+  var tr = last.nav / init - 1;
+  var cagr = yrs > 0 ? Math.pow(1 + Math.max(tr, -0.999), 1 / yrs) - 1 : 0;
+
+  var btr = last.bNav / init - 1;
+  var bcagr = yrs > 0 ? Math.pow(1 + Math.max(btr, -0.999), 1 / yrs) - 1 : 0;
+
+  var pk = init, mdd = 0;
+  recs.forEach(function (r) {
+    if (r.nav > pk) pk = r.nav;
+    var dd = (r.nav - pk) / pk;
+    if (dd < mdd) mdd = dd;
+  });
+
+  var bpk = init, bmdd = 0;
+  recs.forEach(function (r) {
+    if (r.bNav > bpk) bpk = r.bNav;
+    var dd = (r.bNav - bpk) / bpk;
+    if (dd < bmdd) bmdd = dd;
+  });
+
+  var rets = recs.map(function (r) { return r.pRet; });
+  var avg = rets.reduce(function (a, b) { return a + b; }, 0) / rets.length;
+  var std = Math.sqrt(
+    rets.reduce(function (a, b) { return a + Math.pow(b - avg, 2); }, 0) /
+    (rets.length > 1 ? rets.length - 1 : 1)
+  ) * Math.sqrt(12) || 1;
+
+  var sh = (cagr - 0.015) / std;
+
+  var fmt = function (v, pct, plus) {
+    return (plus && v >= 0 ? '+' : '') + (pct ? (v * 100).toFixed(2) + '%' : v.toFixed(2));
+  };
+
+  var modeLabel = mode === 'rank' ? 'Rank-Weighted' : 'Equal-Weighted';
+
+  $('btMetrics').innerHTML =
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
-    +'<div class="card" style="border-top:3px solid var(--tw);">'
-    +'<div class="ct">Strategy V1.9 ('+modeLabel+')</div>'
-    +'<div class="mr"><span>Final NAV</span><span class="mv wh">$'+Math.round(last.nav).toLocaleString()+'</span></div>'
-    +'<div class="mr"><span>Return</span><span class="mv '+(tr>=0?'tg':'tr')+'">'+fmt(tr,true,true)+'</span></div>'
-    +'<div class="mr"><span>CAGR</span><span class="mv">'+fmt(cagr,true)+'</span></div>'
-    +'<div class="mr"><span>MDD</span><span class="mv tr">'+fmt(mdd,true)+'</span></div>'
-    +'<div class="mr"><span>Sharpe</span><span class="mv tg">'+sh.toFixed(2)+'</span></div>'
-    +'</div>'
-    +'<div class="card" style="border-top:3px solid var(--mu);">'
-    +'<div class="ct">TAIEX Benchmark</div>'
-    +'<div class="mr"><span>Return</span><span class="mv '+(btr>=0?'tg':'tr')+'">'+fmt(btr,true,true)+'</span></div>'
-    +'<div class="mr"><span>CAGR</span><span class="mv">'+fmt(bcagr,true)+'</span></div>'
-    +'<div class="mr"><span>Alpha</span><span class="mv '+((cagr-bcagr)>=0?'tg':'tr')+'">'+fmt(cagr-bcagr,true,true)+'</span></div>'
-    +'</div></div>';
+    + '<div class="card" style="border-top:3px solid var(--tw);">'
+    +   '<div class="ct">Strategy V1.9 (' + modeLabel + ')</div>'
+    +   '<div class="mr"><span>Final NAV</span><span class="mv wh">$' + Math.round(last.nav).toLocaleString() + '</span></div>'
+    +   '<div class="mr"><span>Return</span><span class="mv ' + (tr >= 0 ? 'tg' : 'tr') + '">' + fmt(tr, true, true) + '</span></div>'
+    +   '<div class="mr"><span>CAGR</span><span class="mv ' + (cagr >= 0 ? 'tg' : 'tr') + '">' + fmt(cagr, true, true) + '</span></div>'
+    +   '<div class="mr"><span>MDD</span><span class="mv tr">' + fmt(mdd, true) + '</span></div>'
+    +   '<div class="mr"><span>Sharpe</span><span class="mv ' + (sh >= 1 ? 'tg' : sh >= 0 ? 'wh' : 'tr') + '">' + sh.toFixed(2) + '</span></div>'
+    + '</div>'
+    + '<div class="card" style="border-top:3px solid var(--mu);">'
+    +   '<div class="ct">TAIEX Benchmark</div>'
+    +   '<div class="mr"><span>Final NAV</span><span class="mv wh">$' + Math.round(last.bNav).toLocaleString() + '</span></div>'
+    +   '<div class="mr"><span>Return</span><span class="mv ' + (btr >= 0 ? 'tg' : 'tr') + '">' + fmt(btr, true, true) + '</span></div>'
+    +   '<div class="mr"><span>CAGR</span><span class="mv ' + (bcagr >= 0 ? 'tg' : 'tr') + '">' + fmt(bcagr, true, true) + '</span></div>'
+    +   '<div class="mr"><span>MDD</span><span class="mv tr">' + fmt(bmdd, true) + '</span></div>'
+    +   '<div class="mr"><span>Alpha</span><span class="mv ' + ((tr - btr) >= 0 ? 'tg' : 'tr') + '">' + fmt(tr - btr, true, true) + '</span></div>'
+    + '</div>'
+    + '</div>';
 
-  if ($('chartArea').style.display!=='none') {
-    if(CHART.n)CHART.n.destroy(); if(CHART.d)CHART.d.destroy();
-    var lbs=recs.map(function(r){return r.month.slice(2,7);});
-    var navs=recs.map(function(r){return r.nav;}), bnavs=recs.map(function(r){return r.bNav;});
-    var dds=[],bdds=[];
-    var p=init,bp=init;
-    recs.forEach(function(r){
-      if(r.nav>p)p=r.nav; dds.push((r.nav-p)/p*100);
-      if(r.bNav>bp)bp=r.bNav; bdds.push((r.bNav-bp)/bp*100);
-    });
-    Chart.defaults.color='#6b7a99';
-    Chart.defaults.font.family="'IBM Plex Mono', monospace";
-    var ctxN=$('navC').getContext('2d'), ctxD=$('ddC').getContext('2d');
-    CHART.n=new Chart(ctxN,{type:'line',data:{labels:lbs,datasets:[
-      {label:'Strategy',data:navs,borderColor:'#ff6b9d',borderWidth:2,pointRadius:0,tension:0.1},
-      {label:'TAIEX',data:bnavs,borderColor:'#4d9fff',borderWidth:1.5,borderDash:[3,3],pointRadius:0,tension:0.1}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:10}}}},scales:{x:{grid:{color:'#252d3d'},ticks:{maxTicksLimit:8,font:{size:9}}},y:{grid:{color:'#252d3d'},ticks:{font:{size:10}}}}}});
-    CHART.d=new Chart(ctxD,{type:'line',data:{labels:lbs,datasets:[
-      {label:'Strat DD%',data:dds,borderColor:'#ff4d6d',backgroundColor:'rgba(255,77,109,0.1)',borderWidth:1,fill:true,pointRadius:0,tension:0.1},
-      {label:'Bench DD%',data:bdds,borderColor:'#6b7a99',borderWidth:1,borderDash:[2,2],pointRadius:0,tension:0.1}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{grid:{color:'#252d3d'},ticks:{font:{size:10}},max:0}}}});
-  }
+  var body = '';
+  recs.forEach(function (r) {
+    var hold = Object.keys(r.holdings || {}).map(function (k) {
+      var w = r.holdings[k];
+      return k + ' ' + (w * 100).toFixed(0) + '%';
+    }).join(', ');
 
-  $('btBody').innerHTML=recs.slice().reverse().map(function(r,ri){
-    var idx2=recs.length-1-ri;
-    var pb=idx2>0?recs[idx2-1].bNav:init;
-    var prevNav=idx2>0?recs[idx2-1].nav:init;
-    var bRet=r.bNav/pb-1;
-    var ex=r.pRet-bRet;
-    var rc=r.pRet>=0?'var(--gr)':'var(--re)';
-    var ec=ex>=0?'var(--gr)':'var(--re)';
-    var holdStr=Object.keys(r.holdings).map(function(k){
-      var wt=r.holdings[k];
-      var isShort=wt<0;
-      var isUs=!!(document.querySelector('[data-code="'+k+'"][data-tw="0"]'));
-      var col=isShort?'var(--bl)':(isUs?'var(--us)':'var(--tw)');
-      var bg=isShort?'var(--bld)':(isUs?'var(--usd)':'var(--twd)');
-      var bst=isShort?'dashed':'solid';
-      var nm=getStockName(k);
-      var pct=Math.abs(wt*100).toFixed(0)+'%';
-      var lbl=(isShort?'S ':'')+k+(nm&&nm!==k?' '+nm:'');
-      return '<span style="background:'+bg+';color:'+col+';border:1px '+bst+' '+col+';padding:1px 6px;border-radius:3px;font-size:10px;font-family:monospace;margin:1px;">'+lbl+' '+pct+'</span>';
-    }).join('');
-    var cdMark = r.cdActive ? ' <span style="background:#3d2800;color:var(--ye);font-size:9px;padding:1px 4px;border-radius:2px;border:1px solid var(--ye)">CD</span>' : '';
-    var summaryRow='<tr style="border-top:2px solid '+(r.cdActive?'var(--ye)':'var(--bd)')+';">'
-      +'<td class="mono" style="font-weight:700;vertical-align:top;">'+r.month+cdMark+'</td>'
-      +'<td style="vertical-align:top;">'+holdStr+'</td>'
-      +'<td class="mono" style="font-size:10px;color:var(--bl);vertical-align:top;">'+(r.hurdle*100).toFixed(1)+'%</td>'
-      +'<td class="mono" style="color:'+rc+';font-weight:700;vertical-align:top;">'+(r.pRet>=0?'+':'')+(r.pRet*100).toFixed(2)+'%</td>'
-      +'<td class="mono" style="color:var(--tw);font-weight:700;vertical-align:top;">$'+Math.round(r.nav).toLocaleString()+'</td>'
-      +'<td class="mono" style="color:var(--mu);vertical-align:top;">$'+Math.round(r.bNav).toLocaleString()+'</td>'
-      +'<td class="mono" style="color:'+ec+';font-weight:700;vertical-align:top;">'+(ex>=0?'+':'')+(ex*100).toFixed(2)+'pp</td>'
-      +'</tr>';
-    var detailRows='';
-    if (r.stockRets) {
-      Object.keys(r.stockRets).forEach(function(k){
-        var sr=r.stockRets[k], ret=sr.ret, w=sr.w||0;
-        var contrib=ret*w, pnl=prevNav*contrib;
-        var isShortPos=w<0;
-        var isUs=!!(document.querySelector('[data-code="'+k+'"][data-tw="0"]'));
-        var col=isShortPos?'var(--bl)':(isUs?'var(--us)':'var(--tw)');
-        var rc2=contrib>=0?'var(--gr)':'var(--re)';
-        var nm=getStockName(k);
-        var dirLabel=isShortPos?'[S] ':'';
-        var absPct=Math.abs(w*100).toFixed(0)+'%';
-        detailRows+='<tr style="background:var(--bg);opacity:0.85;">'
-          +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);"></td>'
-          +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);font-family:monospace;font-size:11px;color:'+col+';">'
-          +dirLabel+k+(nm&&nm!==k?' <span style="color:var(--mu);font-size:10px;">'+nm+'</span>':'')
-          +' <span style="color:var(--mu);font-size:10px;">'+absPct+'</span>'
-          +'</td>'
-          +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);"></td>'
-          +'<td class="mono" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:11px;color:var(--mu);">'
-          +(ret>=0?'+':'')+(ret*100).toFixed(2)+'%'
-          +'</td>'
-          +'<td class="mono" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:11px;color:'+rc2+';">'
-          +(pnl>=0?'+$':'-$')+Math.abs(Math.round(pnl)).toLocaleString()
-          +'</td>'
-          +'<td colspan="2" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:10px;color:'+rc2+';">'
-          +'contrib: '+(contrib>=0?'+':'')+(contrib*100).toFixed(2)+'%'
-          +'</td></tr>';
+    var pnl = r.nav - (recs[0].nav || init);
+    var benchRet = (typeof r.bRet === 'number')
+      ? r.bRet
+      : (typeof r.bNav === 'number' && typeof init === 'number' ? (r.bNav / init - 1) : 0);
+
+    var alpha = (typeof r.alpha === 'number')
+      ? r.alpha
+      : ((typeof r.pRet === 'number' ? r.pRet : 0) - (typeof benchRet === 'number' ? benchRet : 0));
+
+    var cdTxt = r.cdActive
+      ? ('Y | ' + (r.cooldownTrigger || '-') + ' → ' + (r.cooldownUntil || '-'))
+      : 'N';
+
+    body += '<tr' + (r.cdActive ? ' style="background:rgba(255,77,109,0.06)"' : '') + '>'
+      + '<td class="mono">' + (r.period || r.month) + '</td>'
+      + '<td class="mono">' + cdTxt + '</td>'
+      + '<td style="max-width:420px;white-space:normal;line-height:1.5">' + hold + '</td>'
+      + '<td class="mono">' + fmt(r.hurdle || 0, true) + '</td>'
+      + '<td class="mono ' + ((r.pRet || 0) >= 0 ? 'tg' : 'tr') + '">' + fmt(r.pRet || 0, true, true) + '</td>'
+      + '<td class="mono wh">$' + Math.round(r.nav).toLocaleString()
+      + '<div style="font-size:10px;color:' + (pnl >= 0 ? 'var(--gr)' : 'var(--re)') + '">'
+      + (pnl >= 0 ? '+' : '') + '$' + Math.round(pnl).toLocaleString()
+      + '</div></td>'
+      + '<td class="mono">' + fmt(benchRet || 0, true, true) + '</td>'
+      + '<td class="mono ' + (alpha >= 0 ? 'tg' : 'tr') + '">' + fmt(alpha, true, true) + '</td>'
+      + '</tr>';
+
+    if (r.stockRets && r.stockRets.length) {
+      r.stockRets.forEach(function (s) {
+        body += '<tr style="background:var(--sf2)">'
+          + '<td class="mono" style="padding-left:24px">' + s.c + '</td>'
+          + '<td></td>'
+          + '<td>' + (s.n || '') + '</td>'
+          + '<td></td>'
+          + '<td class="mono ' + ((s.ret || 0) >= 0 ? 'tg' : 'tr') + '">' + fmt(s.ret || 0, true, true) + '</td>'
+          + '<td></td>'
+          + '<td class="mono">' + (typeof s.contrib === 'number' ? fmt(s.contrib, true, true) : '') + '</td>'
+          + '<td></td>'
+          + '</tr>';
       });
     }
-    return summaryRow+detailRows;
-  }).join('');
+  });
+
+  $('btBody').innerHTML = body;
+
+  $('chartArea').style.display = 'block';
+  $('btnChart').textContent = 'Hide Charts';
+
+  if (CHART.n) CHART.n.destroy();
+  if (CHART.d) CHART.d.destroy();
+
+  var labels = recs.map(function (r) { return r.month; });
+
+  var datasets = [
+    {
+      label: 'Strategy',
+      data: recs.map(function (r) { return r.nav; }),
+      borderColor: '#ff6b9d',
+      borderWidth: 2,
+      pointRadius: 0
+    },
+    {
+      label: 'TAIEX',
+      data: recs.map(function (r) { return r.bNav; }),
+      borderColor: '#3d4a66',
+      borderWidth: 1,
+      pointRadius: 0
+    }
+  ];
+
+  var ddSeries = [];
+  var peakNav = init;
+  recs.forEach(function (r) {
+    if (r.nav > peakNav) peakNav = r.nav;
+    ddSeries.push((r.nav - peakNav) / peakNav);
+  });
+
+  var sc = {
+    x: { ticks: { color: '#6b7a99', maxTicksLimit: 12 }, grid: { color: '#1a2030' } },
+    y: { ticks: { color: '#6b7a99' }, grid: { color: '#1a2030' } }
+  };
+
+  var opt = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    animation: { duration: 200 },
+    plugins: { legend: { labels: { color: '#6b7a99', boxWidth: 10, font: { size: 11 } } } }
+  };
+
+  CHART.n = new Chart($('navC').getContext('2d'), {
+    type: 'line',
+    data: { labels: labels, datasets: datasets },
+    options: Object.assign({}, opt, {
+      scales: Object.assign({}, sc, {
+        y: Object.assign({}, sc.y, { type: 'logarithmic' })
+      })
+    })
+  });
+
+  CHART.d = new Chart($('ddC').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Drawdown',
+        data: ddSeries,
+        borderColor: '#ff4d6d',
+        borderWidth: 2,
+        pointRadius: 0
+      }]
+    },
+    options: Object.assign({}, opt, {
+      scales: Object.assign({}, sc, {
+        y: Object.assign({}, sc.y, {
+          ticks: {
+            color: '#6b7a99',
+            callback: function (v) { return (v * 100).toFixed(0) + '%'; }
+          }
+        })
+      })
+    })
+  });
 }
 
 function pct(v,d){return (v>=0?'+':'')+(v*100).toFixed(d===undefined?1:d)+'%';}
@@ -3087,15 +3175,15 @@ function runDRSCompare() {
       var init = BT_RESULT.initial || (gv('btCap') || 100000);
 
       if ($('useDRSGate')) $('useDRSGate').checked = false;
-      var resOff = runBTcore(mh, mode);
+      var recOff = runBTcore(mh, mode);
 
       if ($('useDRSGate')) $('useDRSGate').checked = true;
-      var resOn = runBTcore(mh, mode);
+      var recOn = runBTcore(mh, mode);
 
-      if (!resOff || !resOn) throw new Error('總經閥門 On/Off 回測失敗');
+      if (!recOff || !recOn) throw new Error('總經閥門 On/Off 回測失敗');
 
-      var kOff = kpi(resOff, init);
-      var kOn = kpi(resOn, init);
+      var kOff = kpi(recOff, init);
+      var kOn = kpi(recOn, init);
 
       var sameResult =
         Math.abs(kOff.cagr - kOn.cagr) < 1e-10 &&
@@ -3111,13 +3199,16 @@ function runDRSCompare() {
         });
       }
 
-      var html = '<div class="card">';
-      html += '<div class="ct">總經閥門 BACKTEST COMPARE (ON vs OFF)</div>';
-      html += '<div>總經閥門減碼日數：' + reducedCount + '</div>';
-      html += '<table><tr><th>Mode</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Final NAV</th></tr>';
-      html += '<tr><td>OFF</td><td>' + (kOff.cagr * 100).toFixed(2) + '%</td><td>' + (kOff.mdd * 100).toFixed(2) + '%</td><td>' + kOff.sharpe.toFixed(2) + '</td><td>$' + Math.round(kOff.nav).toLocaleString() + '</td></tr>';
-      html += '<tr><td>ON</td><td>' + (kOn.cagr * 100).toFixed(2) + '%</td><td>' + (kOn.mdd * 100).toFixed(2) + '%</td><td>' + kOn.sharpe.toFixed(2) + '</td><td>$' + Math.round(kOn.nav).toLocaleString() + '</td></tr>';
-      html += '</table></div>';
+      var html = '<div class="card">'
+        + '<div class="ct">總經閥門 BACKTEST COMPARE (ON vs OFF)</div>'
+        + '<div style="font-size:12px;margin-bottom:8px">總經閥門減碼日數：<b>' + reducedCount + '</b></div>'
+        + '<div class="tw-wrap"><table><thead><tr>'
+        + '<th>Mode</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Final NAV</th>'
+        + '</tr></thead><tbody>'
+        + '<tr><td>OFF</td><td>' + (kOff.cagr * 100).toFixed(2) + '%</td><td>' + (kOff.mdd * 100).toFixed(2) + '%</td><td>' + kOff.sharpe.toFixed(2) + '</td><td>$' + Math.round(kOff.nav).toLocaleString() + '</td></tr>'
+        + '<tr><td>ON</td><td>' + (kOn.cagr * 100).toFixed(2) + '%</td><td>' + (kOn.mdd * 100).toFixed(2) + '%</td><td>' + kOn.sharpe.toFixed(2) + '</td><td>$' + Math.round(kOn.nav).toLocaleString() + '</td></tr>'
+        + '</tbody></table></div>'
+        + '</div>';
 
       $('stressRes').classList.remove('hidden');
       $('stressMetrics').innerHTML += html;
@@ -3125,7 +3216,7 @@ function runDRSCompare() {
       if (reducedCount === 0) {
         sl('drsLog', '比較完成，但整段期間沒有任何總經閥門減碼觸發，因此 On/Off 可能完全相同', false);
       } else if (sameResult) {
-        sl('drsLog', '比較完成：有總經閥門訊號，但績效仍相同，請再檢查 runBTcore 內 target 是否真的被改變', false);
+        sl('drsLog', '比較完成：有總經閥門訊號，但績效仍相同，請檢查 runBTcore 內 target 是否真的被改變', false);
       } else {
         sl('drsLog', '總經閥門 On/Off compare done', true);
       }
