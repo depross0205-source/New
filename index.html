@@ -785,6 +785,7 @@ async function fetchDRS() {
       }
 
       MACRO_DATA[s.c] = mergeArr(MACRO_DATA[s.c] || [], bars);
+
       await new Promise(function(resolve) {
         setTimeout(resolve, 250);
       });
