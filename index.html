@@ -2823,19 +2823,19 @@ var DRS_DATA = {};
 var DRS_RESULT = null;
 
 var DRS_CFG = {
-  w_hy: 0.30,
-  w_yc: 0.25,
-  w_vix: 0.20,
+  w_hy: 0.35,
+  w_yc: 0.20,
+  w_vix: 0.30,
   w_brd: 0.15,
-  smooth: 21,
-  hold: 30,
-  win: 252
+  smooth: 10,
+  hold: 20,
+  win: 126
 };
 
 function drsLevel(v) {
-  if (v >= 2.0) return { level: 3, label: 'RED -60%', color: '#ff4d6d', reduce: 0.60 };
-  if (v >= 1.5) return { level: 2, label: 'ORANGE -40%', color: '#ff8c42', reduce: 0.40 };
-  if (v >= 1.0) return { level: 1, label: 'YELLOW -20%', color: '#ffb830', reduce: 0.20 };
+  if (v >= 1.40) return { level: 3, label: 'RED -60%', color: '#ff4d6d', reduce: 0.60 };
+  if (v >= 1.00) return { level: 2, label: 'ORANGE -40%', color: '#ff8c42', reduce: 0.40 };
+  if (v >= 0.65) return { level: 1, label: 'YELLOW -20%', color: '#ffb830', reduce: 0.20 };
   return { level: 0, label: 'GREEN OK', color: '#00e5a0', reduce: 0.00 };
 }
 
@@ -2899,11 +2899,30 @@ function buildDRSTimeSeries() {
     raw[j]=DRS_CFG.w_hy*z_hy+DRS_CFG.w_yc*z_yc+DRS_CFG.w_vix*z_vx+DRS_CFG.w_brd*z_br;
   }
 
-  var sm=ema(raw,DRS_CFG.smooth);
-  var map={};
-  dates.forEach((d,i)=>map[d]={drs:sm[i],raw:raw[i]});
+  var sm = ema(raw, DRS_CFG.smooth);
 
-  return {map:map,dates:dates};
+// 讓警戒狀態至少維持 hold 天
+var held = sm.slice();
+var holdDays = DRS_CFG.hold || 0;
+var holdLeft = 0;
+var peak = -Infinity;
+
+for (let i = 0; i < held.length; i++) {
+  if (held[i] >= 0.65) {
+    holdLeft = holdDays;
+    peak = held[i];
+  } else if (holdLeft > 0) {
+    held[i] = Math.max(held[i], peak * 0.85);
+    holdLeft--;
+  } else {
+    peak = -Infinity;
+  }
+}
+
+var map = {};
+dates.forEach((d,i)=>map[d]={drs:held[i],raw:raw[i],smoothed:sm[i]});
+
+return {map:map,dates:dates};
 }
 
 // ==========================
