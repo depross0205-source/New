@@ -762,7 +762,45 @@ async function fetchOHLCV(s, interval, range) {
     };
   }).filter(function(v){ return v.c != null; });
 }
+async function fetchDRS() {
+  showL('Fetching DRS markets...');
+  sl('drsLog', '抓取 HYG / TLT / ^VIX / SPY / RSP ...', null);
 
+  try {
+    var drsList = [
+      { c:'HYG',  n:'High Yield ETF', tw:false },
+      { c:'TLT',  n:'20Y Treasury',   tw:false },
+      { c:'^VIX', n:'VIX',            tw:false },
+      { c:'SPY',  n:'SPY500',         tw:false },
+      { c:'RSP',  n:'Equal Weight',   tw:false }
+    ];
+
+    for (var i = 0; i < drsList.length; i++) {
+      var s = drsList[i];
+      sl('drsLog', '抓取中: ' + s.c + ' ...', null);
+
+      var bars = await fetchOHLCV(s, '1d', '2y');
+      if (!bars || !bars.length) throw new Error('No data for ' + s.c);
+
+      DAILY[s.c] = mergeArr(DAILY[s.c] || [], bars);
+      await new Promise(function(r){ setTimeout(r, 250); });
+    }
+
+    await buildCache();
+    await saveAllToDB();
+
+    var ok = calcDRSCurrent();
+    if (!ok) throw new Error('DRS series build failed');
+
+    sl('drsLog', 'DRS 資料抓取完成', true);
+  } catch (e) {
+    console.error(e);
+    sl('drsLog', 'DRS 抓取失敗: ' + e.message, false);
+  } finally {
+    hideL();
+  }
+}
+  
 async function fetchAll() {
   var stocks = getEnabledStocks();
   if(!stocks.length) return alert('\u8acb\u5148\u9078\u64c7\u80a1\u6c60');
@@ -2900,22 +2938,79 @@ function applyDRSGate(target,dateStr,useDRS){
 // CALC CURRENT
 // ==========================
 function calcDRSCurrent(){
-  var ts=buildDRSTimeSeries();
-  if(!ts)return;
+  var ts = buildDRSTimeSeries();
+  if (!ts) {
+    sl('drsLog', 'DRS 重算失敗：缺少 HYG / TLT / ^VIX / SPY 日線資料', false);
+    var panel0 = $('drsPanel');
+    if (panel0) panel0.innerHTML = '<span style="color:var(--re)">資料不足，請先抓取 DRS</span>';
+    return false;
+  }
 
-  DRS_RESULT=ts;
+  DRS_RESULT = ts;
+
+  var lastDate = ts.dates[ts.dates.length - 1];
+  var pt = ts.map[lastDate];
+  var lv = drsLevel(pt.drs);
+
+  // 👉 更新上方 badge（你 UI 有那個 DRS: --）
+  var badge = $('drsBadge');
+  if (badge) {
+    badge.textContent = 'DRS: ' + pt.drs.toFixed(2) + ' | ' + lv.label + ' | ' + lastDate;
+    badge.style.color = lv.color;
+    badge.style.borderColor = lv.color;
+  }
+
+  // 👉 更新主面板
+  var panel = $('drsPanel');
+  if (panel) {
+    panel.innerHTML =
+      '<div style="font-size:12px;line-height:1.8">' +
+      '<div>日期：<b style="color:var(--wh)">' + lastDate + '</b></div>' +
+      '<div>DRS：<b style="color:' + lv.color + '">' + pt.drs.toFixed(2) + '</b></div>' +
+      '<div>狀態：<b style="color:' + lv.color + '">' + lv.label + '</b></div>' +
+      '<div>減碼：<b style="color:var(--ye)">' + Math.round(lv.reduce * 100) + '%</b></div>' +
+      '</div>';
+  }
+
+  sl('drsLog', 'DRS 重算完成：' + lastDate + ' (' + lv.label + ')', true);
+  return true;
 }
+  function updateDRSWeights() {
+  if (typeof DRS_CFG === 'undefined') return;
 
+  DRS_CFG.w_hy   = gv('drsWHY')  / 100;
+  DRS_CFG.w_yc   = gv('drsWYC')  / 100;
+  DRS_CFG.w_vix  = gv('drsWVIX') / 100;
+  DRS_CFG.w_brd  = gv('drsWBRD') / 100;
+  DRS_CFG.smooth = parseInt($('drsSmooth').value, 10) || 21;
+  DRS_CFG.win    = parseInt($('drsWin').value, 10) || 252;
+  DRS_CFG.hold   = parseInt($('drsHold').value, 10) || 30;
+
+  calcDRSCurrent();
+}
 // ==========================
 // DRS COMPARE
 // ==========================
+  
 function runDRSCompare() {
   if (!CACHE_BUILT) { alert('Build cache first'); return; }
 
-  var oldChecked = document.getElementById('useDRSGate') ? document.getElementById('useDRSGate').checked : true;
-  var mh = parseInt($('btH') ? $('btH').value : '5') || 5;
+  var rebuilt = calcDRSCurrent();
+  if (!rebuilt || !DRS_RESULT) {
+    sl('drsLog', 'DRS compare error: DRS_RESULT 不存在，請先抓取 DRS 資料', false);
+    return;
+  }
+
+  var oldChecked = $('useDRSGate') ? $('useDRSGate').checked : true;
+  var mh = parseInt($('btH') ? $('btH').value : '5', 10) || 5;
   var mode = getWeightMode();
   var init = gv('btCap') || 100000;
+
+  var reducedCount = 0;
+  DRS_RESULT.dates.forEach(function(d){
+    var pt = DRS_RESULT.map[d];
+    if (pt && drsLevel(pt.drs).reduce > 0) reducedCount++;
+  });
 
   sl('drsLog', 'Running DRS On/Off compare...', null);
   showL('DRS On/Off Compare...');
@@ -2935,32 +3030,37 @@ function runDRSCompare() {
 
       var html = '<div class="card" style="border-top:3px solid var(--re);margin-bottom:10px;">'
         + '<div class="ct">DRS BACKTEST COMPARE (ON vs OFF)</div>'
+        + '<div style="font-size:11px;color:var(--mu);margin-bottom:8px">DRS 減碼月份數：<b style="color:var(--ye)">' + reducedCount + '</b></div>'
         + '<div class="tw-wrap"><table><thead><tr>'
         + '<th>Mode</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Final NAV</th>'
         + '</tr></thead><tbody>'
         + '<tr>'
         + '<td class="mono" style="color:var(--mu)">DRS OFF</td>'
-        + '<td class="mono" style="color:' + (kOff.cagr >= 0 ? 'var(--gr)' : 'var(--re)') + '">' + (kOff.cagr * 100).toFixed(2) + '%</td>'
-        + '<td class="mono" style="color:var(--re)">' + (kOff.mdd * 100).toFixed(2) + '%</td>'
-        + '<td class="mono" style="color:' + (kOff.sharpe >= 0 ? 'var(--gr)' : 'var(--re)') + '">' + kOff.sharpe.toFixed(2) + '</td>'
-        + '<td class="mono" style="color:var(--wh)">$' + Math.round(kOff.nav).toLocaleString() + '</td>'
+        + '<td class="mono">' + (kOff.cagr * 100).toFixed(2) + '%</td>'
+        + '<td class="mono">' + (kOff.mdd * 100).toFixed(2) + '%</td>'
+        + '<td class="mono">' + kOff.sharpe.toFixed(2) + '</td>'
+        + '<td class="mono">$' + Math.round(kOff.nav).toLocaleString() + '</td>'
         + '</tr>'
         + '<tr>'
         + '<td class="mono" style="color:var(--re)">DRS ON</td>'
-        + '<td class="mono" style="color:' + (kOn.cagr >= 0 ? 'var(--gr)' : 'var(--re)') + '">' + (kOn.cagr * 100).toFixed(2) + '%</td>'
-        + '<td class="mono" style="color:var(--re)">' + (kOn.mdd * 100).toFixed(2) + '%</td>'
-        + '<td class="mono" style="color:' + (kOn.sharpe >= 0 ? 'var(--gr)' : 'var(--re)') + '">' + kOn.sharpe.toFixed(2) + '</td>'
-        + '<td class="mono" style="color:var(--wh)">$' + Math.round(kOn.nav).toLocaleString() + '</td>'
+        + '<td class="mono">' + (kOn.cagr * 100).toFixed(2) + '%</td>'
+        + '<td class="mono">' + (kOn.mdd * 100).toFixed(2) + '%</td>'
+        + '<td class="mono">' + kOn.sharpe.toFixed(2) + '</td>'
+        + '<td class="mono">$' + Math.round(kOn.nav).toLocaleString() + '</td>'
         + '</tr>'
         + '</tbody></table></div>'
         + '</div>';
 
-      var targetRes = document.getElementById('stressRes');
+      var targetRes = $('stressRes');
       if (targetRes) targetRes.classList.remove('hidden');
-      var el = document.getElementById('stressMetrics');
+      var el = $('stressMetrics');
       if (el) el.innerHTML = el.innerHTML + html;
 
-      sl('drsLog', 'DRS On/Off compare done', true);
+      if (reducedCount === 0) {
+        sl('drsLog', '比較完成，但目前 DRS 沒有任何月份觸發減碼，所以結果可能完全相同', false);
+      } else {
+        sl('drsLog', 'DRS On/Off compare done', true);
+      }
     } catch (e) {
       console.error(e);
       sl('drsLog', 'DRS compare error: ' + e.message, false);
@@ -2972,51 +3072,71 @@ function runDRSCompare() {
 }
 
 function runDRSPermutation() {
-  if (!BT_RESULT) { alert('Run backtest first'); return; }
+  if (!CACHE_BUILT) { alert('Build cache first'); return; }
 
-  var simN = parseInt(document.getElementById('drsTrials') ? document.getElementById('drsTrials').value : '1000', 10) || 1000;
-  var rets = BT_RESULT.records.map(function(r){ return r.pRet; });
-  var init = BT_RESULT.initial, n = rets.length;
+  var rebuilt = calcDRSCurrent();
+  if (!rebuilt || !DRS_RESULT) {
+    sl('stressLog', 'Error: DRS_RESULT 不存在，請先抓取 DRS 資料', false);
+    return;
+  }
+
+  var simN = parseInt($('drsTrials') ? $('drsTrials').value : '100', 10) || 100;
+  var mh = parseInt($('btH') ? $('btH').value : '5', 10) || 5;
+  var mode = getWeightMode();
+  var init = gv('btCap') || 100000;
 
   sl('stressLog', 'DRS Permutation Test x' + simN + '...', null);
   showL('DRS Permutation Test...');
 
   setTimeout(function() {
     try {
-      var nav = init;
-      rets.forEach(function(r){ nav *= (1 + r); });
-      var yrs = n / 12;
-      var realCagr = Math.pow(nav / init, 1 / yrs) - 1;
-      var avg0 = rets.reduce(function(a,b){ return a + b; }, 0) / n;
-      var std0 = Math.sqrt(rets.reduce(function(a,b){ return a + Math.pow(b - avg0, 2); }, 0) / n) * Math.sqrt(12);
-      var realSharpe = std0 > 0 ? (realCagr - 0.015) / std0 : 0;
+      var oldChecked = $('useDRSGate') ? $('useDRSGate').checked : true;
 
-      var sharpesDist = [];
+      if ($('useDRSGate')) $('useDRSGate').checked = true;
+      var realRec = runBTcore(mh, mode);
+      var realK = kpi(realRec, init);
+      var realSharpe = realK.sharpe;
+
+      var originalMap = DRS_RESULT.map;
+      var dates = DRS_RESULT.dates.slice();
+      var dist = [];
+
       for (var s = 0; s < simN; s++) {
-        var perm = rets.slice();
-        for (var i = perm.length - 1; i > 0; i--) {
+        var shuffledVals = dates.map(function(d){ return originalMap[d]; }).slice();
+
+        for (var i = shuffledVals.length - 1; i > 0; i--) {
           var j = Math.floor(Math.random() * (i + 1));
-          var tmp = perm[i]; perm[i] = perm[j]; perm[j] = tmp;
+          var tmp = shuffledVals[i]; shuffledVals[i] = shuffledVals[j]; shuffledVals[j] = tmp;
         }
-        var pNav = init;
-        perm.forEach(function(r){ pNav *= (1 + r); });
-        var pCagr = Math.pow(pNav / init, 1 / yrs) - 1;
-        var pavg = perm.reduce(function(a,b){ return a + b; }, 0) / n;
-        var pstd = Math.sqrt(perm.reduce(function(a,b){ return a + Math.pow(b - pavg, 2); }, 0) / n) * Math.sqrt(12);
-        sharpesDist.push(pstd > 0 ? (pCagr - 0.015) / pstd : 0);
+
+        var fakeMap = {};
+        dates.forEach(function(d, idx){
+          fakeMap[d] = shuffledVals[idx];
+        });
+
+        DRS_RESULT = { map: fakeMap, dates: dates.slice() };
+
+        if ($('useDRSGate')) $('useDRSGate').checked = true;
+        var permRec = runBTcore(mh, mode);
+        var permK = kpi(permRec, init);
+        dist.push(permK.sharpe);
       }
 
-      var pVal = sharpesDist.filter(function(v){ return v >= realSharpe; }).length / simN;
+      DRS_RESULT = { map: originalMap, dates: dates.slice() };
+      if ($('useDRSGate')) $('useDRSGate').checked = oldChecked;
+
+      var pVal = dist.filter(function(v){ return v >= realSharpe; }).length / simN;
       var verdict = pVal <= 0.05 ? 'PASS p<0.05' : pVal <= 0.10 ? 'WARN p<0.10' : 'FAIL p=' + pVal.toFixed(2);
 
       var html = '<div class="card" style="border-top:3px solid var(--us);margin-bottom:10px;">'
         + '<div class="ct">DRS PERMUTATION TEST (x' + simN + ')</div>'
-        + '<div style="font-size:12px">p-value: <b>' + pVal.toFixed(3) + '</b> | Sharpe: <b>' + realSharpe.toFixed(2) + '</b> | ' + verdict + '</div>'
-        + '</div>';
+        + '<div style="font-size:12px">p-value: <b>' + pVal.toFixed(3)
+        + '</b> | Real Sharpe: <b>' + realSharpe.toFixed(2)
+        + '</b> | ' + verdict + '</div></div>';
 
-      var targetRes = document.getElementById('stressRes');
+      var targetRes = $('stressRes');
       if (targetRes) targetRes.classList.remove('hidden');
-      var el = document.getElementById('stressMetrics');
+      var el = $('stressMetrics');
       if (el) el.innerHTML = el.innerHTML + html;
 
       sl('stressLog', 'Permutation done', true);
@@ -3037,41 +3157,51 @@ function calcDeflatedSharpe(sharpe, n, skew, kurt, trials) {
   return { srStar: srStar, deflated: deflated };
 }
 
-function runDeflatedSharpe() {
+unction runDeflatedSharpe() {
   if (!BT_RESULT) { alert('Run backtest first'); return; }
 
-  var rets = BT_RESULT.records.map(function(r){ return r.pRet; });
+  var rets = BT_RESULT.records.map(function(r){ return r.pRet; }).filter(function(x){ return isFinite(x); });
   var n = rets.length;
+  if (n < 12) { alert('樣本太少，至少需要 12 期'); return; }
 
   var avg = rets.reduce(function(a,b){ return a + b; }, 0) / n;
-  var variance = rets.reduce(function(a,b){
-    return a + Math.pow(b - avg, 2);
-  }, 0) / n;
-  var std = Math.sqrt(variance) * Math.sqrt(12);
+  var variance = rets.reduce(function(a,b){ return a + Math.pow(b - avg, 2); }, 0) / Math.max(1, n - 1);
+  var volM = Math.sqrt(variance);
+  var std = volM * Math.sqrt(12);
+
+  if (!isFinite(std) || std <= 0) {
+    alert('Sharpe 無法計算，波動率為 0');
+    return;
+  }
 
   var skew = rets.reduce(function(a,b){
-    return a + Math.pow((b - avg) / Math.sqrt(variance || 1), 3);
+    return a + Math.pow((b - avg) / (volM || 1e-9), 3);
   }, 0) / n;
 
   var kurt = rets.reduce(function(a,b){
-    return a + Math.pow((b - avg) / Math.sqrt(variance || 1), 4);
+    return a + Math.pow((b - avg) / (volM || 1e-9), 4);
   }, 0) / n;
 
   var init = BT_RESULT.initial;
   var last = BT_RESULT.records[BT_RESULT.records.length - 1];
-  var yrs = (new Date(last.month) - new Date(BT_RESULT.records[0].month)) / (365.25 * 86400000);
+  var first = BT_RESULT.records[0];
+  var yrs = Math.max(n / 12, (new Date(last.month) - new Date(first.month)) / (365.25 * 86400000));
 
-  var cagr = Math.pow(last.nav / init, 1 / yrs) - 1;
-  var rawSharpe = std > 0 ? (cagr - 0.015) / std : 0;
+  var cagr = yrs > 0 ? Math.pow(last.nav / init, 1 / yrs) - 1 : 0;
+  var rawSharpe = (cagr - 0.015) / std;
 
-  var trials = 20;
+  var trials = parseInt($('drsTrials') ? $('drsTrials').value : '20', 10) || 20;
   var ds = calcDeflatedSharpe(rawSharpe, n, skew, kurt, trials);
 
-  var html = '<div class="card"><div class="ct">Deflated Sharpe</div>'
-    + '<div>Raw: ' + rawSharpe.toFixed(2)
-    + ' | Deflated: ' + ds.deflated.toFixed(2) + '</div></div>';
+  var html = '<div class="card" style="border-top:3px solid var(--ac);margin-bottom:10px;">'
+    + '<div class="ct">Deflated Sharpe</div>'
+    + '<div style="font-size:12px">Raw: <b>' + rawSharpe.toFixed(2)
+    + '</b> | Deflated: <b>' + ds.deflated.toFixed(2)
+    + '</b> | Trials: <b>' + trials + '</b></div></div>';
 
-  var el = document.getElementById('stressMetrics');
+  var targetRes = $('stressRes');
+  if (targetRes) targetRes.classList.remove('hidden');
+  var el = $('stressMetrics');
   if (el) el.innerHTML += html;
 }
 
