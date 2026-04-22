@@ -1784,12 +1784,7 @@ function renderBT(records, init, mode) {
 
     var detailLines = [];
     var holdings = r.holdings || {};
-    var stockRetMap = {};
-
-    (r.stockRets || []).forEach(function (s) {
-      stockRetMap[s.c] = s;
-    });
-
+   var stockRetMap = r.stockRets || {};
     Object.keys(holdings).forEach(function (code) {
       var w = holdings[code] || 0;
       var nm = getCodeName(code);
@@ -1805,7 +1800,9 @@ function renderBT(records, init, mode) {
       var buyPx = getPriceOnDate(DAILY[code], pr.start);
       var sellPx = isLatestRow ? getLastClose(code) : getPriceOnDate(DAILY[code], pr.end);
       var retObj = stockRetMap[code];
-      var stockRet = retObj && isFinite(retObj.ret) ? retObj.ret : ((buyPx && sellPx) ? (sellPx / buyPx - 1) : null);
+      var stockRet = (retObj && typeof retObj.ret === 'number' && isFinite(retObj.ret))
+  ? retObj.ret
+  : ((buyPx && sellPx && buyPx > 0) ? (sellPx / buyPx - 1) : null);
 
       var pxLabel = isLatestRow ? '買/現' : '買/賣';
       var pxText = (buyPx && sellPx)
