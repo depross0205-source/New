@@ -390,9 +390,8 @@ tr:hover{background:var(--sf2)}
       <div class="fi"><label>Cooldown Trigger(%)</label>
         <input type="number" id="cdTrigger" value="15" min="1" max="50" step="1">
       </div>
-      <div class="fi"><label>Cooldown Reduce To(%)</label>
-        <input type="number" id="cdReduceTo" value="0" min="0" max="70" step="10">
-      </div>
+      <div class="fi" style="opacity:.35">
+  
       <div class="fi"><label>Cooldown Min Days</label>
         <input type="number" id="cdDays" value="30" min="0" max="90" step="5">
       </div>
@@ -1188,7 +1187,7 @@ function runBTcore(mh, mode) {
   // -- COOLDOWN STATE --
   var cdOn = $('cdOn') && $('cdOn').value === 'on';
   var cdTrigger = (gv('cdTrigger') || 15) / 100;
-  var cdReduceTo = (gv('cdReduceTo') || 0) / 100;
+  var cdReduceTo = 0;
   var cdDays = gv('cdDays') || 30;
   var cdActive = false;
   var cdUntilDate = null;
@@ -1225,15 +1224,22 @@ function runBTcore(mh, mode) {
           }
           for (var dj = 0; dj < dayRange.length; dj++) {
             var dDate = dayRange[dj];
-            var dayRet = 0, cnt = 0;
-            for (var hi = 0; hi < holdCodes.length; hi++) {
-              var hc = holdCodes[hi];
-              var p0d = getPriceOnDate(DAILY[hc], prevM);
-              var pdd = getPriceOnDate(DAILY[hc], dDate);
-              if (p0d && pdd && p0d > 0) { dayRet += pdd/p0d - 1; cnt++; }
-            }
-            if (!cnt) continue;
-            var estNav = nav * (1 + dayRet / cnt);
+            var estRet = 0;
+
+for (var hi = 0; hi < holdCodes.length; hi++) {
+  var hc = holdCodes[hi];
+  var w = holdings[hc] || 0;
+  if (w <= 0) continue;
+
+  var p0d = getPriceOnDate(DAILY[hc], prevM);
+  var pdd = getPriceOnDate(DAILY[hc], dDate);
+
+  if (p0d && pdd && p0d > 0) {
+    estRet += w * (pdd / p0d - 1);
+  }
+}
+
+var estNav = nav * (1 + estRet);
             if (estNav > cdPortfolioHigh) cdPortfolioHigh = estNav;
             var ddPct = (estNav - cdPortfolioHigh) / cdPortfolioHigh;
             if (ddPct < -cdTrigger) { triggerDate = dDate; break; }
@@ -1244,36 +1250,27 @@ function runBTcore(mh, mode) {
           var cdUntil = new Date(new Date(triggerDate).getTime() + cdDays * 86400000);
           cdUntilDate = cdUntil.toISOString().slice(0, 10);
          sl(
-    'btLog',
-    'Cooldown 觸發：' + triggerDate + ' | 冷靜期至 ' + cdUntilDate + ' | Reduce To ' + Math.round(cdReduceTo * 100) + '%',
-    false
-  );
+    sl(
+  'btLog',
+  'Cooldown 觸發：' + triggerDate + ' | 冷靜期至 ' + cdUntilDate + ' | 全部轉防守部位',
+  false
+);
           cdPortfolioHigh = null;
         }
       }
       if (cdActive) {
         var daysOk = sigM >= cdUntilDate;
-        var tsOk = false;
-        if (daysOk) {
-          var testScores = calcAllScores(scoringM);
-          tsOk = testScores.some(function(r){ return r.r240 !== null && r.r240 > hurdle; });
-        }
-        if (daysOk && tsOk) {
-          cdActive = false; cdUntilDate = null; cdPortfolioHigh = nav;
-        } else {
+
+if (daysOk) {
+  cdActive = false;
+  cdUntilDate = null;
+  cdPortfolioHigh = nav;
+} else {
           // Force defensive allocation during cooldown
           var hasSGOVcd = DAILY['SGOV'] && getPriceOnDate(DAILY['SGOV'], scoreM) !== null;
-          var defKeycd = hasSGOVcd ? 'SGOV' : 'CASH';
-          var forcedTarget = {};
-          if (cdReduceTo > 0) {
-            var partialCands = calcAllScores(scoringM)
-              .filter(function(r){ return r.r240 !== null && r.r240 > hurdle; })
-              .sort(function(a,b){ return b.score - a.score; });
-            if (partialCands.length) {
-              forcedTarget[partialCands[0].s.c] = cdReduceTo;
-              forcedTarget[defKeycd] = 1.0 - cdReduceTo;
-            } else { forcedTarget[defKeycd] = 1.0; }
-          } else { forcedTarget[defKeycd] = 1.0; }
+var defKeycd = hasSGOVcd ? 'SGOV' : 'CASH';
+var forcedTarget = {};
+forcedTarget[defKeycd] = 1.0;
           
           // Compute returns under cooldown
           var turnoverCD = 0;
