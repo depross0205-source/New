@@ -768,11 +768,11 @@ async function fetchDRS() {
 
   try {
     var macroList = [
-      { c:'HYG',  n:'High Yield ETF', tw:false },
-      { c:'TLT',  n:'20Y Treasury',   tw:false },
-      { c:'^VIX', n:'VIX',            tw:false },
-      { c:'SPY',  n:'SPY500',         tw:false },
-      { c:'RSP',  n:'Equal Weight',   tw:false }
+      { c: 'HYG',  n: 'High Yield ETF', tw: false },
+      { c: 'TLT',  n: '20Y Treasury',   tw: false },
+      { c: '^VIX', n: 'VIX',            tw: false },
+      { c: 'SPY',  n: 'SPY500',         tw: false },
+      { c: 'RSP',  n: 'Equal Weight',   tw: false }
     ];
 
     for (var i = 0; i < macroList.length; i++) {
@@ -780,14 +780,20 @@ async function fetchDRS() {
       sl('drsLog', '抓取中: ' + s.c + ' ...', null);
 
       var bars = await fetchOHLCV(s, '1d', '2y');
-      if (!bars || !bars.length) throw new Error('No data for ' + s.c);
+      if (!bars || !bars.length) {
+        throw new Error('No data for ' + s.c);
+      }
 
       MACRO_DATA[s.c] = mergeArr(MACRO_DATA[s.c] || [], bars);
-      await new Promise(function(r){ setTimeout(r, 250); });
+      await new Promise(function(resolve) {
+        setTimeout(resolve, 250);
+      });
     }
 
     var ok = calcDRSCurrent();
-    if (!ok) throw new Error('Macro gate series build failed');
+    if (!ok) {
+      throw new Error('Macro gate series build failed');
+    }
 
     sl('drsLog', '總經閥門資料抓取完成', true);
   } catch (e) {
@@ -2855,7 +2861,7 @@ function drsLevel(v) {
 // BUILD DRS SERIES
 // ==========================
 function buildDRSTimeSeries() {
-  var refBars = MACRO_DATA['SPY'] || DAILY['SPY'] || DAILY['^TWII'];
+var refBars = MACRO_DATA['SPY'] || DAILY['SPY'] || DAILY['^TWII'];
 var hygBars = MACRO_DATA['HYG'] || DAILY['HYG'] || [];
 var tltBars = MACRO_DATA['TLT'] || DAILY['TLT'] || [];
 var vixBars = MACRO_DATA['^VIX'] || DAILY['^VIX'] || [];
