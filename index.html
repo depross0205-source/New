@@ -418,7 +418,7 @@ tr:hover{background:var(--sf2)}
       <button class="bo sm" onclick="dlBtCsv()">CSV</button>
     </div>
     <div class="tw-wrap"><table><thead><tr>
-      <th>Month / Stock</th><th>Holdings</th><th>Hurdle%</th><th>Return%</th><th>NAV / +$PnL</th><th>TAIEX / Contrib</th><th>Alpha%</th>
+<th>Month / Stock</th><th>Cooldown</th><th>Holdings</th><th>Hurdle%</th><th>Return%</th><th>NAV / +$PnL</th><th>TAIEX / Contrib</th><th>Alpha%</th>
     </tr></thead><tbody id="btBody"></tbody></table></div>
     <div id="rollingRes" class="hidden" style="margin-top:10px"></div>
   </div>
@@ -1243,6 +1243,11 @@ function runBTcore(mh, mode) {
           cdActive = true;
           var cdUntil = new Date(new Date(triggerDate).getTime() + cdDays * 86400000);
           cdUntilDate = cdUntil.toISOString().slice(0, 10);
+          sl(
+  'btLog',
+  'Cooldown 觸發：' + triggerDate + ' | 冷靜期至 ' + cdUntilDate + ' | Reduce To ' + Math.round(cdReduceTo * 100) + '%',
+  false
+);
           cdPortfolioHigh = null;
         }
       }
@@ -1300,7 +1305,19 @@ function runBTcore(mh, mode) {
           
           var hCopyCD={};
           Object.keys(forcedTarget).forEach(function(k){ hCopyCD[k]=forcedTarget[k]; });
-          records.push({month:sigM,period:prevM+" ~ "+sigM,nav:nav,bNav:bNav,holdings:hCopyCD,pRet:netRetCD,hurdle:hurdle,stockRets:stockRetsCD,cdActive:true});
+          records.push({
+  month: sigM,
+  period: prevM + " ~ " + sigM,
+  nav: nav,
+  bNav: bNav,
+  holdings: hCopyCD,
+  pRet: netRetCD,
+  hurdle: hurdle,
+  stockRets: stockRets,
+  cdActive: true,
+  cooldownTrigger: triggerDate,
+  cooldownUntil: cdUntilDate
+});
           holdings=hCopyCD;
           continue;
         }
@@ -1318,7 +1335,19 @@ function runBTcore(mh, mode) {
     if (valid.length < 5) {
       var b0x=getPriceOnDate(refDaily,prevM), b1x=getPriceOnDate(refDaily,sigM);
       if(b0x&&b1x&&b0x>0) bNav*=(1+(b1x/b0x-1));
-      records.push({month:sigM,period:prevM+" ~ "+sigM,nav:nav,bNav:bNav,holdings:{CASH:1.0},pRet:0,hurdle:hurdle,stockRets:{},cdActive:false});
+      records.push({
+  month: sigM,
+  period: prevM + " ~ " + sigM,
+  nav: nav,
+  bNav: bNav,
+  holdings: hCopy,
+  pRet: netRet,
+  hurdle: hurdle,
+  stockRets: stockRets,
+  cdActive: false,
+  cooldownTrigger: '',
+  cooldownUntil: ''
+});
       holdings={CASH:1.0}; continue;
     }
 
@@ -1467,22 +1496,7 @@ var fillAsset = hasSGOV ? 'SGOV' : 'CASH';
     var useDRSEl = document.getElementById('useDRSGate');
   if (useDRSEl && useDRSEl.checked) target = applyDRSGate(target, scoreM, true);
 }   // ← 補這個，關閉 if (!sel.length) 的 else 區塊
-// === DRS 強制現金化 ===
-var drsReduce = 0;
 
-if (useDRSEl && useDRSEl.checked && DRS_RESULT && DRS_RESULT.map[scoreM]) {
-  var pt = DRS_RESULT.map[scoreM];
-  drsReduce = drsLevel(pt.drs).reduce || 0;
-}
-
-if (drsReduce > 0) {
-  Object.keys(target).forEach(function(k){
-    target[k] *= (1 - drsReduce);
-  });
-
-  // 把減掉的部位轉成現金（或防禦資產）
-  target['CASH'] = (target['CASH'] || 0) + drsReduce;
-}
 var totalW=0;
 Object.keys(target).forEach(function(k){ totalW+=Math.abs(target[k]); });
     var turnover=0;
@@ -3050,45 +3064,45 @@ function calcDRSCurrent(){
 // ==========================
   
 function runDRSCompare() {
-  showL('Running DRS On/Off compare...');
+  if (!CACHE_BUILT) { alert('Fetch data first'); return; }
+
+  var rebuilt = calcDRSCurrent();
+  if (!rebuilt || !DRS_RESULT) {
+    sl('drsLog', '總經閥門資料不存在，請先抓取總經資料', false);
+    return;
+  }
+
+  showL('Running Macro Gate On/Off compare...');
   var oldChecked = $('useDRSGate') ? $('useDRSGate').checked : false;
 
   setTimeout(function () {
     try {
-      if (!BT_RESULT) {
+      if (!BT_RESULT || !BT_RESULT.records || !BT_RESULT.records.length) {
         alert('請先執行回測');
         return;
       }
 
-      // --- OFF ---
+      var mh = BT_RESULT.mh || (parseInt($('btH') ? $('btH').value : '5', 10) || 5);
+      var mode = BT_RESULT.mode || getWeightMode();
+      var init = BT_RESULT.initial || (gv('btCap') || 100000);
+
       if ($('useDRSGate')) $('useDRSGate').checked = false;
-      var resOff = runBTcore(BT_RESULT.maxHoldings, BT_RESULT.mode, BT_RESULT.config);
+      var resOff = runBTcore(mh, mode);
 
-      // --- ON ---
       if ($('useDRSGate')) $('useDRSGate').checked = true;
-      var resOn = runBTcore(BT_RESULT.maxHoldings, BT_RESULT.mode, BT_RESULT.config);
+      var resOn = runBTcore(mh, mode);
 
-      function kpi(res) {
-        var last = res.records[res.records.length - 1];
-        return {
-          cagr: res.cagr,
-          mdd: res.mdd,
-          sharpe: res.sharpe,
-          nav: last.nav
-        };
-      }
+      if (!resOff || !resOn) throw new Error('總經閥門 On/Off 回測失敗');
 
-      var kOff = kpi(resOff);
-      var kOn = kpi(resOn);
+      var kOff = kpi(resOff, init);
+      var kOn = kpi(resOn, init);
 
-      // 判斷是否完全相同
       var sameResult =
         Math.abs(kOff.cagr - kOn.cagr) < 1e-10 &&
         Math.abs(kOff.mdd - kOn.mdd) < 1e-10 &&
         Math.abs(kOff.sharpe - kOn.sharpe) < 1e-10 &&
         Math.abs(kOff.nav - kOn.nav) < 1e-6;
 
-      // 計算觸發次數
       var reducedCount = 0;
       if (DRS_RESULT && DRS_RESULT.dates) {
         DRS_RESULT.dates.forEach(function (d) {
@@ -3097,30 +3111,28 @@ function runDRSCompare() {
         });
       }
 
-      // 顯示結果
       var html = '<div class="card">';
-      html += '<div class="ct">DRS BACKTEST COMPARE (ON vs OFF)</div>';
-      html += '<div>DRS 減碼月份數：' + reducedCount + '</div>';
+      html += '<div class="ct">總經閥門 BACKTEST COMPARE (ON vs OFF)</div>';
+      html += '<div>總經閥門減碼日數：' + reducedCount + '</div>';
       html += '<table><tr><th>Mode</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Final NAV</th></tr>';
-      html += '<tr><td>DRS OFF</td><td>' + (kOff.cagr * 100).toFixed(2) + '%</td><td>' + (kOff.mdd * 100).toFixed(2) + '%</td><td>' + kOff.sharpe.toFixed(2) + '</td><td>$' + Math.round(kOff.nav).toLocaleString() + '</td></tr>';
-      html += '<tr><td>DRS ON</td><td>' + (kOn.cagr * 100).toFixed(2) + '%</td><td>' + (kOn.mdd * 100).toFixed(2) + '%</td><td>' + kOn.sharpe.toFixed(2) + '</td><td>$' + Math.round(kOn.nav).toLocaleString() + '</td></tr>';
+      html += '<tr><td>OFF</td><td>' + (kOff.cagr * 100).toFixed(2) + '%</td><td>' + (kOff.mdd * 100).toFixed(2) + '%</td><td>' + kOff.sharpe.toFixed(2) + '</td><td>$' + Math.round(kOff.nav).toLocaleString() + '</td></tr>';
+      html += '<tr><td>ON</td><td>' + (kOn.cagr * 100).toFixed(2) + '%</td><td>' + (kOn.mdd * 100).toFixed(2) + '%</td><td>' + kOn.sharpe.toFixed(2) + '</td><td>$' + Math.round(kOn.nav).toLocaleString() + '</td></tr>';
       html += '</table></div>';
 
-      $('drsCompareRes').innerHTML = html;
+      $('stressRes').classList.remove('hidden');
+      $('stressMetrics').innerHTML += html;
 
-      // log
       if (reducedCount === 0) {
-        sl('drsLog', '比較完成，但沒有任何總經閥門觸發，因此結果相同', false);
+        sl('drsLog', '比較完成，但整段期間沒有任何總經閥門減碼觸發，因此 On/Off 可能完全相同', false);
       } else if (sameResult) {
-        sl('drsLog', '有觸發總經閥門，但結果仍相同（請檢查權重是否生效）', false);
+        sl('drsLog', '比較完成：有總經閥門訊號，但績效仍相同，請再檢查 runBTcore 內 target 是否真的被改變', false);
       } else {
         sl('drsLog', '總經閥門 On/Off compare done', true);
       }
 
     } catch (e) {
       console.error(e);
-      sl('drsLog', 'DRS compare error: ' + e.message, false);
-
+      sl('drsLog', '總經閥門 compare error: ' + e.message, false);
     } finally {
       if ($('useDRSGate')) $('useDRSGate').checked = oldChecked;
       hideL();
