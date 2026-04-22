@@ -1663,12 +1663,60 @@ function renderCompare(results,init,mode) {
 }
 
 function renderBT(records, init, mode) {
-  var recs = records;
+  var recs = records || [];
+  if (!recs.length) return;
+
   $('btRes').classList.remove('hidden');
+
+  function fmt(v, pct, plus) {
+    v = isFinite(v) ? v : 0;
+    return (plus && v >= 0 ? '+' : '') + (pct ? (v * 100).toFixed(2) + '%' : v.toFixed(2));
+  }
+
+  function getCodeName(code) {
+    if (code === 'CASH') return '現金';
+    if (code === 'SGOV') return '超短債 SGOV';
+
+    for (var i = 0; i < POOL_DEF.length; i++) {
+      var arr = POOL_DEF[i].stocks || [];
+      for (var j = 0; j < arr.length; j++) {
+        if (arr[j].c === code) return arr[j].n || code;
+      }
+    }
+
+    var chip = document.querySelector('[data-code="' + code + '"]');
+    if (chip) {
+      var cn = chip.querySelector('.cn');
+      if (cn && cn.textContent) return cn.textContent;
+    }
+
+    return code;
+  }
+
+  function getLastClose(code) {
+    var bars = DAILY[code];
+    if (!bars || !bars.length) return null;
+    return bars[bars.length - 1].c;
+  }
+
+  function parsePeriod(periodStr, monthStr, idxInOriginal) {
+    if (periodStr && periodStr.indexOf('~') > -1) {
+      var parts = periodStr.split('~');
+      return {
+        start: parts[0].trim(),
+        end: parts[1].trim()
+      };
+    }
+
+    var prevEnd = (idxInOriginal > 0 && recs[idxInOriginal - 1]) ? recs[idxInOriginal - 1].month : monthStr;
+    return {
+      start: prevEnd,
+      end: monthStr
+    };
+  }
 
   var last = recs[recs.length - 1];
   var yrs = (new Date(last.month) - new Date(recs[0].month)) / (365.25 * 86400000);
-
   var tr = last.nav / init - 1;
   var cagr = yrs > 0 ? Math.pow(1 + Math.max(tr, -0.999), 1 / yrs) - 1 : 0;
 
@@ -1676,102 +1724,127 @@ function renderBT(records, init, mode) {
   var bcagr = yrs > 0 ? Math.pow(1 + Math.max(btr, -0.999), 1 / yrs) - 1 : 0;
 
   var pk = init, mdd = 0;
+  var bpk = init, bmdd = 0;
+
   recs.forEach(function (r) {
     if (r.nav > pk) pk = r.nav;
     var dd = (r.nav - pk) / pk;
     if (dd < mdd) mdd = dd;
-  });
 
-  var bpk = init, bmdd = 0;
-  recs.forEach(function (r) {
     if (r.bNav > bpk) bpk = r.bNav;
-    var dd = (r.bNav - bpk) / bpk;
-    if (dd < bmdd) bmdd = dd;
+    var bdd = (r.bNav - bpk) / bpk;
+    if (bdd < bmdd) bmdd = bdd;
   });
 
-  var rets = recs.map(function (r) { return r.pRet; });
+  var rets = recs.map(function (r) { return r.pRet || 0; });
   var avg = rets.reduce(function (a, b) { return a + b; }, 0) / rets.length;
   var std = Math.sqrt(
     rets.reduce(function (a, b) { return a + Math.pow(b - avg, 2); }, 0) /
     (rets.length > 1 ? rets.length - 1 : 1)
   ) * Math.sqrt(12) || 1;
-
   var sh = (cagr - 0.015) / std;
 
-  var fmt = function (v, pct, plus) {
-    return (plus && v >= 0 ? '+' : '') + (pct ? (v * 100).toFixed(2) + '%' : v.toFixed(2));
-  };
-
-  var modeLabel = mode === 'rank' ? 'Rank-Weighted' : 'Equal-Weighted';
+  var modeLabel = mode === 'rank' ? 'Rank-Weighted' : mode === 'ivol' ? 'IVOL-Weighted' : 'Equal-Weighted';
 
   $('btMetrics').innerHTML =
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
     + '<div class="card" style="border-top:3px solid var(--tw);">'
-    +   '<div class="ct">Strategy V1.9 (' + modeLabel + ')</div>'
-    +   '<div class="mr"><span>Final NAV</span><span class="mv wh">$' + Math.round(last.nav).toLocaleString() + '</span></div>'
-    +   '<div class="mr"><span>Return</span><span class="mv ' + (tr >= 0 ? 'tg' : 'tr') + '">' + fmt(tr, true, true) + '</span></div>'
-    +   '<div class="mr"><span>CAGR</span><span class="mv ' + (cagr >= 0 ? 'tg' : 'tr') + '">' + fmt(cagr, true, true) + '</span></div>'
-    +   '<div class="mr"><span>MDD</span><span class="mv tr">' + fmt(mdd, true) + '</span></div>'
-    +   '<div class="mr"><span>Sharpe</span><span class="mv ' + (sh >= 1 ? 'tg' : sh >= 0 ? 'wh' : 'tr') + '">' + sh.toFixed(2) + '</span></div>'
+    + '<div class="ct">Strategy V1.9 (' + modeLabel + ')</div>'
+    + '<div class="mr"><span>Final NAV</span><span class="mv wh">$' + Math.round(last.nav).toLocaleString() + '</span></div>'
+    + '<div class="mr"><span>Return</span><span class="mv ' + (tr >= 0 ? 'tg' : 'tr') + '">' + fmt(tr, true, true) + '</span></div>'
+    + '<div class="mr"><span>CAGR</span><span class="mv ' + (cagr >= 0 ? 'tg' : 'tr') + '">' + fmt(cagr, true, true) + '</span></div>'
+    + '<div class="mr"><span>MDD</span><span class="mv tr">' + fmt(mdd, true) + '</span></div>'
+    + '<div class="mr"><span>Sharpe</span><span class="mv ' + (sh >= 1 ? 'tg' : sh >= 0 ? 'wh' : 'tr') + '">' + sh.toFixed(2) + '</span></div>'
     + '</div>'
     + '<div class="card" style="border-top:3px solid var(--mu);">'
-    +   '<div class="ct">TAIEX Benchmark</div>'
-    +   '<div class="mr"><span>Final NAV</span><span class="mv wh">$' + Math.round(last.bNav).toLocaleString() + '</span></div>'
-    +   '<div class="mr"><span>Return</span><span class="mv ' + (btr >= 0 ? 'tg' : 'tr') + '">' + fmt(btr, true, true) + '</span></div>'
-    +   '<div class="mr"><span>CAGR</span><span class="mv ' + (bcagr >= 0 ? 'tg' : 'tr') + '">' + fmt(bcagr, true, true) + '</span></div>'
-    +   '<div class="mr"><span>MDD</span><span class="mv tr">' + fmt(bmdd, true) + '</span></div>'
-    +   '<div class="mr"><span>Alpha</span><span class="mv ' + ((tr - btr) >= 0 ? 'tg' : 'tr') + '">' + fmt(tr - btr, true, true) + '</span></div>'
+    + '<div class="ct">TAIEX Benchmark</div>'
+    + '<div class="mr"><span>Final NAV</span><span class="mv wh">$' + Math.round(last.bNav).toLocaleString() + '</span></div>'
+    + '<div class="mr"><span>Return</span><span class="mv ' + (btr >= 0 ? 'tg' : 'tr') + '">' + fmt(btr, true, true) + '</span></div>'
+    + '<div class="mr"><span>CAGR</span><span class="mv ' + (bcagr >= 0 ? 'tg' : 'tr') + '">' + fmt(bcagr, true, true) + '</span></div>'
+    + '<div class="mr"><span>MDD</span><span class="mv tr">' + fmt(bmdd, true) + '</span></div>'
+    + '<div class="mr"><span>Alpha</span><span class="mv ' + ((tr - btr) >= 0 ? 'tg' : 'tr') + '">' + fmt(tr - btr, true, true) + '</span></div>'
     + '</div>'
     + '</div>';
 
   var body = '';
-  recs.forEach(function (r) {
-    var hold = Object.keys(r.holdings || {}).map(function (k) {
-      var w = r.holdings[k];
-      return k + ' ' + (w * 100).toFixed(0) + '%';
-    }).join(', ');
+  var viewRecs = recs.slice().reverse();
 
-    var pnl = r.nav - (recs[0].nav || init);
-    var benchRet = (typeof r.bRet === 'number')
-      ? r.bRet
-      : (typeof r.bNav === 'number' && typeof init === 'number' ? (r.bNav / init - 1) : 0);
+  viewRecs.forEach(function (r) {
+    var originalIdx = recs.indexOf(r);
+    var pr = parsePeriod(r.period, r.month, originalIdx);
+    var isLatestRow = (r === viewRecs[0]);
 
-    var alpha = (typeof r.alpha === 'number')
-      ? r.alpha
-      : ((typeof r.pRet === 'number' ? r.pRet : 0) - (typeof benchRet === 'number' ? benchRet : 0));
+    var prevBNav = originalIdx > 0 ? recs[originalIdx - 1].bNav : init;
+    var benchMonthlyRet = prevBNav ? (r.bNav / prevBNav - 1) : 0;
+    var alphaMonthly = (r.pRet || 0) - benchMonthlyRet;
 
     var cdTxt = r.cdActive
       ? ('Y | ' + (r.cooldownTrigger || '-') + ' → ' + (r.cooldownUntil || '-'))
       : 'N';
 
+    var detailLines = [];
+    var holdings = r.holdings || {};
+    var stockRetMap = {};
+
+    (r.stockRets || []).forEach(function (s) {
+      stockRetMap[s.c] = s;
+    });
+
+    Object.keys(holdings).forEach(function (code) {
+      var w = holdings[code] || 0;
+      var nm = getCodeName(code);
+
+      if (code === 'CASH') {
+        detailLines.push(
+          '<div><span class="mono">' + nm + '</span> '
+          + '<span style="color:var(--mu)">' + (w * 100).toFixed(0) + '%</span></div>'
+        );
+        return;
+      }
+
+      var buyPx = getPriceOnDate(DAILY[code], pr.start);
+      var sellPx = isLatestRow ? getLastClose(code) : getPriceOnDate(DAILY[code], pr.end);
+      var retObj = stockRetMap[code];
+      var stockRet = retObj && isFinite(retObj.ret) ? retObj.ret : ((buyPx && sellPx) ? (sellPx / buyPx - 1) : null);
+
+      var pxLabel = isLatestRow ? '買/現' : '買/賣';
+      var pxText = (buyPx && sellPx)
+        ? (buyPx.toFixed(2) + ' / ' + sellPx.toFixed(2))
+        : '-';
+
+      var retText = stockRet === null
+        ? '-'
+        : '<span style="color:' + (stockRet >= 0 ? 'var(--gr)' : 'var(--re)') + '">'
+          + fmt(stockRet, true, true) + '</span>';
+
+      detailLines.push(
+        '<div style="margin-bottom:2px">'
+        + '<span class="mono">' + code + '</span> '
+        + '<span>' + nm + '</span> '
+        + '<span style="color:var(--mu)">' + (w * 100).toFixed(0) + '%</span>'
+        + '<br><span style="font-size:10px;color:var(--mu)">' + pxLabel + '：</span>'
+        + '<span class="mono" style="font-size:11px">' + pxText + '</span>'
+        + '<span style="font-size:10px;color:var(--mu);margin-left:8px">月報酬：</span>'
+        + '<span class="mono" style="font-size:11px">' + retText + '</span>'
+        + '</div>'
+      );
+    });
+
+    var pnl = originalIdx > 0 ? (r.nav - recs[originalIdx - 1].nav) : (r.nav - init);
+
     body += '<tr' + (r.cdActive ? ' style="background:rgba(255,77,109,0.06)"' : '') + '>'
-      + '<td class="mono">' + (r.period || r.month) + '</td>'
+      + '<td class="mono">' + (r.period || (pr.start + ' ~ ' + pr.end)) + '</td>'
       + '<td class="mono">' + cdTxt + '</td>'
-      + '<td style="max-width:420px;white-space:normal;line-height:1.5">' + hold + '</td>'
+      + '<td style="max-width:520px;white-space:normal;line-height:1.45">' + detailLines.join('') + '</td>'
       + '<td class="mono">' + fmt(r.hurdle || 0, true) + '</td>'
       + '<td class="mono ' + ((r.pRet || 0) >= 0 ? 'tg' : 'tr') + '">' + fmt(r.pRet || 0, true, true) + '</td>'
       + '<td class="mono wh">$' + Math.round(r.nav).toLocaleString()
       + '<div style="font-size:10px;color:' + (pnl >= 0 ? 'var(--gr)' : 'var(--re)') + '">'
       + (pnl >= 0 ? '+' : '') + '$' + Math.round(pnl).toLocaleString()
       + '</div></td>'
-      + '<td class="mono">' + fmt(benchRet || 0, true, true) + '</td>'
-      + '<td class="mono ' + (alpha >= 0 ? 'tg' : 'tr') + '">' + fmt(alpha, true, true) + '</td>'
+      + '<td class="mono ' + (benchMonthlyRet >= 0 ? 'tg' : 'tr') + '">' + fmt(benchMonthlyRet, true, true) + '</td>'
+      + '<td class="mono ' + (alphaMonthly >= 0 ? 'tg' : 'tr') + '">' + fmt(alphaMonthly, true, true) + '</td>'
       + '</tr>';
-
-    if (r.stockRets && r.stockRets.length) {
-      r.stockRets.forEach(function (s) {
-        body += '<tr style="background:var(--sf2)">'
-          + '<td class="mono" style="padding-left:24px">' + s.c + '</td>'
-          + '<td></td>'
-          + '<td>' + (s.n || '') + '</td>'
-          + '<td></td>'
-          + '<td class="mono ' + ((s.ret || 0) >= 0 ? 'tg' : 'tr') + '">' + fmt(s.ret || 0, true, true) + '</td>'
-          + '<td></td>'
-          + '<td class="mono">' + (typeof s.contrib === 'number' ? fmt(s.contrib, true, true) : '') + '</td>'
-          + '<td></td>'
-          + '</tr>';
-      });
-    }
   });
 
   $('btBody').innerHTML = body;
@@ -1784,75 +1857,60 @@ function renderBT(records, init, mode) {
 
   var labels = recs.map(function (r) { return r.month; });
 
-  var datasets = [
-    {
-      label: 'Strategy',
-      data: recs.map(function (r) { return r.nav; }),
-      borderColor: '#ff6b9d',
-      borderWidth: 2,
-      pointRadius: 0
-    },
-    {
-      label: 'TAIEX',
-      data: recs.map(function (r) { return r.bNav; }),
-      borderColor: '#3d4a66',
-      borderWidth: 1,
-      pointRadius: 0
-    }
-  ];
-
-  var ddSeries = [];
-  var peakNav = init;
-  recs.forEach(function (r) {
-    if (r.nav > peakNav) peakNav = r.nav;
-    ddSeries.push((r.nav - peakNav) / peakNav);
-  });
-
-  var sc = {
-    x: { ticks: { color: '#6b7a99', maxTicksLimit: 12 }, grid: { color: '#1a2030' } },
-    y: { ticks: { color: '#6b7a99' }, grid: { color: '#1a2030' } }
-  };
-
-  var opt = {
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { intersect: false, mode: 'index' },
-    animation: { duration: 200 },
-    plugins: { legend: { labels: { color: '#6b7a99', boxWidth: 10, font: { size: 11 } } } }
-  };
-
   CHART.n = new Chart($('navC').getContext('2d'), {
     type: 'line',
-    data: { labels: labels, datasets: datasets },
-    options: Object.assign({}, opt, {
-      scales: Object.assign({}, sc, {
-        y: Object.assign({}, sc.y, { type: 'logarithmic' })
-      })
-    })
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Strategy', data: recs.map(function (r) { return r.nav; }), borderColor: '#ff6b9d', borderWidth: 2, pointRadius: 0 },
+        { label: 'TAIEX', data: recs.map(function (r) { return r.bNav; }), borderColor: '#3d4a66', borderWidth: 1, pointRadius: 0 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      animation: { duration: 200 },
+      plugins: { legend: { labels: { color: '#6b7a99', boxWidth: 10, font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#6b7a99', maxTicksLimit: 12 }, grid: { color: '#1a2030' } },
+        y: { type: 'logarithmic', ticks: { color: '#6b7a99' }, grid: { color: '#1a2030' } }
+      }
+    }
+  });
+
+  var ddSeries = [];
+  var peak = init;
+  recs.forEach(function (r) {
+    if (r.nav > peak) peak = r.nav;
+    ddSeries.push((r.nav - peak) / peak);
   });
 
   CHART.d = new Chart($('ddC').getContext('2d'), {
     type: 'line',
     data: {
       labels: labels,
-      datasets: [{
-        label: 'Drawdown',
-        data: ddSeries,
-        borderColor: '#ff4d6d',
-        borderWidth: 2,
-        pointRadius: 0
-      }]
+      datasets: [
+        { label: 'Drawdown', data: ddSeries, borderColor: '#ff4d6d', borderWidth: 2, pointRadius: 0 }
+      ]
     },
-    options: Object.assign({}, opt, {
-      scales: Object.assign({}, sc, {
-        y: Object.assign({}, sc.y, {
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      animation: { duration: 200 },
+      plugins: { legend: { labels: { color: '#6b7a99', boxWidth: 10, font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#6b7a99', maxTicksLimit: 12 }, grid: { color: '#1a2030' } },
+        y: {
           ticks: {
             color: '#6b7a99',
             callback: function (v) { return (v * 100).toFixed(0) + '%'; }
-          }
-        })
-      })
-    })
+          },
+          grid: { color: '#1a2030' }
+        }
+      }
+    }
   });
 }
 
