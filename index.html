@@ -1463,7 +1463,22 @@ var fillAsset = hasSGOV ? 'SGOV' : 'CASH';
     var useDRSEl = document.getElementById('useDRSGate');
   if (useDRSEl && useDRSEl.checked) target = applyDRSGate(target, scoreM, true);
 }   // ← 補這個，關閉 if (!sel.length) 的 else 區塊
+// === DRS 強制現金化 ===
+var drsReduce = 0;
 
+if (useDRSEl && useDRSEl.checked && DRS_RESULT && DRS_RESULT.map[scoreM]) {
+  var pt = DRS_RESULT.map[scoreM];
+  drsReduce = drsLevel(pt.drs).reduce || 0;
+}
+
+if (drsReduce > 0) {
+  Object.keys(target).forEach(function(k){
+    target[k] *= (1 - drsReduce);
+  });
+
+  // 把減掉的部位轉成現金（或防禦資產）
+  target['CASH'] = (target['CASH'] || 0) + drsReduce;
+}
 var totalW=0;
 Object.keys(target).forEach(function(k){ totalW+=Math.abs(target[k]); });
     var turnover=0;
