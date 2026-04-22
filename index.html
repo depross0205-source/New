@@ -1270,7 +1270,7 @@ if (cdOn) {
 
       for (var dj = 0; dj < dayRange.length; dj++) {
         var dDate = dayRange[dj];
-        var retClose = 0, retHigh = 0, cnt = 0;
+        var retClose = 0, cnt = 0;
 
         for (var hi = 0; hi < holdCodes.length; hi++) {
           var c = holdCodes[hi];
@@ -1281,24 +1281,22 @@ if (cdOn) {
           var bard = getBarOnDate(bars, dDate);
 
           if (bar0 && bard && bar0.c && bard.c && bard.h && bar0.c > 0) {
-            retClose += (bard.c / bar0.c - 1);
-            retHigh  += (bard.h / bar0.c - 1);
-            cnt++;
+           retClose += (bard.c / bar0.c - 1);
+cnt++;
           }
         }
 
         if (!cnt) continue;
 
         var estNavClose = nav * (1 + retClose / cnt);
-        var estNavHigh  = nav * (1 + retHigh  / cnt);
 
-        // 用 High 更新 peak
-        if (cdPortfolioHigh === null || estNavHigh > cdPortfolioHigh) {
-          cdPortfolioHigh = estNavHigh;
-        }
+// 用收盤價更新持有期間 peak
+if (cdPortfolioHigh === null || estNavClose > cdPortfolioHigh) {
+  cdPortfolioHigh = estNavClose;
+}
 
-        // 用 Close 判斷回撤
-        var dd = (estNavClose - cdPortfolioHigh) / cdPortfolioHigh;
+// 用收盤價相對於收盤高點判斷回撤
+var dd = (estNavClose - cdPortfolioHigh) / cdPortfolioHigh;
 
         if (dd < -cdTrigger) {
           triggerDate = dDate;
