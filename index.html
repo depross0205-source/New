@@ -935,7 +935,19 @@ function getPriceOnDate(bars, dateStr) {
   }
   return best;
 }
-function getBarOnDate(arr, dateStr) {
+function getPriceOnDate(arr, dateStr) {
+  if (!arr || !arr.length) return null;
+
+  // 從最新往前找 <= dateStr 的最近交易日
+  for (var i = arr.length - 1; i >= 0; i--) {
+    if (arr[i].date <= dateStr) {
+      return arr[i].c; // 收盤價
+    }
+  }
+
+  return null;
+}
+  function getBarOnDate(arr, dateStr) {
   if (!arr || !arr.length) return null;
   for (var i = arr.length - 1; i >= 0; i--) {
     if (arr[i].date <= dateStr) return arr[i];
