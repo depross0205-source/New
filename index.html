@@ -1659,7 +1659,7 @@ function renderCompare(results,init,mode) {
   var sc={x:{ticks:{color:'#6b7a99',maxTicksLimit:12},grid:{color:'#1a2030'}},y:{ticks:{color:'#6b7a99'},grid:{color:'#1a2030'}}};
   var opt={responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},animation:{duration:200},plugins:{legend:{labels:{color:'#6b7a99',boxWidth:10,font:{size:11}}}}};
   CHART.n=new Chart($('navC').getContext('2d'),{type:'line',data:{labels:labels,datasets:datasets},options:Object.assign({},opt,{scales:Object.assign({},sc,{y:Object.assign({},sc.y,{type:'logarithmic'})})})});
-  $('btBody').innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:12px;font-size:12px">Run single backtest to see monthly holdings detail.</td></tr>';
+  $('btBody').innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--mu);padding:12px;font-size:12px">Run single backtest to see monthly holdings detail.</td></tr>';
 }
 
 function renderBT(records, init, mode) {
@@ -2258,7 +2258,7 @@ function renderStress(cagrs,mdds,sharpes,label,simN) {
       +'<td class="mono" style="color:var(--ye)">'+f(origVal)+'</td></tr>';
   });
   html+='<tr><td style="color:var(--mu);font-size:10px">\u52dd\u7387(CAGR>0)</td>'
-    +'<td colspan="7" class="mono" style="color:var(--gr)">'+(winRate*100).toFixed(1)+'%</td></tr>';
+    +'<td colspan="8" class="mono" style="color:var(--gr)">'+(winRate*100).toFixed(1)+'%</td></tr>';
   html+='</tbody></table></div></div>';
   $('stressRes').classList.remove('hidden');
   var el=$('stressMetrics');
