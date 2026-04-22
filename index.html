@@ -3027,6 +3027,11 @@ function runDRSCompare() {
 
       var kOff = kpi(recOff, init);
       var kOn = kpi(recOn, init);
+      var sameResult =
+  Math.abs(kOff.cagr - kOn.cagr) < 1e-10 &&
+  Math.abs(kOff.mdd - kOn.mdd) < 1e-10 &&
+  Math.abs(kOff.sharpe - kOn.sharpe) < 1e-10 &&
+  Math.abs(kOff.nav - kOn.nav) < 1e-6;
 
       var html = '<div class="card" style="border-top:3px solid var(--re);margin-bottom:10px;">'
         + '<div class="ct">DRS BACKTEST COMPARE (ON vs OFF)</div>'
@@ -3057,10 +3062,12 @@ function runDRSCompare() {
       if (el) el.innerHTML = el.innerHTML + html;
 
       if (reducedCount === 0) {
-        sl('drsLog', '比較完成，但目前 DRS 沒有任何月份觸發減碼，所以結果可能完全相同', false);
-      } else {
-        sl('drsLog', 'DRS On/Off compare done', true);
-      }
+  sl('drsLog', '比較完成，但整段期間沒有任何 DRS 減碼觸發，因此 On/Off 可能完全相同', false);
+} else if (sameResult) {
+  sl('drsLog', '比較完成：有 DRS 訊號，但回測結果仍相同，請再檢查 runBTcore 內 applyDRSGate 是否確實作用於 target 權重', false);
+} else {
+  sl('drsLog', 'DRS On/Off compare done', true);
+}
     } catch (e) {
       console.error(e);
       sl('drsLog', 'DRS compare error: ' + e.message, false);
@@ -3211,7 +3218,7 @@ window.onload = async function() {
   togglePoolUI();
   var hasData = await loadFromDB();
   if (!hasData) console.log('No local data found in IndexedDB.');
-  if (Object.keys(DRS_DATA).length > 0 || DAILY['^VIX']) calcDRSCurrent();
+  if ((typeof DRS_DATA !== 'undefined' && Object.keys(DRS_DATA).length > 0) || DAILY['^VIX']) calcDRSCurrent();
 };
 </script>
 </body>
