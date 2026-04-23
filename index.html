@@ -174,8 +174,13 @@ tr:hover{background:var(--sf2)}
       <div class="fi"><label>量能(%)</label><input type="number" id="wVol" value="20" min="0" max="100"></div>
       <div class="fi"><label>K棒(%)</label><input type="number" id="wKbar" value="20" min="0" max="100"></div>
       <div class="fi"><label>Corr Thresh</label><input type="number" id="corrT" value="0.8" step="0.05" min="0.3" max="1"></div>
-      <div class="fi"><label>Corr Window (mo)</label><input type="number" id="corrW" value="18" min="6" max="60" step="6"></div>
-      <div class="fi"><label>&gt;60MA 絕對門溻</label><select id="ma60Filter"><option value="on" selected>On (破線淘汰)</option><option value="off">Off (僅依評分)</option></select></div>
+      <div class="fi"><label>Corr Window (mo)</label><input type="number" id="corrW" value="24" min="6" max="60" step="6"></div>
+     <div class="fi"><label>>60ma 絕對門檻</label>
+  <select id="ma60Filter">
+    <option value="on" selected>ON</option>
+    <option value="off">OFF</option>
+  </select>
+</div>
     </div>
     <div class="ib2">
       <b>動能</b>: 0.5z12+0.3z6+0.2z3 (月頻) | <b>台</b>: 週頻 13週 | <b>US/Mag7</b>: 日頻 50日<br>
@@ -298,19 +303,19 @@ tr:hover{background:var(--sf2)}
       <div class="fi"><label>Start</label><input type="text" id="btS" placeholder="YYYY-MM"></div>
       <div class="fi"><label>End</label><input type="text" id="btE" placeholder="YYYY-MM"></div>
       <div class="fi">
-        <label>選股模式</label>
-        <select id="poolMode" onchange="togglePoolUI()">
-          <option value="large">大池模式 (全局排名)</option>
-          <option value="small" selected>小池模式 (分區配額)</option>
-        </select>
-      </div>
-      <div class="fi"><label>Max Hold (總名額)</label><input type="number" id="btH" value="5"></div>
+        <div class="fi"><label>選股模式</label>
+  <select id="btMode">
+    <option value="pool">原股池</option>
+    <option value="large" selected>大池模式</option>
+  </select>
+</div>
+      <div class="fi"><label>Max Hold (總名額)</label><input type="number" id="btH" value="6"></div>
       <div class="fi"><label>台股配額</label><input type="number" id="btQuotaTW" value="2" onchange="updTotalH()"></div>
       <div class="fi"><label>美股配額</label><input type="number" id="btQuotaUS" value="2" onchange="updTotalH()"></div>
       <div class="fi"><label>ETF 配額</label><input type="number" id="btQuotaETF" value="1" onchange="updTotalH()"></div>
       <div class="fi"><label>Capital</label><input type="number" id="btCap" value="100000"></div>
       <div class="fi"><label>Cost(%)</label><input type="number" id="btC" value="0.3" step="0.1"></div>
-      <div class="fi"><label>TNX Spread(%)</label><input type="number" id="btSpread" value="0.5" step="0.1"></div>
+      <div class="fi"><label>TNX Spread(%)</label><input type="number" id="btSpread" value="25" step="0.1"></div>
       <div class="fi"><label>Weight Mode</label>
         <div style="display:flex;gap:10px;margin-top:6px;font-size:12px">
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
