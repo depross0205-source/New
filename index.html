@@ -381,19 +381,41 @@ tr:hover{background:var(--sf2)}
         </select>
       </div> 
       <!-- COOLDOWN SETTINGS -->
-      <div class="fi"><label>Cooldown On/Off</label>
-        <select id="cdOn">
-          <option value="off">Off</option>
-          <option value="on">On</option>
-        </select>
-      </div>
+      <!-- COOLDOWN SETTINGS -->
+<div class="fi"><label>Cooldown On/Off</label>
+  <select id="cdOn">
+    <option value="off">Off</option>
+    <option value="on">On</option>
+  </select>
+</div>
+
 <div class="fi"><label>Cooldown Trigger(%)</label>
   <input type="number" id="cdTrigger" value="15" min="1" max="50" step="1">
 </div>
-        <div class="fi"><label>Cooldown Min Days</label>
-        <input type="number" id="cdDays" value="30" min="0" max="90" step="5">
-      </div>
-      <!-- END COOLDOWN -->
+
+<div class="fi"><label>Cooldown Min Days</label>
+  <input type="number" id="cdDays" value="30" min="0" max="90" step="5">
+</div>
+
+<div class="fi"><label>Recovery Mode</label>
+  <select id="recMode">
+    <option value="0">Off</option>
+    <option value="1" selected>Smart Recovery</option>
+  </select>
+</div>
+
+<div class="fi"><label>Recovery Step1 (%)</label>
+  <input type="number" id="rec1" value="30" min="0" max="100" step="5">
+</div>
+
+<div class="fi"><label>Recovery Step2 (%)</label>
+  <input type="number" id="rec2" value="60" min="0" max="100" step="5">
+</div>
+
+<div class="fi"><label>Recovery Min Strong</label>
+  <input type="number" id="recMin" value="3" min="1" max="10" step="1">
+</div>
+<!-- END COOLDOWN -->
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btw" onclick="runBT()" style="flex:1">執行回測</button>
@@ -1180,10 +1202,18 @@ function runBTcore(mh, mode) {
   var useMA60=$('ma60Filter')?$('ma60Filter').value==='on':true;
 
   var nav=INIT, bNav=INIT, records=[], holdings={CASH:1.0};
-  var DEFENSIVE=['SGOV'];
+var DEFENSIVE=['SGOV'];
 
-  // -- COOLDOWN STATE --
-  var cdOn = $('cdOn') && $('cdOn').value === 'on';
+// -- COOLDOWN STATE --
+var cdOn = $('cdOn') && $('cdOn').value === 'on';
+var cdTrigger = (gv('cdTrigger') || 15) / 100;
+var cdDays = gv('cdDays') || 30;
+var cdActive = false;
+var cdUntilDate = null;
+var cdPortfolioHigh = null;
+
+// -- RECOVERY STATE --
+var recoveryLevel = 0;
   var cdTrigger = (gv('cdTrigger') || 15) / 100;
   var cdReduceTo = 0;
   var cdDays = gv('cdDays') || 30;
@@ -1340,11 +1370,16 @@ if (cdOn) {
     holdings = hCopyCD;
 
     // 如果本期內 cooldown 已到期，下一段恢復正常由下期處理
-    if (sigM >= cdUntilDate) {
-      cdActive = false;
-      cdUntilDate = null;
-      cdPortfolioHigh = null;
-    }
+   if (sigM >= cdUntilDate) {
+  cdActive = false;
+  cdUntilDate = null;
+  cdPortfolioHigh = null;
+
+  // 啟動 Smart Recovery
+  if (gv('recMode') == 1) {
+    recoveryLevel = 1;
+  }
+}
 
     continue;
   }
@@ -1678,9 +1713,42 @@ var fillAsset = hasSGOV ? 'SGOV' : 'CASH';
     });
   }
 
-    var useDRSEl = document.getElementById('useDRSGate');
-  if (useDRSEl && useDRSEl.checked) target = applyDRSGate(target, scoreM, true);
-}   // ← 補這個，關閉 if (!sel.length) 的 else 區塊
+   var useDRSEl = document.getElementById('useDRSGate');
+if (useDRSEl && useDRSEl.checked) target = applyDRSGate(target, scoreM, true);
+
+// ===== SMART RECOVERY =====
+if (recoveryLevel > 0 && gv('recMode') == 1) {
+
+  var strongCount = valid.filter(function(r){
+    return r.r240 !== null && r.r240 > hurdle;
+  }).length;
+
+  var minStrong = gv('recMin') || 3;
+
+  if (strongCount >= minStrong) {
+    recoveryLevel = Math.min(recoveryLevel + 1, 3);
+  }
+
+  var step1 = (gv('rec1') || 30) / 100;
+  var step2 = (gv('rec2') || 60) / 100;
+
+  var scale = (recoveryLevel === 1) ? step1 :
+              (recoveryLevel === 2) ? step2 : 1.0;
+
+  Object.keys(target).forEach(function(c){
+    target[c] *= scale;
+  });
+
+  var remain = 1 - scale;
+  if (remain > 0) {
+    var defKey = DAILY['SGOV'] ? 'SGOV' : 'CASH';
+    target[defKey] = (target[defKey] || 0) + remain;
+  }
+
+  if (recoveryLevel === 3) {
+    recoveryLevel = 0;
+  }
+}
 
 var totalW=0;
 Object.keys(target).forEach(function(k){ totalW+=Math.abs(target[k]); });
