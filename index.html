@@ -1201,7 +1201,7 @@ function runBTcore(mh, mode) {
   var regimeExp=gv('btRegimeExp')||100;
   var useMA60=$('ma60Filter')?$('ma60Filter').value==='on':true;
 
-  var nav=INIT, bNav=INIT, records=[], holdings={CASH:1.0};
+ var nav=INIT, bNav=INIT, records=[], holdings={CASH:1.0};
 var DEFENSIVE=['SGOV'];
 
 // -- COOLDOWN STATE --
@@ -1211,6 +1211,8 @@ var cdDays = gv('cdDays') || 30;
 var cdActive = false;
 var cdUntilDate = null;
 var cdPortfolioHigh = null;
+
+// -- RECOVERY STATE --
 var recoveryLevel = 0;
 
 // -- RECOVERY STATE --
@@ -1222,8 +1224,6 @@ var recoveryLevel = 0;
 cdUntilDate = null;
 cdPortfolioHigh = null;
 
-if (gv('recMode') == 1) {
-  recoveryLevel = 1;
 }
 
   for (var idx=cS; idx<=cE; idx++) {
@@ -1372,17 +1372,13 @@ if (cdOn) {
       cooldownUntil: cdUntilDate
     });
 
-    holdings = hCopyCD;
+   holdings = hCopyCD;
 
-    // 如果本期內 cooldown 已到期，下一段恢復正常由下期處理
-   if (sigM >= cdUntilDate) {
-cdActive = false;
-cdUntilDate = null;
-cdPortfolioHigh = null;
-
-if (gv('recMode') == 1) {
-  recoveryLevel = 1;
-}
+// 如果本期內 cooldown 已到期，下一段恢復正常由下期處理
+if (sigM >= cdUntilDate) {
+  cdActive = false;
+  cdUntilDate = null;
+  cdPortfolioHigh = null;
 
   // 啟動 Smart Recovery
   if (gv('recMode') == 1) {
@@ -1390,7 +1386,7 @@ if (gv('recMode') == 1) {
   }
 }
 
-    continue;
+continue;
   }
 
   // 3) 已在 cooldown 中：本期切成「SGOV段 + 若到期則恢復段」
