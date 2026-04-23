@@ -1211,15 +1211,20 @@ var cdDays = gv('cdDays') || 30;
 var cdActive = false;
 var cdUntilDate = null;
 var cdPortfolioHigh = null;
+var recoveryLevel = 0;
 
 // -- RECOVERY STATE --
 var recoveryLevel = 0;
   var cdTrigger = (gv('cdTrigger') || 15) / 100;
   var cdReduceTo = 0;
   var cdDays = gv('cdDays') || 30;
-  var cdActive = false;
-  var cdUntilDate = null;
-  var cdPortfolioHigh = null;
+  cdActive = false;
+cdUntilDate = null;
+cdPortfolioHigh = null;
+
+if (gv('recMode') == 1) {
+  recoveryLevel = 1;
+}
 
   for (var idx=cS; idx<=cE; idx++) {
     var sigM=allM[idx];
@@ -1371,9 +1376,13 @@ if (cdOn) {
 
     // 如果本期內 cooldown 已到期，下一段恢復正常由下期處理
    if (sigM >= cdUntilDate) {
-  cdActive = false;
-  cdUntilDate = null;
-  cdPortfolioHigh = null;
+cdActive = false;
+cdUntilDate = null;
+cdPortfolioHigh = null;
+
+if (gv('recMode') == 1) {
+  recoveryLevel = 1;
+}
 
   // 啟動 Smart Recovery
   if (gv('recMode') == 1) {
@@ -1511,9 +1520,13 @@ if (cdOn) {
       totalRetCD = (1 + retCD1) * (1 + retCD2) - 1;
       holdings = targetAfter;
 
-      cdActive = false;
-      cdUntilDate = null;
-      cdPortfolioHigh = null;
+    cdActive = false;
+cdUntilDate = null;
+cdPortfolioHigh = null;
+
+if (gv('recMode') == 1) {
+  recoveryLevel = 1;
+}
     } else {
       var holdCD = {};
       holdCD[defKey2] = 1.0;
