@@ -1175,54 +1175,99 @@ function getBench(dateStr) {
 }
 function runBTcore(mh, mode) {
   if (!CACHE_BUILT) return null;
-  var stocks = getEnabledStocks().filter(function(s){ return DAILY[s.c]; });
+
+  var stocks = getEnabledStocks().filter(function(s) {
+    return DAILY[s.c];
+  });
   if (stocks.length < 3) return null;
-  var masterTicker = DAILY['^TWII'] ? '^TWII' : (DAILY['0050'] ? '0050' : (DAILY['SPY'] ? 'SPY' : stocks[0].c));
-  var refDaily = DAILY[masterTicker]; if (!refDaily) return null;
+
+  var masterTicker = DAILY['^TWII']
+    ? '^TWII'
+    : (DAILY['0050']
+        ? '0050'
+        : (DAILY['SPY']
+            ? 'SPY'
+            : stocks[0].c));
+
+  var refDaily = DAILY[masterTicker];
+  if (!refDaily) return null;
+
   var freq = $('btFreq') ? $('btFreq').value : "1";
   var allM = getPreciseRebalanceDates(refDaily, freq);
-  var rawS = $('btS') ? ($('btS').value||'').trim().slice(0,10) : '';
-  var rawE = $('btE') ? ($('btE').value||'').trim().slice(0,10) : '';
+
+  var rawS = $('btS') ? ($('btS').value || '').trim().slice(0, 10) : '';
+  var rawE = $('btE') ? ($('btE').value || '').trim().slice(0, 10) : '';
+
   var lagEl = document.querySelector('input[name="lagMode"]:checked');
-  var LAG = lagEl ? parseInt(lagEl.value) : 1;
-  var MIN=1, cS=MIN;
-  if (rawS) { for(var i=cS; i<allM.length; i++){ if(allM[i]>=rawS){ cS=i; break; } } }
-  var cE=allM.length-1;
-  if (rawE) { for(var i2=cE; i2>=cS; i2--){ if(allM[i2]<=rawE){ cE=i2; break; } } }
-  if (cS>cE) return null;
+  var LAG = lagEl ? parseInt(lagEl.value, 10) : 1;
 
-  var INIT=gv('btCap')||100000, COST=(gv('btC')||0.3)/100, ct=gv('corrT')||0.75;
-  var shortN=parseInt($('btSN')?$('btSN').value:'0')||0;
-  var capMode=document.querySelector('input[name="capMode"]:checked')?document.querySelector('input[name="capMode"]:checked').value:'neutral';
-  var wtModeEl=document.querySelector('input[name="wtMode"]:checked');
-  var wtMode=wtModeEl?wtModeEl.value:'eq';
-  var shortTSF=!!($('btSTSF')&&$('btSTSF').checked);
-  var regimeOn=$('btRegime')&&$('btRegime').value==='on';
-  var regimeExp=gv('btRegimeExp')||100;
-  var useMA60=$('ma60Filter')?$('ma60Filter').value==='on':true;
+  var MIN = 1, cS = MIN;
+  if (rawS) {
+    for (var i = cS; i < allM.length; i++) {
+      if (allM[i] >= rawS) {
+        cS = i;
+        break;
+      }
+    }
+  }
 
-  var nav=INIT, bNav=INIT, records=[], holdings={CASH:1.0};
-var DEFENSIVE=['SGOV'];
+  var cE = allM.length - 1;
+  if (rawE) {
+    for (var i2 = cE; i2 >= cS; i2--) {
+      if (allM[i2] <= rawE) {
+        cE = i2;
+        break;
+      }
+    }
+  }
+  if (cS > cE) return null;
 
-// -- COOLDOWN STATE --
-var cdOn = $('cdOn') && $('cdOn').value === 'on';
-var cdTrigger = (gv('cdTrigger') || 15) / 100;
-var cdDays = gv('cdDays') || 30;
-var cdActive = false;
-var cdUntilDate = null;
-var cdPortfolioHigh = null;
-var recoveryLevel = 0;
+  var INIT = gv('btCap') || 100000;
+  var COST = (gv('btC') || 0.3) / 100;
+  var ct = gv('corrT') || 0.75;
 
-// -- RECOVERY STATE --
-var recoveryLevel = 0;
+  var shortN = parseInt($('btSN') ? $('btSN').value : '0', 10) || 0;
+  var capModeEl = document.querySelector('input[name="capMode"]:checked');
+  var capMode = capModeEl ? capModeEl.value : 'neutral';
+
+  var wtModeEl = document.querySelector('input[name="wtMode"]:checked');
+  var wtMode = wtModeEl ? wtModeEl.value : 'eq';
+
+  var shortTSF = !!($('btSTSF') && $('btSTSF').checked);
+  var regimeOn = $('btRegime') && $('btRegime').value === 'on';
+  var regimeExp = gv('btRegimeExp') || 100;
+  var useMA60 = $('ma60Filter') ? $('ma60Filter').value === 'on' : true;
+
+  var nav = INIT;
+  var bNav = INIT;
+  var records = [];
+  var holdings = { CASH: 1.0 };
+
+  var DEFENSIVE = ['SGOV'];
+
+  // -- COOLDOWN STATE --
+  var cdOn = $('cdOn') && $('cdOn').value === 'on';
   var cdTrigger = (gv('cdTrigger') || 15) / 100;
-  var cdReduceTo = 0;
   var cdDays = gv('cdDays') || 30;
-  cdActive = false;
-cdUntilDate = null;
-cdPortfolioHigh = null;
+  var cdActive = false;
+  var cdUntilDate = null;
+  var cdPortfolioHigh = null;
 
-}
+  // -- RECOVERY STATE --
+  var recoveryLevel = 0;
+
+  for (var idx = cS; idx <= cE; idx++) {
+    var sigM = allM[idx];
+    var prevM = allM[idx - 1];
+    var scoreM = (LAG === 1)
+      ? getPrevWorkDay(refDaily, prevM, 1)
+      : (LAG === 2
+          ? getPrevWorkDay(refDaily, prevM, 2)
+          : prevM);
+
+    var hurdle = getHurdle(scoreM);
+    var skipMoOn = !!($('btSkipMo') && $('btSkipMo').checked);
+    var scoringM = skipMoOn ? getPrevWorkDay(refDaily, scoreM, 22) : scoreM;
 
   for (var idx=cS; idx<=cE; idx++) {
     var sigM=allM[idx];
