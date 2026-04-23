@@ -1210,118 +1210,308 @@ function runBTcore(mh, mode) {
     }
 
     // ---- COOLDOWN: daily NAV scan prevM -> sigM ----
-    if (cdOn) {
-      if (cdPortfolioHigh === null) cdPortfolioHigh = nav;
-      if (!cdActive) {
-        var holdCodes = Object.keys(holdings).filter(function(c){ return c !== 'CASH' && c !== 'SGOV' && DAILY[c]; });
-        var triggerDate = null;
-        if (holdCodes.length > 0) {
-          var dayRange = [];
-          for (var di = 0; di < refDaily.length; di++) {
-            if (refDaily[di].date > prevM && refDaily[di].date <= sigM) dayRange.push(refDaily[di].date);
-          }
-          for (var dj = 0; dj < dayRange.length; dj++) {
-            var dDate = dayRange[dj];
-            var estRet = 0;
+    // ---- COOLDOWN: daily NAV scan prevM -> sigM (純時間避險 / 折衷切段版) ----
+if (cdOn) {
 
-for (var hi = 0; hi < holdCodes.length; hi++) {
-  var hc = holdCodes[hi];
-  var w = holdings[hc] || 0;
-  if (w <= 0) continue;
+  if (!cdActive && cdPortfolioHigh === null) cdPortfolioHigh = nav;
 
-  var p0d = getPriceOnDate(DAILY[hc], prevM);
-  var pdd = getPriceOnDate(DAILY[hc], dDate);
+  var triggerDate = null;
 
-  if (p0d && pdd && p0d > 0) {
-    estRet += w * (pdd / p0d - 1);
-  }
-}
+  // 1) 非 cooldown 狀態：掃描是否於本期內觸發
+  if (!cdActive) {
+    var holdCodes = Object.keys(holdings).filter(function(c){
+      return c !== 'CASH' && c !== 'SGOV' && DAILY[c];
+    });
 
-var estNav = nav * (1 + estRet);
-            if (estNav > cdPortfolioHigh) cdPortfolioHigh = estNav;
-            var ddPct = (estNav - cdPortfolioHigh) / cdPortfolioHigh;
-            if (ddPct < -cdTrigger) { triggerDate = dDate; break; }
-          }
-        }
-        if (triggerDate) {
-          cdActive = true;
-          var cdUntil = new Date(new Date(triggerDate).getTime() + cdDays * 86400000);
-          cdUntilDate = cdUntil.toISOString().slice(0, 10);
-    sl(
-  'btLog',
-  'Cooldown 觸發：' + triggerDate + ' | 冷靜期至 ' + cdUntilDate + ' | 全部轉防守部位',
-  false
-);
-          cdPortfolioHigh = null;
-        }
+    if (holdCodes.length > 0) {
+      var dayRange = [];
+      for (var di = 0; di < refDaily.length; di++) {
+        var dd = refDaily[di].date;
+        if (dd > prevM && dd <= sigM) dayRange.push(dd);
       }
-      if (cdActive) {
-        var daysOk = sigM >= cdUntilDate;
 
-if (daysOk) {
-  cdActive = false;
-  cdUntilDate = null;
-  cdPortfolioHigh = nav;
-} else {
-          // Force defensive allocation during cooldown
-          var hasSGOVcd = DAILY['SGOV'] && getPriceOnDate(DAILY['SGOV'], scoreM) !== null;
-var defKeycd = hasSGOVcd ? 'SGOV' : 'CASH';
-var forcedTarget = {};
-forcedTarget[defKeycd] = 1.0;
-          
-          // Compute returns under cooldown
-          var turnoverCD = 0;
-          var allTCD = Object.keys(holdings).concat(Object.keys(forcedTarget));
-          var seenTCD = {};
-          allTCD.forEach(function(c){
-            if(seenTCD[c]) return; seenTCD[c]=1;
-            turnoverCD += Math.abs((holdings[c]||0) - (forcedTarget[c]||0));
-          });
-          turnoverCD /= 2;
-          var frictionCD = turnoverCD * COST + 0.001 * Math.max(1, Math.pow(turnoverCD/0.2, 1.5));
-          var grossRetCD = 0;
-          var stockRetsCD = {};
-          Object.keys(forcedTarget).forEach(function(c){
-            if (c === 'CASH') { stockRetsCD[c]={ret:cashRet,w:forcedTarget[c]}; grossRetCD+=forcedTarget[c]*cashRet; }
-            else {
-              var p0cd=getPriceOnDate(DAILY[c],prevM), p1cd=getPriceOnDate(DAILY[c],sigM);
-              var retcd=(p0cd&&p1cd&&p0cd>0)?p1cd/p0cd-1:cashRet;
-              stockRetsCD[c]={ret:retcd,w:forcedTarget[c]};
-              grossRetCD+=forcedTarget[c]*retcd;
-            }
-          });
-          var netRetCD=(1-frictionCD)*(1+grossRetCD)-1;
-          nav*=(1+netRetCD);
-          if (cdPortfolioHigh===null) cdPortfolioHigh=nav;
-          if (nav>cdPortfolioHigh) cdPortfolioHigh=nav;
-          var b0cd=getPriceOnDate(refDaily,prevM), b1cd=getPriceOnDate(refDaily,sigM);
-          if(b0cd&&b1cd&&b0cd>0) bNav*=(1+b1cd/b0cd-1);
-          
-          var hCopyCD={};
-          Object.keys(forcedTarget).forEach(function(k){ hCopyCD[k]=forcedTarget[k]; });
-          records.push({
-  month: sigM,
-  period: prevM + " ~ " + sigM,
-  nav: nav,
-  bNav: bNav,
-  holdings: hCopyCD,
-  pRet: netRetCD,
-  hurdle: hurdle,
-  stockRets: stockRets,
-  cdActive: true,
-  cooldownTrigger: triggerDate,
-  cooldownUntil: cdUntilDate
-});
-          holdings=hCopyCD;
-          continue;
+      for (var dj = 0; dj < dayRange.length; dj++) {
+        var dDate = dayRange[dj];
+        var estRet = 0;
+
+        Object.keys(holdings).forEach(function(c){
+          var w = holdings[c] || 0;
+          if (w <= 0) return;
+
+          if (c === 'CASH') {
+            return;
+          }
+
+          var p0 = getPriceOnDate(DAILY[c], prevM);
+          var p1 = getPriceOnDate(DAILY[c], dDate);
+
+          if (p0 && p1 && p0 > 0) {
+            estRet += w * (p1 / p0 - 1);
+          }
+        });
+
+        var estNav = nav * (1 + estRet);
+
+        if (cdPortfolioHigh === null || estNav > cdPortfolioHigh) {
+          cdPortfolioHigh = estNav;
         }
-      } 
-      else {
-        if (cdPortfolioHigh===null) cdPortfolioHigh=nav;
-        if (nav>cdPortfolioHigh) cdPortfolioHigh=nav;
+
+        var ddPct = (estNav - cdPortfolioHigh) / cdPortfolioHigh;
+        if (ddPct < -cdTrigger) {
+          triggerDate = dDate;
+          break;
+        }
       }
     }
-    // ---- END COOLDOWN ----
+  }
+
+  // 2) 本期內首次觸發 cooldown：切成「原持股段 + SGOV段」
+  if (triggerDate && !cdActive) {
+    cdActive = true;
+    var cdUntil = new Date(new Date(triggerDate).getTime() + cdDays * 86400000);
+    cdUntilDate = cdUntil.toISOString().slice(0, 10);
+
+    sl(
+      'btLog',
+      'Cooldown 觸發：' + triggerDate + ' | 冷靜期至 ' + cdUntilDate + ' | 轉 SGOV/CASH',
+      false
+    );
+
+    var hasSGOVcd = DAILY['SGOV'] && getPriceOnDate(DAILY['SGOV'], triggerDate) !== null;
+    var defKeycd = hasSGOVcd ? 'SGOV' : 'CASH';
+
+    // 段1：prevM -> triggerDate（原持股）
+    var retPart1 = 0;
+    Object.keys(holdings).forEach(function(c){
+      var w = holdings[c] || 0;
+      if (w <= 0) return;
+
+      if (c === 'CASH') {
+        return;
+      }
+
+      var p0 = getPriceOnDate(DAILY[c], prevM);
+      var p1 = getPriceOnDate(DAILY[c], triggerDate);
+      if (p0 && p1 && p0 > 0) {
+        retPart1 += w * (p1 / p0 - 1);
+      }
+    });
+
+    // 段2：triggerDate -> 本期結束（或先到 sigM）
+    var cdEndThisPeriod = (cdUntilDate < sigM) ? cdUntilDate : sigM;
+    var retPart2 = 0;
+
+    if (defKeycd === 'CASH') {
+      // 粗略用同一期 cashRet 比例近似
+      retPart2 = cashRet;
+    } else {
+      var s0cd = getPriceOnDate(DAILY[defKeycd], triggerDate);
+      var s1cd = getPriceOnDate(DAILY[defKeycd], cdEndThisPeriod);
+      if (s0cd && s1cd && s0cd > 0) {
+        retPart2 = s1cd / s0cd - 1;
+      }
+    }
+
+    var netRetCD = (1 + retPart1) * (1 + retPart2) - 1;
+
+    nav *= (1 + netRetCD);
+
+    var b0cd = getPriceOnDate(refDaily, prevM);
+    var b1cd = getPriceOnDate(refDaily, cdEndThisPeriod);
+    if (b0cd && b1cd && b0cd > 0) bNav *= (1 + (b1cd / b0cd - 1));
+
+    var hCopyCD = {};
+    hCopyCD[defKeycd] = 1.0;
+
+    records.push({
+      month: sigM,
+      period: prevM + " ~ " + sigM,
+      nav: nav,
+      bNav: bNav,
+      holdings: hCopyCD,
+      pRet: netRetCD,
+      hurdle: hurdle,
+      stockRets: {},
+      cdActive: true,
+      cooldownTrigger: triggerDate,
+      cooldownUntil: cdUntilDate
+    });
+
+    holdings = hCopyCD;
+
+    // 如果本期內 cooldown 已到期，下一段恢復正常由下期處理
+    if (sigM >= cdUntilDate) {
+      cdActive = false;
+      cdUntilDate = null;
+      cdPortfolioHigh = null;
+    }
+
+    continue;
+  }
+
+  // 3) 已在 cooldown 中：本期切成「SGOV段 + 若到期則恢復段」
+  if (cdActive) {
+    var hasSGOV2 = DAILY['SGOV'] && getPriceOnDate(DAILY['SGOV'], prevM) !== null;
+    var defKey2 = hasSGOV2 ? 'SGOV' : 'CASH';
+
+    var endCD = (cdUntilDate < sigM) ? cdUntilDate : sigM;
+    var retCD1 = 0;
+
+    // 段1：prevM -> endCD（防守部位）
+    if (defKey2 === 'CASH') {
+      retCD1 = cashRet;
+    } else {
+      var p0d1 = getPriceOnDate(DAILY[defKey2], prevM);
+      var p1d1 = getPriceOnDate(DAILY[defKey2], endCD);
+      if (p0d1 && p1d1 && p0d1 > 0) {
+        retCD1 = p1d1 / p0d1 - 1;
+      }
+    }
+
+    var totalRetCD = retCD1;
+
+    // 如果本期內 cooldown 到期，補算 endCD -> sigM 的正常持股段
+    if (cdUntilDate < sigM) {
+      var scAfter = calcAllScores(scoringM);
+      var validAfter = scAfter.filter(function(r){ return r.score !== null; });
+      validAfter.sort(function(a,b){ return b.score - a.score; });
+
+      var exitMapAfter = {};
+      if (useMA60) {
+        Object.keys(holdings).forEach(function(c) {
+          if (c === 'CASH' || c === 'SGOV') return;
+          var bars = DAILY[c]; if (!bars) return;
+          var ma = calcSimpleMA(bars, scoreM, 60);
+          var price = getPriceOnDate(bars, scoreM);
+          var prevDate = getPrevWorkDay(refDaily, scoreM, 5);
+          var prevMa = calcSimpleMA(bars, prevDate, 60);
+          if ((ma && price && price < ma) || (ma && prevMa && ma < prevMa)) exitMapAfter[c] = true;
+        });
+      }
+
+      var mainAfter = validAfter.filter(function(r) {
+        if (r.r240 === null || r.r240 <= hurdle) return false;
+        if (DEFENSIVE.indexOf(r.s.c) !== -1) return false;
+        if (exitMapAfter[r.s.c]) return false;
+        return true;
+      });
+
+      var selAfter = [];
+      var poolModeSettingAfter = document.getElementById('poolMode').value;
+
+      if (poolModeSettingAfter === 'large') {
+        var totalMaxAfter = parseInt(document.getElementById('btH').value) || 5;
+        for (var ciA = 0; ciA < mainAfter.length; ciA++) {
+          if (selAfter.length >= totalMaxAfter) break;
+          var candA = mainAfter[ciA];
+          if (selAfter.every(function(x){ return Math.abs(calcCorr(candA.s.c, x.s.c, scoreM)) < ct; })) {
+            selAfter.push(candA);
+          }
+        }
+      } else {
+        var qTWa = parseInt($('btQuotaTW') ? $('btQuotaTW').value : '2') || 0;
+        var qUSa = parseInt($('btQuotaUS') ? $('btQuotaUS').value : '2') || 0;
+        var qETFa = parseInt($('btQuotaETF') ? $('btQuotaETF').value : '1') || 0;
+
+        var twA = mainAfter.filter(function(r){ return r.s.pool === 'tw'; });
+        var usA = mainAfter.filter(function(r){ return r.s.pool === 'us'; });
+        var etfA = mainAfter.filter(function(r){ return r.s.pool === 'etf'; });
+
+        function addQuota(list, quota) {
+          for (var iqa = 0; iqa < list.length; iqa++) {
+            if (quota <= 0) break;
+            var candQ = list[iqa];
+            if (selAfter.every(function(x){ return Math.abs(calcCorr(candQ.s.c, x.s.c, scoreM)) < ct; })) {
+              selAfter.push(candQ);
+              quota--;
+            }
+          }
+        }
+
+        addQuota(twA, qTWa);
+        addQuota(usA, qUSa);
+        addQuota(etfA, qETFa);
+      }
+
+      var targetAfter = {};
+      if (selAfter.length) {
+        if (wtMode === 'rank') {
+          var swA = selAfter.reduce(function(a, x){ return a + Math.max(x.score, 0.01); }, 0);
+          selAfter.forEach(function(x){ targetAfter[x.s.c] = Math.max(x.score, 0.01) / swA; });
+        } else if (wtMode === 'ivol') {
+          var invsA = selAfter.map(function(x){
+            var vol = calcVol(DAILY[x.s.c], scoreM, 60);
+            return { c:x.s.c, inv: vol ? 1 / vol : 1 };
+          });
+          var sumInvA = invsA.reduce(function(a,b){ return a + b.inv; }, 0);
+          invsA.forEach(function(v){ targetAfter[v.c] = v.inv / sumInvA; });
+        } else {
+          var eqA = 1 / selAfter.length;
+          selAfter.forEach(function(x){ targetAfter[x.s.c] = eqA; });
+        }
+      } else {
+        targetAfter['CASH'] = 1.0;
+      }
+
+      if ($('useDRSGate') && $('useDRSGate').checked) {
+        targetAfter = applyDRSGate(targetAfter, scoreM, true);
+      }
+
+      var retCD2 = 0;
+      Object.keys(targetAfter).forEach(function(c){
+        var w = targetAfter[c] || 0;
+        if (w <= 0) return;
+
+        if (c === 'CASH') {
+          return;
+        }
+
+        var p0x = getPriceOnDate(DAILY[c], endCD);
+        var p1x = getPriceOnDate(DAILY[c], sigM);
+        if (p0x && p1x && p0x > 0) {
+          retCD2 += w * (p1x / p0x - 1);
+        }
+      });
+
+      totalRetCD = (1 + retCD1) * (1 + retCD2) - 1;
+      holdings = targetAfter;
+
+      cdActive = false;
+      cdUntilDate = null;
+      cdPortfolioHigh = null;
+    } else {
+      var holdCD = {};
+      holdCD[defKey2] = 1.0;
+      holdings = holdCD;
+    }
+
+    nav *= (1 + totalRetCD);
+
+    var b0c2 = getPriceOnDate(refDaily, prevM);
+    var b1c2 = getPriceOnDate(refDaily, sigM);
+    if (b0c2 && b1c2 && b0c2 > 0) bNav *= (1 + (b1c2 / b0c2 - 1));
+
+    var hCopy2 = {};
+    Object.keys(holdings).forEach(function(k){ hCopy2[k] = holdings[k]; });
+
+    records.push({
+      month: sigM,
+      period: prevM + " ~ " + sigM,
+      nav: nav,
+      bNav: bNav,
+      holdings: hCopy2,
+      pRet: totalRetCD,
+      hurdle: hurdle,
+      stockRets: {},
+      cdActive: (cdActive || (cdUntilDate !== null)),
+      cooldownTrigger: '',
+      cooldownUntil: cdUntilDate || ''
+    });
+
+    continue;
+  }
+}
+// ---- END COOLDOWN ----
 
     var sc2=calcAllScores(scoringM);
     var valid=sc2.filter(function(r){ return r.score!==null; });
