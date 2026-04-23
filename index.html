@@ -1768,7 +1768,7 @@ var fillAsset = hasSGOV ? 'SGOV' : 'CASH';
       target[r.s.c] = -sScale * weight * exposure;
     });
   }
-
+}
    var useDRSEl = document.getElementById('useDRSGate');
 if (useDRSEl && useDRSEl.checked) target = applyDRSGate(target, scoreM, true);
 
@@ -1875,7 +1875,6 @@ holdings = drifted;
   }
   return records.length>=6 ? records : null;
 }
-
 function kpi(records, init) {
   if (!records||!records.length) return {cagr:0,mdd:0,sharpe:0,nav:init};
   var last=records[records.length-1];
