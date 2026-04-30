@@ -159,30 +159,41 @@ function runBTcore(mh, mode, opts) {
       target['CASH']=1.0;
     } else {
       var is1330=capMode==='1330';
+      var isShortOnly=capMode==='short_only';
       // Capital Mode:
       // - 130/30: no shorts => 100% long; with shorts => 130% long / 30% short.
       // - 50/50: no shorts => 50% long, residual 50% to SGOV/CASH; with shorts => 50% long / 50% short.
-      var lScale=is1330?1.0:0.5, sScale=0.0;
-      if (shortN>0&&selS&&selS.length>0) { lScale=is1330?1.3:0.5; sScale=is1330?0.3:0.5; }
-      if (wtMode==='rank') {
-        var ldenom=sel.length*(sel.length+1)/2;
-        sel.forEach(function(r,i){ target[r.s.c]=lScale*((sel.length-i)/ldenom)*exposure; });
-      } else if (wtMode==='ivol') {
-        var volSum=0;
-        var ivolArr=sel.map(function(r){
-          var bars=DAILY[r.s.c];
-          var cut=bars.filter(function(b){ return b.date<=scoreM; });
-          var v=calcVolatility(cut,60);
-          v=(v&&v>0)?v:0.20;
-          volSum+=1/v;
-          return {c:r.s.c,iv:1/v};
-        });
-        ivolArr.forEach(function(x){ target[x.c]=(lScale*x.iv/volSum)*exposure; });
+      // - 100% Short Only: no long positions; short side is 100% when Short N > 0 and short candidates exist.
+      var lScale=0.0, sScale=0.0;
+      if (isShortOnly) {
+        lScale=0.0;
+        sScale=(shortN>0&&selS&&selS.length>0)?1.0:0.0;
       } else {
-        var lw=(lScale/sel.length)*exposure;
-        sel.forEach(function(r){ target[r.s.c]=lw; });
+        lScale=is1330?1.0:0.5;
+        sScale=0.0;
+        if (shortN>0&&selS&&selS.length>0) { lScale=is1330?1.3:0.5; sScale=is1330?0.3:0.5; }
       }
-      if (shortN>0&&selS&&selS.length>0) {
+      if (!isShortOnly) {
+        if (wtMode==='rank') {
+          var ldenom=sel.length*(sel.length+1)/2;
+          sel.forEach(function(r,i){ target[r.s.c]=lScale*((sel.length-i)/ldenom)*exposure; });
+        } else if (wtMode==='ivol') {
+          var volSum=0;
+          var ivolArr=sel.map(function(r){
+            var bars=DAILY[r.s.c];
+            var cut=bars.filter(function(b){ return b.date<=scoreM; });
+            var v=calcVolatility(cut,60);
+            v=(v&&v>0)?v:0.20;
+            volSum+=1/v;
+            return {c:r.s.c,iv:1/v};
+          });
+          ivolArr.forEach(function(x){ target[x.c]=(lScale*x.iv/volSum)*exposure; });
+        } else {
+          var lw=(lScale/sel.length)*exposure;
+          sel.forEach(function(r){ target[r.s.c]=lw; });
+        }
+      }
+      if (shortN>0&&selS&&selS.length>0&&sScale>0) {
         var sdenom=wtMode==='rank'?selS.length*(selS.length+1)/2:selS.length;
         selS.forEach(function(r,i){
           var weight=(wtMode==='rank')?((selS.length-i)/sdenom):(1/sdenom);
