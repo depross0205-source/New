@@ -1,3 +1,5 @@
+
+
 var POOL_DEF = [
   {
     "title": "[ETF] iShares ETF",
@@ -144,6 +146,102 @@ var POOL_DEF = [
       {
         "c": "ITOT",
         "n": "Total US Mkt",
+        "industry": "ETF",
+        "sector": "ETF",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IVV",
+        "n": "iS S&P500",
+        "industry": "ETF",
+        "sector": "ETF",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IEFA",
+        "n": "iS EAFE Core",
+        "industry": "ETF",
+        "sector": "ETF",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IEMG",
+        "n": "iS EM Core",
+        "industry": "ETF",
+        "sector": "ETF",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IAU",
+        "n": "iS Gold Trust",
+        "industry": "ETF",
+        "sector": "ETF",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IVW",
+        "n": "S&P500 Growth",
+        "industry": "ETF",
+        "sector": "ETF",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IVE",
+        "n": "S&P500 Value",
+        "industry": "ETF",
+        "sector": "ETF",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IXUS",
+        "n": "Total Intl",
+        "industry": "ETF",
+        "sector": "ETF",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IWR",
+        "n": "R Midcap",
+        "industry": "ETF",
+        "sector": "ETF",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IWB",
+        "n": "R1000 LargeCap",
+        "industry": "ETF",
+        "sector": "ETF",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "QUAL",
+        "n": "MSCI Quality",
+        "industry": "ETF",
+        "sector": "ETF",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "GOVT",
+        "n": "US Treasury All",
+        "industry": "ETF",
+        "sector": "ETF",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IBIT",
+        "n": "Bitcoin Trust",
         "industry": "ETF",
         "sector": "ETF",
         "subInd": "ETF",
