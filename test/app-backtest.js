@@ -162,89 +162,92 @@ function runBTcore(mh, mode, opts) {
     if (regimeOn&&isBearishRegime(refDaily,scoreM,60)) exposure=regimeExp/100;
 
     var target={};
-    if (!sel.length) {
-      target['CASH']=1.0;
+    var is1330 = capMode === '1330';
+    var is5050 = (capMode === '5050' || capMode === 'neutral'); // neutral 保留舊版相容
+    var is1000 = capMode === '1000';
+    var isShortOnly = capMode === 'short_only';
+    var hasLong = (sel && sel.length > 0);
+    var hasShort = (shortN > 0 && selS && selS.length > 0);
+
+    // Capital Mode:
+    // - 100/0: 100% long only.
+    // - 50/50: 50% long / 50% short；空方不足不補 SGOV/CASH。
+    // - 130/30: 有空方時 130% long / 30% short；空方不足降為 100/0。
+    // - Short Only: 100% short；不得因多方 sel 為空而轉成 CASH/SGOV。
+    var lScale = 0.0, sScale = 0.0;
+    if (isShortOnly) {
+      lScale = 0.0;
+      sScale = hasShort ? 1.0 : 0.0;
+    } else if (is1000) {
+      lScale = hasLong ? 1.0 : 0.0;
+      sScale = 0.0;
+    } else if (is1330) {
+      lScale = hasLong ? (hasShort ? 1.3 : 1.0) : 0.0;
+      sScale = hasShort ? 0.3 : 0.0;
+    } else if (is5050) {
+      lScale = hasLong ? 0.5 : 0.0;
+      sScale = hasShort ? 0.5 : 0.0;
     } else {
-      var is1330 = capMode === '1330';
-      var is5050 = (capMode === '5050' || capMode === 'neutral'); // neutral 保留舊版相容
-      var is1000 = capMode === '1000';
-      var isShortOnly = capMode === 'short_only';
-      var hasShort = (shortN > 0 && selS && selS.length > 0);
+      lScale = hasLong ? 1.0 : 0.0;
+      sScale = 0.0;
+    }
 
-      // Capital Mode:
-      // - 100/0: 100% long only.
-      // - 50/50: 50% long / 50% short；若空方不足，不用 SGOV/CASH 補空方。
-      // - 130/30: 有空方時 130% long / 30% short；若空方不足，降為 100/0。
-      // - Short Only: 100% short；若空方不足則不補。
-      var lScale = 0.0, sScale = 0.0;
-      if (isShortOnly) {
-        lScale = 0.0;
-        sScale = hasShort ? 1.0 : 0.0;
-      } else if (is1000) {
-        lScale = 1.0;
-        sScale = 0.0;
-      } else if (is1330) {
-        lScale = hasShort ? 1.3 : 1.0;
-        sScale = hasShort ? 0.3 : 0.0;
-      } else if (is5050) {
-        lScale = 0.5;
-        sScale = hasShort ? 0.5 : 0.0;
-      } else {
-        lScale = 1.0;
-        sScale = 0.0;
-      }
+    // 多方因市場弱化、MA、hurdle、相關係數或產業限額而不足時，
+    // 股票部分只分配已入選名額對應權重，剩餘 long side 後面補 SGOV/CASH。
+    var selectedLongSlots = hasLong ? sel.length : 0;
+    var longSlotBase = totalQuota > 0 ? totalQuota : selectedLongSlots;
+    var effectiveLongScale = lScale;
+    if (!isShortOnly && longFillSlots > 0 && longSlotBase > 0) {
+      effectiveLongScale = lScale * (selectedLongSlots / longSlotBase);
+    }
 
-      // 若多方因市場弱化、MA、hurdle、相關係數或產業限額而不足，
-      // 股票部分只分配已入選名額對應的權重，剩餘 long side 後面補 SGOV/CASH。
-      var selectedLongSlots = Math.max(0, sel.length);
-      var longSlotBase = totalQuota > 0 ? totalQuota : selectedLongSlots;
-      var effectiveLongScale = lScale;
-      if (!isShortOnly && longFillSlots > 0 && longSlotBase > 0) {
-        effectiveLongScale = lScale * (selectedLongSlots / longSlotBase);
-      }
-
-      if (!isShortOnly) {
-        if (wtMode==='rank') {
-          var ldenom=sel.length*(sel.length+1)/2;
-          sel.forEach(function(r,i){ target[r.s.c]=effectiveLongScale*((sel.length-i)/ldenom)*exposure; });
-        } else if (wtMode==='ivol') {
-          var volSum=0;
-          var ivolArr=sel.map(function(r){
-            var bars=DAILY[r.s.c];
-            var cut=bars.filter(function(b){ return b.date<=scoreM; });
-            var v=calcVolatility(cut,60);
-            v=(v&&v>0)?v:0.20;
-            volSum+=1/v;
-            return {c:r.s.c,iv:1/v};
-          });
-          ivolArr.forEach(function(x){ target[x.c]=(effectiveLongScale*x.iv/volSum)*exposure; });
-        } else {
-          var lw=(effectiveLongScale/sel.length)*exposure;
-          sel.forEach(function(r){ target[r.s.c]=lw; });
-        }
-      }
-      if (shortN>0&&selS&&selS.length>0&&sScale>0) {
-        var sdenom=wtMode==='rank'?selS.length*(selS.length+1)/2:selS.length;
-        selS.forEach(function(r,i){
-          var weight=(wtMode==='rank')?((selS.length-i)/sdenom):(1/sdenom);
-          target[r.s.c]=-sScale*weight*exposure;
+    if (!isShortOnly && hasLong && effectiveLongScale > 0) {
+      if (wtMode==='rank') {
+        var ldenom=sel.length*(sel.length+1)/2;
+        sel.forEach(function(r,i){ target[r.s.c]=effectiveLongScale*((sel.length-i)/ldenom)*exposure; });
+      } else if (wtMode==='ivol') {
+        var volSum=0;
+        var ivolArr=sel.map(function(r){
+          var bars=DAILY[r.s.c];
+          var cut=bars.filter(function(b){ return b.date<=scoreM; });
+          var v=calcVolatility(cut,60);
+          v=(v&&v>0)?v:0.20;
+          volSum+=1/v;
+          return {c:r.s.c,iv:1/v};
         });
+        ivolArr.forEach(function(x){ target[x.c]=(effectiveLongScale*x.iv/volSum)*exposure; });
+      } else {
+        var lw=(effectiveLongScale/sel.length)*exposure;
+        sel.forEach(function(r){ target[r.s.c]=lw; });
       }
+    }
 
-      // 多方缺額補防禦資產：只補 long side 的缺額，不補 short side。
-      // 這裡補到 target，不補到 sel，避免 SGOV/CASH 被當成候選股或空方標的。
-      if (!isShortOnly && longFillSlots > 0 && longSlotBase > 0 && lScale > 0) {
-        var defensiveCode = (
-          DAILY['SGOV'] &&
-          DAILY['SGOV'].length > 0 &&
-          getPriceOnDate(DAILY['SGOV'], scoreM) !== null
-        ) ? 'SGOV' : 'CASH';
+    if (hasShort && sScale > 0) {
+      var sdenom=wtMode==='rank'?selS.length*(selS.length+1)/2:selS.length;
+      selS.forEach(function(r,i){
+        var weight=(wtMode==='rank')?((selS.length-i)/sdenom):(1/sdenom);
+        target[r.s.c]=-sScale*weight*exposure;
+      });
+    }
 
-        var fillWeight = lScale * (longFillSlots / longSlotBase) * exposure;
-        if (fillWeight > 0.001) {
-          target[defensiveCode] = (target[defensiveCode] || 0) + fillWeight;
-        }
+    // 多方缺額補防禦資產：只補 long side 的缺額，不補 short side。
+    // short_only 永遠不補 SGOV/CASH，否則純空模式會被稀釋成低報酬。
+    if (!isShortOnly && longFillSlots > 0 && longSlotBase > 0 && lScale > 0) {
+      var defensiveCode = (
+        DAILY['SGOV'] &&
+        DAILY['SGOV'].length > 0 &&
+        getPriceOnDate(DAILY['SGOV'], scoreM) !== null
+      ) ? 'SGOV' : 'CASH';
+
+      var fillWeight = lScale * (longFillSlots / longSlotBase) * exposure;
+      if (fillWeight > 0.001) {
+        target[defensiveCode] = (target[defensiveCode] || 0) + fillWeight;
       }
+    }
+
+    // 非 short_only 若完全沒有可執行部位，才維持 CASH；short_only 不用多方 sel 判斷。
+    if (!Object.keys(target).length && !isShortOnly) {
+      target['CASH']=1.0;
     }
 
     // 只在 100/0 純多模式補足到 100%。
@@ -589,6 +592,8 @@ function applyStressWeightSet(v,h,t,b){
 async function runTNBacktest() {
   if(!(await ensureDataReadyForAnalysis('T-N backtest'))) return;
   var tn=Math.max(0,Math.min(22,parseInt($('btSignalTN')?$('btSignalTN').value:'10')||0));
+  var oldSkipChecked = $('btSkipMo') ? $('btSkipMo').checked : false;
+  if ($('btSkipMo')) $('btSkipMo').checked = false;
   SKIP_MO=false;
   CORR_WIN=parseInt($('corrW')?$('corrW').value:'24')||24;
   sl('btLog','Calculating fair T-'+tn+' backtest...',null); showL('T-'+tn+' Fair Backtesting...');
@@ -606,7 +611,11 @@ async function runTNBacktest() {
       sl('btLog','T-'+tn+' 公平回測完成: '+dStart+' 至 '+dEnd+' | 訊號=T-'+tn+'；交易=T月底→T+1月底',true);
     } catch(err) {
       sl('btLog','Error: '+err.message,false); console.error(err);
-    } finally { hideL(); }
+    } finally {
+      if ($('btSkipMo')) $('btSkipMo').checked = oldSkipChecked;
+      SKIP_MO = oldSkipChecked;
+      hideL();
+    }
   }, 80);
 }
 
@@ -1412,11 +1421,12 @@ function wfCollectSettings() {
   var shortN = parseInt($('btSN') ? $('btSN').value : '0') || 0;
   var capEl = document.querySelector('input[name="capMode"]:checked');
   var capMode = capEl ? capEl.value : '1330';
+  var signalN = Math.max(0, Math.min(22, parseInt($('btSignalTN') ? $('btSignalTN').value : '10') || 0));
   return {
     poolMode: poolM, n: n, wt: wt, lag: lag, freq: freq,
     regOn: regOn, regExp: regExp, shieldOn: shieldOn, shieldMA: shieldMA,
     skipMo: skipMo, ma60: ma60, cost: cost, corrT: corrT,
-    indLim: indLim, shortN: shortN, capMode: capMode
+    indLim: indLim, shortN: shortN, capMode: capMode, signalN: signalN
   };
 }
 function wfSettingsTag(cfg, trainY, testY, label) {
@@ -1428,7 +1438,7 @@ function wfSettingsTag(cfg, trainY, testY, label) {
   parts.push('Train=' + trainY + 'Y');
   parts.push('Test=' + testY + 'Y');
   parts.push('Freq=' + (cfg.freq === '2' ? 'Semi' : 'Mo'));
-  parts.push('Lag=t-' + cfg.lag);
+  parts.push('Signal=T-' + cfg.signalN);
   if (cfg.skipMo) parts.push('SkipMo');
   if (cfg.regOn) parts.push('Regime(' + cfg.regExp + '%)');
   if (cfg.shieldOn) parts.push('Shield(' + cfg.shieldMA + 'd)');
@@ -1457,9 +1467,12 @@ async function runWalkForward() {
   var origS=$('btS')?$('btS').value:'';
   var origE=$('btE')?$('btE').value:'';
   var cfg=wfCollectSettings();
-  sl('stressLog','Running Walk-Forward (Anchored)...',null); showL('Walk-Forward Analysis...');
+  var oldSkipChecked = $('btSkipMo') ? $('btSkipMo').checked : false;
+  sl('stressLog','Running Walk-Forward (Anchored) T-'+cfg.signalN+'...',null); showL('Walk-Forward Analysis T-'+cfg.signalN+'...');
   setTimeout(async function(){
     try {
+      if ($('btSkipMo')) $('btSkipMo').checked = false;
+      SKIP_MO = false;
       if(CACHE_SKIP_MO!==SKIP_MO){ await buildCache(); }
       var results=[],combinedOOS=[];
       for(var ty=firstTestYear; ty+testWY-1<=lastYear; ty+=testWY){
@@ -1467,10 +1480,10 @@ async function runWalkForward() {
         var tStart=ty+'-01', tEnd=(ty+testWY-1)+'-12';
         if($('btS'))$('btS').value=isStart;
         if($('btE'))$('btE').value=isEnd;
-        var isRecs=runBTcore();
+        var isRecs=runBTcore(null,null,{signalN:cfg.signalN});
         if($('btS'))$('btS').value=tStart;
         if($('btE'))$('btE').value=tEnd;
-        var oosRecs=runBTcore();
+        var oosRecs=runBTcore(null,null,{signalN:cfg.signalN});
         if(!isRecs || !oosRecs || isRecs.length<2 || oosRecs.length<2) continue;
         var isK=wfKpiFromRecords(isRecs), oosK=wfKpiFromRecords(oosRecs);
         if(!isK || !oosK) continue;
@@ -1480,6 +1493,8 @@ async function runWalkForward() {
       }
       if($('btS'))$('btS').value=origS;
       if($('btE'))$('btE').value=origE;
+      if($('btSkipMo'))$('btSkipMo').checked=oldSkipChecked;
+      SKIP_MO=oldSkipChecked;
       togglePoolUI();
       if(!combinedOOS.length){ sl('stressLog','No OOS results',false); hideL(); return; }
       var sNav=init,sPeak=init,sMdd=0;
@@ -1495,6 +1510,8 @@ async function runWalkForward() {
     } catch(e){
       if($('btS'))$('btS').value=origS;
       if($('btE'))$('btE').value=origE;
+      if($('btSkipMo'))$('btSkipMo').checked=oldSkipChecked;
+      SKIP_MO=oldSkipChecked;
       togglePoolUI();
       sl('stressLog','Error: '+e.message,false); console.error(e);
     }
@@ -1556,9 +1573,12 @@ async function runRollingWalkForward() {
   var origS=$('btS')?$('btS').value:'';
   var origE=$('btE')?$('btE').value:'';
   var cfg=wfCollectSettings();
-  sl('stressLog','Running Rolling Walk-Forward...',null); showL('Rolling Walk-Forward Analysis...');
+  var oldSkipChecked = $('btSkipMo') ? $('btSkipMo').checked : false;
+  sl('stressLog','Running Rolling Walk-Forward T-'+cfg.signalN+'...',null); showL('Rolling Walk-Forward Analysis T-'+cfg.signalN+'...');
   setTimeout(async function(){
     try {
+      if ($('btSkipMo')) $('btSkipMo').checked = false;
+      SKIP_MO = false;
       if(CACHE_SKIP_MO!==SKIP_MO){ await buildCache(); }
       var results=[],combinedOOS=[];
       for(var ty=firstTestYear; ty+testY-1<=lastYear; ty+=testY){
@@ -1566,10 +1586,10 @@ async function runRollingWalkForward() {
         var teStart=ty+'-01', teEnd=(ty+testY-1)+'-12';
         if($('btS'))$('btS').value=trStart;
         if($('btE'))$('btE').value=trEnd;
-        var trainRecs=runBTcore();
+        var trainRecs=runBTcore(null,null,{signalN:cfg.signalN});
         if($('btS'))$('btS').value=teStart;
         if($('btE'))$('btE').value=teEnd;
-        var oosRecs=runBTcore();
+        var oosRecs=runBTcore(null,null,{signalN:cfg.signalN});
         if(!trainRecs||!oosRecs||trainRecs.length<2||oosRecs.length<2) continue;
         var tk=wfKpiFromRecords(trainRecs), ok=wfKpiFromRecords(oosRecs);
         if(!tk || !ok) continue;
@@ -1579,6 +1599,8 @@ async function runRollingWalkForward() {
       }
       if($('btS'))$('btS').value=origS;
       if($('btE'))$('btE').value=origE;
+      if($('btSkipMo'))$('btSkipMo').checked=oldSkipChecked;
+      SKIP_MO=oldSkipChecked;
       togglePoolUI();
       if(!combinedOOS.length){ sl('stressLog','No rolling OOS results',false); hideL(); return; }
       var sNav=init,sPeak=init,sMdd=0;
@@ -1594,6 +1616,8 @@ async function runRollingWalkForward() {
     } catch(e){
       if($('btS'))$('btS').value=origS;
       if($('btE'))$('btE').value=origE;
+      if($('btSkipMo'))$('btSkipMo').checked=oldSkipChecked;
+      SKIP_MO=oldSkipChecked;
       togglePoolUI();
       sl('stressLog','Error: '+e.message,false); console.error(e);
     }
@@ -1745,6 +1769,7 @@ async function runTNSweep() {
       if (log) sl('stressLog','T-N Sweep Error: '+e.message,false);
     } finally {
       if ($('btSkipMo')) $('btSkipMo').checked = oldSkipChecked;
+      SKIP_MO = oldSkipChecked;
       hideL();
     }
   }, 80);
@@ -1766,16 +1791,22 @@ async function runWFNCompare() {
   var init=gv('btCap')||100000;
   var wtEl=document.querySelector('input[name="wtMode"]:checked');
   var mode=wtEl?wtEl.value:'eq';
+  var signalN = Math.max(0, Math.min(22, parseInt($('btSignalTN') ? $('btSignalTN').value : '10') || 0));
   var origS=$('btS')?$('btS').value:'';
   var origE=$('btE')?$('btE').value:'';
   var origH=$('btH')?$('btH').value:'5';
   var origPool=document.getElementById('poolMode')?document.getElementById('poolMode').value:'large';
+  var oldSkipChecked = $('btSkipMo') ? $('btSkipMo').checked : false;
   if(document.getElementById('poolMode')) document.getElementById('poolMode').value='large';
+  if($('btSkipMo')) $('btSkipMo').checked=false;
+  SKIP_MO=false;
   function restoreAll(){
     if(document.getElementById('poolMode')) document.getElementById('poolMode').value=origPool;
     if($('btH')) $('btH').value=origH;
     if($('btS')) $('btS').value=origS;
     if($('btE')) $('btE').value=origE;
+    if($('btSkipMo')) $('btSkipMo').checked=oldSkipChecked;
+    SKIP_MO=oldSkipChecked;
     togglePoolUI();
   }
   sl('stressLog','Running WF N=2~15 comparison...',null); showL('WF N Compare...');
@@ -1792,10 +1823,10 @@ async function runWFNCompare() {
           var tStart=ty+'-01',tEnd=(ty+testWY-1)+'-12';
           if($('btS'))$('btS').value=isStart;
           if($('btE'))$('btE').value=isEnd;
-          var isRecs=runBTcore(N,mode);
+          var isRecs=runBTcore(N,mode,{signalN:signalN});
           if($('btS'))$('btS').value=tStart;
           if($('btE'))$('btE').value=tEnd;
-          var recs=runBTcore(N,mode);
+          var recs=runBTcore(N,mode,{signalN:signalN});
           if(!isRecs||!recs||isRecs.length<2||recs.length<2)continue;
           var isK=wfKpiFromRecords(isRecs), oosK=wfKpiFromRecords(recs);
           if(isK){ isCagrs.push(isK.cagr); }

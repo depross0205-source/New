@@ -411,10 +411,10 @@ tr:hover{background:var(--sf2)}
       <button class="bo" onclick="runBlockBootstrap()" style="flex:1">Block Bootstrap</button>
       <button class="bo sm" onclick="document.getElementById(&#39;stressMetrics&#39;).innerHTML=&#39;&#39;" style="color:var(--re);border-color:var(--re)">清除</button>
     </div>
-    <button class="bo" onclick="runWalkForward()" style="width:100%;margin-top:6px;color:var(--ye);border-color:var(--ye)">Walk-Forward Analysis (Anchored)</button>
-    <button class="bo" onclick="runRollingWalkForward()" style="width:100%;margin-top:6px;color:var(--tw);border-color:var(--tw)">Rolling Walk-Forward Analysis</button>
+    <button class="bo" onclick="runWalkForward()" style="width:100%;margin-top:6px;color:var(--ye);border-color:var(--ye)">Walk-Forward Analysis (Anchored / T-N)</button>
+    <button class="bo" onclick="runRollingWalkForward()" style="width:100%;margin-top:6px;color:var(--tw);border-color:var(--tw)">Rolling Walk-Forward Analysis / T-N</button>
     <button class="bo" onclick="runTNSweep()" style="width:100%;margin-top:6px;color:var(--gr);border-color:var(--gr)">T-N Sweep 回測表 (N=1~22)</button>
-    <button class="bo" onclick="runWFNCompare()" style="width:100%;margin-top:6px;color:var(--ac);border-color:var(--ac)">WF N比較 (N=2~15)</button>
+    <button class="bo" onclick="runWFNCompare()" style="width:100%;margin-top:6px;color:var(--ac);border-color:var(--ac)">WF 持股數N比較 (套用T-N)</button>
    <button class="bo" onclick="runPoolCompare()" style="width:100%;margin-top:6px;color:var(--bl);border-color:var(--bl)">Pool Compare A+B (約30~60秒)</button>
     
     <button class="bo" onclick="runRandomBaseline()" style="width:100%;margin-top:6px;color:var(--gr);border-color:var(--gr)">Random Baseline (N個隨機股)</button>
@@ -518,7 +518,7 @@ tr:hover{background:var(--sf2)}
             <input type="radio" name="btFreq" value="2" style="width:13px;accent-color:var(--tw)"> 半月頻
           </label>
         </div>
-        <div style="font-size:9px;color:var(--mu);margin-top:3px">正式回測維持月頻/半月頻；T-N 僅在信號頁獨立顯示，不影響 NAV。</div>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">一般回測用 t-1/t-2；按「T-N公平回測」與壓力測試 WF 時，會套用左側 T-N。</div>
       </div>
       <div class="fi"><label>大盤風控 (Regime)</label>
         <select id="btRegime">
