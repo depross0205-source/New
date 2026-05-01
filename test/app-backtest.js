@@ -1148,40 +1148,100 @@ async function calcSignal() {
       }
     });
   }
-  renderSig(sel,allScores.slice().sort(function(a,b){return a.score-b.score;}).slice(0,3),allScores,latestDate,hurdle);
+
+  // 正式空頭名單：依 Short N、低分排序、排除多頭已選、排除 SGOV/CASH/ETF。
+  var shortN=parseInt($('btSN') ? $('btSN').value : '0') || 0;
+  var shortTSF=!!($('btSTSF') && $('btSTSF').checked);
+  var selS=[];
+  if(shortN>0){
+    var longMap={};
+    sel.forEach(function(r){ if(r && r.s) longMap[r.s.c]=1; });
+    var sCands=allScores.filter(function(r){
+      if(!r || !r.s) return false;
+      if(longMap[r.s.c]) return false;
+      if(r.s.c==='SGOV' || r.s.c==='CASH') return false;
+      if(r.s.pool==='etf' || r.s.region==='etf') return false;
+      return true;
+    });
+    if(shortTSF) sCands=sCands.filter(function(r){ return r.r240!==null && r.r240<0; });
+    sCands.sort(function(a,b){ return a.score-b.score; });
+    for(var si=0; si<sCands.length && selS.length<shortN; si++){
+      var candS=sCands[si];
+      if(selS.every(function(x){ return Math.abs(calcCorr(candS.s.c,x.s.c,latestDate))<ct; })) selS.push(candS);
+    }
+  }
+
+  renderSig(sel,selS,allScores,latestDate,hurdle);
   renderST(allScores,hurdle,sel.map(function(s){return s.s.c;}),rejectedMap,latestDate);
 }
 
 // FIX5: renderSig - no emoji in poolNames
-function renderSig(sel,wk,all,date,hurdle) {
+function isTWSignalStock(r) {
+  return !!(r && r.s && (r.s.tw === true || r.s.tw === '1' || r.s.region === 'tw' || r.s.pool === 'tw'));
+}
+
+function renderSignalGroup(title, list, type, zf, pf) {
+  var isShort = type === 'short';
+  var color = isShort ? 'var(--re)' : 'var(--gr)';
+  var border = isShort ? 'var(--re)' : 'var(--gr)';
+  var tag = isShort ? 'SHORT #' : 'LONG #';
+  var html = '';
+
+  html += '<div style="font-size:13px;font-weight:700;color:'+color+';margin:16px 0 6px;border-bottom:1px solid '+border+';padding-bottom:4px">'+title+'</div>';
+
+  if(!list || !list.length){
+    html += '<div class="ib2" style="color:var(--mu);border-color:var(--bd);margin-bottom:8px">這個月無入選</div>';
+    return html;
+  }
+
+  html += '<div class="sg">';
+  list.forEach(function(r,rk){
+    var cardClass = isShort ? 'scard wk' : 'scard';
+    var scoreColor = isShort ? 'var(--re)' : color;
+    html += '<div class="'+cardClass+'" style="border-left:3px solid '+border+'">'
+      + '<div class="shdr"><div>'
+      + '<div class="scode" style="color:'+scoreColor+'">'+r.s.c+'</div>'
+      + '<div class="sname">'+r.s.n+'</div>'
+      + '</div><span class="srank" style="background:var(--sf2);color:'+scoreColor+';border:1px solid '+border+'">'+tag+(rk+1)+'</span></div>'
+      + '<div class="sscore">'+(r.score>=0?'+':'')+r.score.toFixed(2)+'</div>';
+
+    html += '<div class="sbars">';
+    [['Mom',r.zm,'var(--tw)'],['Bias',r.zb,'var(--bl)'],['Slope',r.zs,'var(--te)'],['Vol',r.zv,'var(--ye)'],['Kbar',r.zk,'var(--ac)']].forEach(function(b){
+      if(b[1]===null)return;
+      var w=Math.round(Math.min(100,Math.abs(b[1])*25));
+      html+='<div class="sbrow"><span style="width:32px">'+b[0]+'</span><div class="sbwrap"><div class="sbfill" style="width:'+w+'%;background:'+b[2]+'"></div></div><span style="width:36px;text-align:right;font-family:monospace">'+zf(b[1])+'</span></div>';
+    });
+    html += '</div>';
+
+    html += '<div style="margin-top:5px;font-size:10px;color:var(--mu);font-family:monospace">'
+      + 'R240:'+pf(r.r240)+' / Pool:'+(r.s.pool||'-')+' / Region:'+(r.s.region||'-')
+      + '</div></div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function renderSig(sel,selS,all,date,hurdle) {
   var zf=function(v){return v!==null?(v>=0?'+':'')+v.toFixed(2):'-';};
   var pf=function(v){return v!==null?(v>=0?'+':'')+(v*100).toFixed(1)+'%':'-';};
   var tnx=getTNXRate(date);
   var sigN = $('sigTN') ? ($('sigTN').value || '10') : '10';
   var html='<div style="font-size:11px;color:var(--mu);margin-bottom:9px">Signal: <b style="color:var(--tw)">T-'+sigN+'</b> | Score Date: <b style="color:var(--tw)">'+date+'</b> | ^TNX: <b style="color:var(--bl)">'+(tnx*100).toFixed(2)+'%</b> | Hurdle: <b style="color:var(--ye)">'+(hurdle*100).toFixed(2)+'%</b><br><span style="color:var(--mu)">此為信號頁獨立觀察訊號；未指定月份時使用最新資料所在月份，若尚未到達 T-N 則提示等待；正式回測仍用純月頻/半月頻。</span></div>';
-  var selPools={'us':[],'tw':[],'etf':[]};
-  sel.forEach(function(r){ var p=r.s.pool; if(p==='us'||p==='tw'||p==='etf') selPools[p].push(r); });
-  // FIX5: pure ASCII/unicode labels, no surrogate-pair emoji
-  var poolNames={'us':'US \u7f8e\u80a1\u914d\u7f6e','tw':'TW \u53f0\u80a1\u914d\u7f6e','etf':'ETF \u914d\u7f6e'};
-  var poolColors={'us':'var(--us)','tw':'var(--tw)','etf':'var(--ac)'};
-  ['us','tw','etf'].forEach(function(p){
-    var pItems=selPools[p];
-    if(!pItems||!pItems.length)return;
-    html+='<div style="font-size:13px;font-weight:700;color:'+poolColors[p]+';margin:16px 0 6px;border-bottom:1px solid '+poolColors[p]+';padding-bottom:4px">'+poolNames[p]+' (\u5165\u9078 '+pItems.length+' \u6a94)</div><div class="sg">';
-    pItems.forEach(function(r,rk){
-      var col=poolColors[p], rbg='var(--sf2)';
-      html+='<div class="scard" style="border-left:3px solid '+col+'"><div class="shdr"><div><div class="scode" style="color:'+col+'">'+r.s.c+'</div><div class="sname">'+r.s.n+'</div></div><span class="srank" style="background:'+rbg+';color:'+col+';border:1px solid '+col+'">#'+(rk+1)+'</span></div>';
-      html+='<div class="sscore">'+(r.score>=0?'+':'')+r.score.toFixed(2)+'</div><div class="sbars">';
-      [['Mom',r.zm,'var(--tw)'],['Bias',r.zb,'var(--bl)'],['Slope',r.zs,'var(--te)'],['Vol',r.zv,'var(--ye)'],['Kbar',r.zk,'var(--ac)']].forEach(function(b){
-        if(b[1]===null)return;
-        var w=Math.round(Math.min(100,Math.abs(b[1])*25));
-        html+='<div class="sbrow"><span style="width:32px">'+b[0]+'</span><div class="sbwrap"><div class="sbfill" style="width:'+w+'%;background:'+b[2]+'"></div></div><span style="width:36px;text-align:right;font-family:monospace">'+zf(b[1])+'</span></div>';
-      });
-      html+='</div><div style="margin-top:5px;font-size:10px;color:var(--mu);font-family:monospace">R240:'+pf(r.r240)+'</div></div>';
-    });
-    html+='</div>';
-  });
-  if(!sel.length) html+='<div style="color:var(--ye);font-size:12px;margin-bottom:9px">\u7121\u6a19\u7684\u901a\u904e TS \u8207\u5b63\u7dda\u9580\u6ebb - \u5168\u6578\u6301\u6709\u73fe\u91d1</div>';
+
+  sel = sel || [];
+  selS = selS || [];
+  var longTW = sel.filter(isTWSignalStock);
+  var longUS = sel.filter(function(r){ return !isTWSignalStock(r); });
+  var shortTW = selS.filter(isTWSignalStock);
+  var shortUS = selS.filter(function(r){ return !isTWSignalStock(r); });
+
+  html += renderSignalGroup('LONG 多頭名單｜台股', longTW, 'long', zf, pf);
+  html += renderSignalGroup('LONG 多頭名單｜美股 / 國際', longUS, 'long', zf, pf);
+  html += renderSignalGroup('SHORT 空頭名單｜台股', shortTW, 'short', zf, pf);
+  html += renderSignalGroup('SHORT 空頭名單｜美股 / 國際', shortUS, 'short', zf, pf);
+
+  if(!sel.length) html+='<div style="color:var(--ye);font-size:12px;margin-bottom:9px">無多頭標的通過 TS 與篩選條件；若有設定 Short N，仍可查看空頭名單。</div>';
+  if(!selS.length && (parseInt($('btSN') ? $('btSN').value : '0') || 0) > 0) html+='<div style="color:var(--ye);font-size:12px;margin-bottom:9px">Short N 已開啟，但本月無空頭入選。</div>';
   $('sigContent').innerHTML=html;
 }
 
