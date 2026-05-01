@@ -134,8 +134,13 @@ function runBTcore(mh, mode, opts) {
     // 不再 push 到 sel，避免 SGOV/CASH 被當成多方候選，甚至再流入空方候選。
     var longFillSlots = Math.max(0, totalQuota - sel.length);
 
+    // Short Only 若 Short N 留 0，預設沿用 Max HOLD / 小池總名額作為空方檔數。
+    // 這樣選到 100% Short Only 時，不會因 btSN=0 而實際空倉。
+    var shortSlotN = shortN;
+    if (capMode === 'short_only' && shortSlotN <= 0) shortSlotN = totalQuota > 0 ? totalQuota : 1;
+
     var selS=[];
-    if (shortN>0) {
+    if (shortSlotN>0) {
       var longMap={};
       sel.forEach(function(r){ longMap[r.s.c]=1; });
       var sCands = valid.filter(function(r){
@@ -151,9 +156,11 @@ function runBTcore(mh, mode, opts) {
       });
       if (shortTSF) sCands=sCands.filter(function(r){ return r.r240!==null&&r.r240<0; });
       sCands.sort(function(a,b){ return a.score-b.score; });
-      for (var ks=0; ks<sCands.length&&selS.length<shortN; ks++) {
-        var candS=sCands[ks];
-        if (selS.every(function(x){ return Math.abs(calcCorr(candS.s.c,x.s.c,scoreM))<ct; })) selS.push(candS);
+
+      // 空方邏輯：取分數最低的 shortSlotN 檔。
+      // 不套用多方的相關係數 / 產業限額，避免 Short Only 或 130/30 因限制而實際沒有空方部位。
+      for (var ks=0; ks<sCands.length&&selS.length<shortSlotN; ks++) {
+        selS.push(sCands[ks]);
       }
     }
 
@@ -167,7 +174,7 @@ function runBTcore(mh, mode, opts) {
     var is1000 = capMode === '1000';
     var isShortOnly = capMode === 'short_only';
     var hasLong = (sel && sel.length > 0);
-    var hasShort = (shortN > 0 && selS && selS.length > 0);
+    var hasShort = (shortSlotN > 0 && selS && selS.length > 0);
 
     // Capital Mode:
     // - 100/0: 100% long only.
@@ -316,24 +323,40 @@ function runBTcore(mh, mode, opts) {
 
     var stockRets={};
     Object.keys(target).forEach(function(c){
-      if (c==='CASH') { stockRets[c]={ret:cashRet,w:target[c]}; }
-      else {
+      if (c==='CASH') {
+        stockRets[c]={ret:cashRet,w:target[c],side:'cash',positionRet:cashRet};
+      } else {
         var p0=getPriceOnDate(DAILY[c],prevM), p1=getPriceOnDate(DAILY[c],sigM);
         var retVal=(p0&&p1&&p0>0)?(p1/p0-1):null;
-        stockRets[c]={ret:retVal, w:target[c]};
+        var side=(target[c]||0)<0?'short':'long';
+
+        // 報酬方向驗證：
+        // 多頭貢獻 = +weight * assetRet。
+        // 空頭貢獻 = -abs(weight) * assetRet，等價於 abs(weight) * ((entry - exit) / entry)。
+        // 因此 ret 保留標的自身漲跌，positionRet 顯示該部位方向後的報酬。
+        stockRets[c]={
+          ret:retVal,
+          w:target[c],
+          side:side,
+          positionRet:(retVal===null?null:(side==='short'?-retVal:retVal))
+        };
       }
     });
 
     var grossRet=0, validTarget={}, forcedCash=0;
     for (var c in target) {
       var w=target[c], rData=stockRets[c];
-      if (rData.ret===null) { forcedCash+=w; stockRets[c]={ret:0,w:0,note:'Missing'}; }
+      if (rData.ret===null) {
+        // 多頭資料缺漏：資金轉現金/SGOV；空頭資料缺漏：該空方部位視為未成交，不建立負現金。
+        if (w > 0) forcedCash+=w;
+        stockRets[c]={ret:0,w:0,side:(w<0?'short':'long'),positionRet:0,note:'Missing'};
+      }
       else { grossRet+=w*rData.ret; validTarget[c]=w; }
     }
     if (forcedCash>0) {
       validTarget['CASH']=(validTarget['CASH']||0)+forcedCash;
       grossRet+=forcedCash*cashRet;
-      stockRets['CASH']={ret:cashRet,w:validTarget['CASH']};
+      stockRets['CASH']={ret:cashRet,w:validTarget['CASH'],side:'cash',positionRet:cashRet};
     }
     if (!isFinite(grossRet)||grossRet<=-0.9999) grossRet=-0.9999;
 
@@ -925,6 +948,7 @@ function renderBT(records,init,mode) {
     if (r.stockRets) {
       Object.keys(r.stockRets).forEach(function(k){
         var sr=r.stockRets[k], ret=sr.ret, w=sr.w||0;
+        var posRet=(sr.positionRet!==undefined&&sr.positionRet!==null)?sr.positionRet:ret;
         var contrib=ret*w, pnl=prevNav*contrib;
         var isShortPos=w<0;
         var isUs=!!(document.querySelector('[data-code="'+k+'"][data-tw="0"]'));
@@ -941,7 +965,8 @@ function renderBT(records,init,mode) {
           +'</td>'
           +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);"></td>'
           +'<td class="mono" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:11px;color:var(--mu);">'
-          +(ret>=0?'+':'')+(ret*100).toFixed(2)+'%'
+          +(posRet>=0?'+':'')+(posRet*100).toFixed(2)+'%'
+          +(isShortPos&&ret!==null?'<span style="font-size:9px;color:var(--mu);margin-left:4px">asset '+(ret>=0?'+':'')+(ret*100).toFixed(2)+'%</span>':'')
           +'</td>'
           +'<td class="mono" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:11px;color:'+rc2+';">'
           +(pnl>=0?'+$':'-$')+Math.abs(Math.round(pnl)).toLocaleString()

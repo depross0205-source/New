@@ -479,7 +479,7 @@ tr:hover{background:var(--sf2)}
             <input type="radio" name="capMode" id="capShortOnly" value="short_only" style="width:14px;accent-color:var(--bl)"> 100% Short Only
           </label>
         </div>
-        <div style="font-size:9px;color:var(--mu);margin-top:3px">100/0=純多；50/50=多空各50%；130/30=多130%/空30%；Short Only=純空，不補SGOV。</div>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">100/0=純多；50/50=多空各50%；130/30=多130%/空30%；Short Only=純空；Short N=0 時沿用 Max HOLD 檔數；不補SGOV。</div>
       </div>
       <div class="fi"><label>Short TS Filter</label>
         <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer">
@@ -572,8 +572,8 @@ tr:hover{background:var(--sf2)}
   </div>
 </div>
 </div>
-<script src="pool-data.js"></script>
-<script src="app-core.js"></script>
-<script src="app-backtest.js"></script>
+<script src="pool-data.fixed.js"></script>
+<script src="app-core.fixed.js"></script>
+<script src="app-backtest.fixed.js"></script>
 </body>
 </html>
