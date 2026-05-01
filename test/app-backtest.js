@@ -22,7 +22,7 @@ function runBTcore(mh, mode, opts) {
   var INIT=gv('btCap')||100000, COST=(gv('btC')||0.3)/100, ct=gv('corrT')||0.75;
   var indLimit=getIndustryLimit();
   var shortN=parseInt($('btSN')?$('btSN').value:'0')||0;
-  var capMode=document.querySelector('input[name="capMode"]:checked')?document.querySelector('input[name="capMode"]:checked').value:'neutral';
+  var capMode=document.querySelector('input[name="capMode"]:checked')?document.querySelector('input[name="capMode"]:checked').value:'1330';
   var wtModeEl=document.querySelector('input[name="wtMode"]:checked');
   var wtMode=wtModeEl?wtModeEl.value:'eq';
   var shortTSF=!!($('btSTSF')&&$('btSTSF').checked);
@@ -124,24 +124,31 @@ function runBTcore(mh, mode, opts) {
       });
     }
 
-        var totalQuota = poolModeSetting==='large' ? (parseInt(document.getElementById('btH').value)||5) : (parseInt($('btQuotaTW')?$('btQuotaTW').value:'2')||0)+(parseInt($('btQuotaUS')?$('btQuotaUS').value:'2')||0)+(parseInt($('btQuotaETF')?$('btQuotaETF').value:'1')||0);
-    var slots = totalQuota - sel.length;
-    if (slots > 0) {
-      var hasSGOV = DAILY['SGOV'] && DAILY['SGOV'].length > 0 && getPriceOnDate(DAILY['SGOV'], scoreM) !== null;
-      if (hasSGOV) {
-        var sgovFill={s:{c:'SGOV',n:'0-3M Treasury',pool:'etf',tw:false},score:0,r240:0,zm:0,zb:0,zs:0,zv:0,zk:0};
-        for (var ks2=0; ks2<slots; ks2++) sel.push(sgovFill);
-      } else {
-        var cashFill={s:{c:'CASH',n:'Cash',pool:'etf',tw:false},score:0,r240:0,zm:0,zb:0,zs:0,zv:0,zk:0};
-        for (var ks3=0; ks3<slots; ks3++) sel.push(cashFill);
-      }
-    }
+    var totalQuota = poolModeSetting === 'large'
+      ? (parseInt(document.getElementById('btH').value) || 5)
+      : (parseInt($('btQuotaTW') ? $('btQuotaTW').value : '2') || 0)
+        + (parseInt($('btQuotaUS') ? $('btQuotaUS').value : '2') || 0)
+        + (parseInt($('btQuotaETF') ? $('btQuotaETF').value : '1') || 0);
+
+    // 多方缺額只記錄為 longFillSlots，後面補到 target 的 SGOV/CASH。
+    // 不再 push 到 sel，避免 SGOV/CASH 被當成多方候選，甚至再流入空方候選。
+    var longFillSlots = Math.max(0, totalQuota - sel.length);
 
     var selS=[];
     if (shortN>0) {
       var longMap={};
       sel.forEach(function(r){ longMap[r.s.c]=1; });
-      var sCands=valid.filter(function(r){ return !longMap[r.s.c]; });
+      var sCands = valid.filter(function(r){
+        if (!r || !r.s) return false;
+        if (longMap[r.s.c]) return false;
+
+        // 防禦資產、現金、ETF 不允許進入空方。
+        if (r.s.c === 'SGOV' || r.s.c === 'CASH') return false;
+        if (r.s.pool === 'etf') return false;
+        if (r.s.region === 'etf') return false;
+
+        return true;
+      });
       if (shortTSF) sCands=sCands.filter(function(r){ return r.r240!==null&&r.r240<0; });
       sCands.sort(function(a,b){ return a.score-b.score; });
       for (var ks=0; ks<sCands.length&&selS.length<shortN; ks++) {
@@ -158,25 +165,48 @@ function runBTcore(mh, mode, opts) {
     if (!sel.length) {
       target['CASH']=1.0;
     } else {
-      var is1330=capMode==='1330';
-      var isShortOnly=capMode==='short_only';
+      var is1330 = capMode === '1330';
+      var is5050 = (capMode === '5050' || capMode === 'neutral'); // neutral 保留舊版相容
+      var is1000 = capMode === '1000';
+      var isShortOnly = capMode === 'short_only';
+      var hasShort = (shortN > 0 && selS && selS.length > 0);
+
       // Capital Mode:
-      // - 130/30: no shorts => 100% long; with shorts => 130% long / 30% short.
-      // - 50/50: no shorts => 50% long, residual 50% to SGOV/CASH; with shorts => 50% long / 50% short.
-      // - 100% Short Only: no long positions; short side is 100% when Short N > 0 and short candidates exist.
-      var lScale=0.0, sScale=0.0;
+      // - 100/0: 100% long only.
+      // - 50/50: 50% long / 50% short；若空方不足，不用 SGOV/CASH 補空方。
+      // - 130/30: 有空方時 130% long / 30% short；若空方不足，降為 100/0。
+      // - Short Only: 100% short；若空方不足則不補。
+      var lScale = 0.0, sScale = 0.0;
       if (isShortOnly) {
-        lScale=0.0;
-        sScale=(shortN>0&&selS&&selS.length>0)?1.0:0.0;
+        lScale = 0.0;
+        sScale = hasShort ? 1.0 : 0.0;
+      } else if (is1000) {
+        lScale = 1.0;
+        sScale = 0.0;
+      } else if (is1330) {
+        lScale = hasShort ? 1.3 : 1.0;
+        sScale = hasShort ? 0.3 : 0.0;
+      } else if (is5050) {
+        lScale = 0.5;
+        sScale = hasShort ? 0.5 : 0.0;
       } else {
-        lScale=is1330?1.0:0.5;
-        sScale=0.0;
-        if (shortN>0&&selS&&selS.length>0) { lScale=is1330?1.3:0.5; sScale=is1330?0.3:0.5; }
+        lScale = 1.0;
+        sScale = 0.0;
       }
+
+      // 若多方因市場弱化、MA、hurdle、相關係數或產業限額而不足，
+      // 股票部分只分配已入選名額對應的權重，剩餘 long side 後面補 SGOV/CASH。
+      var selectedLongSlots = Math.max(0, sel.length);
+      var longSlotBase = totalQuota > 0 ? totalQuota : selectedLongSlots;
+      var effectiveLongScale = lScale;
+      if (!isShortOnly && longFillSlots > 0 && longSlotBase > 0) {
+        effectiveLongScale = lScale * (selectedLongSlots / longSlotBase);
+      }
+
       if (!isShortOnly) {
         if (wtMode==='rank') {
           var ldenom=sel.length*(sel.length+1)/2;
-          sel.forEach(function(r,i){ target[r.s.c]=lScale*((sel.length-i)/ldenom)*exposure; });
+          sel.forEach(function(r,i){ target[r.s.c]=effectiveLongScale*((sel.length-i)/ldenom)*exposure; });
         } else if (wtMode==='ivol') {
           var volSum=0;
           var ivolArr=sel.map(function(r){
@@ -187,9 +217,9 @@ function runBTcore(mh, mode, opts) {
             volSum+=1/v;
             return {c:r.s.c,iv:1/v};
           });
-          ivolArr.forEach(function(x){ target[x.c]=(lScale*x.iv/volSum)*exposure; });
+          ivolArr.forEach(function(x){ target[x.c]=(effectiveLongScale*x.iv/volSum)*exposure; });
         } else {
-          var lw=(lScale/sel.length)*exposure;
+          var lw=(effectiveLongScale/sel.length)*exposure;
           sel.forEach(function(r){ target[r.s.c]=lw; });
         }
       }
@@ -200,15 +230,34 @@ function runBTcore(mh, mode, opts) {
           target[r.s.c]=-sScale*weight*exposure;
         });
       }
+
+      // 多方缺額補防禦資產：只補 long side 的缺額，不補 short side。
+      // 這裡補到 target，不補到 sel，避免 SGOV/CASH 被當成候選股或空方標的。
+      if (!isShortOnly && longFillSlots > 0 && longSlotBase > 0 && lScale > 0) {
+        var defensiveCode = (
+          DAILY['SGOV'] &&
+          DAILY['SGOV'].length > 0 &&
+          getPriceOnDate(DAILY['SGOV'], scoreM) !== null
+        ) ? 'SGOV' : 'CASH';
+
+        var fillWeight = lScale * (longFillSlots / longSlotBase) * exposure;
+        if (fillWeight > 0.001) {
+          target[defensiveCode] = (target[defensiveCode] || 0) + fillWeight;
+        }
+      }
     }
 
-    var totalW=0;
-    Object.keys(target).forEach(function(c){ totalW+=target[c]; });
-    var cashW=1.0-totalW;
-    if (cashW>0.001) {
-      var useSgovForResidual = (capMode==='neutral' && shortN===0 && DAILY['SGOV'] && DAILY['SGOV'].length>0 && getPriceOnDate(DAILY['SGOV'], scoreM)!==null);
-      var residualCode = useSgovForResidual ? 'SGOV' : 'CASH';
-      target[residualCode]=(target[residualCode]||0)+cashW;
+    // 只在 100/0 純多模式補足到 100%。
+    // 50/50 與 130/30 是多空架構，不能用 1 - 淨權重 補現金，
+    // 否則 50/50 的 +50% / -50% 會被誤補成 100% CASH。
+    if (capMode === '1000') {
+      var totalW=0;
+      Object.keys(target).forEach(function(c){ totalW+=target[c]; });
+      var cashW=1.0-totalW;
+      if (cashW>0.001) {
+        var residualCode = (DAILY['SGOV'] && DAILY['SGOV'].length>0 && getPriceOnDate(DAILY['SGOV'], scoreM)!==null) ? 'SGOV' : 'CASH';
+        target[residualCode]=(target[residualCode]||0)+cashW;
+      }
     }
 
     var shield = getShieldDecision(scoreM);
@@ -1302,7 +1351,7 @@ function wfCollectSettings() {
   var indLim = parseInt($('btIndLimit') ? $('btIndLimit').value : '0') || 0;
   var shortN = parseInt($('btSN') ? $('btSN').value : '0') || 0;
   var capEl = document.querySelector('input[name="capMode"]:checked');
-  var capMode = capEl ? capEl.value : 'neutral';
+  var capMode = capEl ? capEl.value : '1330';
   return {
     poolMode: poolM, n: n, wt: wt, lag: lag, freq: freq,
     regOn: regOn, regExp: regExp, shieldOn: shieldOn, shieldMA: shieldMA,
