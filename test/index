@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<!-- saved from url=(0091)file:///C:/Users/depro/Downloads/TW_momentum_0427_WF_cache_off_ETF_SPY_SGOV_only%20(1).html -->
+<html lang="zh-TW"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>台股動能選股 V1.9 (Experimental)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Noto+Sans+TC:wght@400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0c10;--sf:#12161f;--sf2:#1a2030;--bd:#252d3d;--bhi:#3a4560;
+  --tx:#e2eaf8;--mu:#6b7a99;--gr:#00e5a0;--re:#ff4d6d;--red:#3d0012;
+  --ye:#ffb830;--bl:#4d9fff;--bld:#001a3d;--ac:#7eb8ff;
+  --tw:#ff6b9d;--twd:#3d0020;--te:#00d4aa;--ted:#003328;--wh:#f8faff;
+  --us:#a78bfa;--usd:#1a0040;
+}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;padding:16px;font-size:14px;line-height:1.6}
+.mono{font-family:'IBM Plex Mono',monospace}
+.wrap{max-width:1200px;margin:0 auto}
+h1{font-size:18px;font-weight:700;color:var(--wh);display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.tag{font-size:11px;padding:2px 8px;border-radius:3px;background:var(--tw);color:#000;font-weight:700}
+.sub{font-size:11px;color:var(--mu);margin-bottom:14px;line-height:1.8}
+.tabs{display:flex;border-bottom:2px solid var(--bd);margin-bottom:14px;overflow-x:auto;white-space:nowrap}
+.tab{padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;color:var(--mu);border:none;border-bottom:3px solid transparent;margin-bottom:-2px;background:none;font-family:inherit;transition:.15s}
+.tab.active{color:var(--tw);border-bottom-color:var(--tw)}
+.panel{display:none}.panel.active{display:block}
+.card{background:var(--sf);border:1px solid var(--bd);padding:13px;margin-bottom:10px}
+.ct{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--mu);margin-bottom:9px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.fi{display:flex;flex-direction:column;gap:3px}
+.fi label{font-size:10px;color:var(--mu);font-weight:700;text-transform:uppercase}
+input[type=text],input[type=number],select{background:var(--bg);border:1px solid var(--bhi);color:var(--wh);padding:7px 9px;border-radius:3px;font-size:13px;font-family:'IBM Plex Mono',monospace;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--tw)}
+button{padding:9px 14px;border:none;border-radius:3px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;transition:.15s}
+.btw{background:var(--tw);color:#000;width:100%}.btw:hover{opacity:.85}
+.bo{background:transparent;border:1px solid var(--bhi);color:var(--mu)}.bo:hover{color:var(--tx);border-color:var(--tx)}
+.bte{background:transparent;border:1px solid var(--te);color:var(--te);width:100%}.bte:hover{opacity:.85}
+.sm{padding:5px 11px;font-size:11px;width:auto}
+.log{font-size:11px;color:var(--mu);font-family:'IBM Plex Mono',monospace;margin-top:7px;min-height:14px;word-break:break-all;white-space:pre-wrap}
+.pw{background:var(--bd);border-radius:2px;height:4px;margin-top:6px;overflow:hidden}
+.pf{height:100%;background:var(--tw);border-radius:2px;transition:width .3s}
+.ig{border:1px solid var(--bd);margin-bottom:5px;border-radius:3px;overflow:hidden}
+.ih{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;cursor:pointer;background:var(--sf2);user-select:none;gap:8px}
+.ih:hover{background:var(--bhi)}
+.in{font-size:12px;font-weight:700;color:var(--ac);flex:1}
+.ic{font-size:10px;color:var(--mu);white-space:nowrap}
+.ib{padding:7px;display:flex;flex-wrap:wrap;gap:4px}
+.ib.col{display:none}
+.sc{display:inline-flex;align-items:center;padding:4px 8px;border-radius:3px;font-size:11px;font-family:'IBM Plex Mono',monospace;border:1px solid var(--bd);background:var(--bg);cursor:pointer;gap:4px;user-select:none;transition:.12s}
+.sc:hover{border-color:var(--tw);background:var(--twd)}
+.sc.act{background:var(--twd);border-color:var(--tw);color:var(--tw)}
+.sc.usc:hover{border-color:var(--us);background:var(--usd)}
+.sc.usc.act{background:var(--usd);border-color:var(--us);color:var(--us)}
+.cc{font-weight:700}.cn{font-size:9px;color:var(--mu)}
+.sc.act .cn{color:var(--tw);opacity:.7}.sc.usc.act .cn{color:var(--us);opacity:.7}
+.cd{font-size:12px;color:var(--re);opacity:0;padding:0 2px;line-height:1}
+.sc:hover .cd{opacity:1}
+.cust{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;align-items:center}
+.cust input,.cust select{flex:1;min-width:75px}
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:8px;margin-bottom:10px}
+.scard{background:var(--sf);border:1px solid var(--bd);padding:11px;border-radius:3px}
+.shdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px}
+.scode{font-size:15px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.sname{font-size:10px;color:var(--mu)}
+.sscore{font-size:21px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.srank{font-size:11px;font-weight:700;padding:2px 8px;border-radius:3px}
+.sbars{margin-top:7px}
+.sbrow{display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:10px;color:var(--mu)}
+.sbwrap{flex:1;height:3px;background:var(--bd);border-radius:2px;overflow:hidden}
+.sbfill{height:100%;border-radius:2px}
+.wk .scode{color:var(--re)}.wk .srank{background:var(--red);color:var(--re);border-color:var(--re)}
+.mr{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--bd)}
+.mr:last-child{border:none}.mv{font-family:'IBM Plex Mono',monospace;font-weight:700}
+.tg{color:var(--gr)}.tr{color:var(--re)}.wh{color:var(--wh)}
+.tw-wrap{overflow-x:auto;background:var(--sf);border:1px solid var(--bd);margin-bottom:10px;max-height:480px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:7px 8px;color:var(--mu);text-align:left;background:var(--sf2);position:sticky;top:0;z-index:2;font-size:10px;white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}
+tr:hover{background:var(--sf2)}
+.cw{background:var(--sf);border:1px solid var(--bd);padding:13px;margin-bottom:10px}
+.ct2{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--mu);margin-bottom:9px}
+.load{position:fixed;inset:0;background:rgba(10,12,16,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px}
+.spin{width:32px;height:32px;border:3px solid var(--bd);border-top-color:var(--tw);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hidden{display:none}
+.bdg{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:10px;font-family:'IBM Plex Mono',monospace;font-weight:700;margin:2px}
+.shbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--twd);border:1px solid var(--tw);border-radius:3px;margin-bottom:10px;flex-wrap:wrap}
+.shbar label{font-size:11px;color:var(--tw);font-weight:700;white-space:nowrap}
+.shbar input{width:70px}.shbar span{font-size:10px;color:var(--mu)}
+.ib2{background:var(--sf2);border:1px solid var(--bd);padding:9px 11px;border-radius:3px;font-size:11px;color:var(--mu);line-height:1.9;margin-top:8px}
+.ib2 b{color:var(--tw)}
+.tnx-bar{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--bld);border:1px solid var(--bl);border-radius:3px;margin-bottom:8px;font-size:11px;flex-wrap:wrap}
+.cs-bar{display:flex;align-items:center;padding:6px 10px;background:var(--sf2);border:1px solid var(--bd);border-radius:3px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="load hidden" id="loadEl">
+  <div class="spin"></div>
+  <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">...</div>
+</div>
+<div class="wrap">
+<h1>TW 台股動能選股 <span class="tag">V2.1-DATAFIX</span></h1>
+<div class="sub">Global ex-CN預設 + CN獨立可選 | 國際版372檔基準 | 半導體細分 + 同產業限額 | T-N公平回測</div>
+<div class="tabs">
+  <button class="tab active" onclick="switchTab(&#39;pool&#39;,this)">股池</button>
+  <button class="tab" onclick="switchTab(&#39;fetch&#39;,this)">抓取</button>
+  <button class="tab" onclick="switchTab(&#39;signal&#39;,this)">信號</button>
+  <button class="tab" onclick="switchTab(&#39;backtest&#39;,this)">回測</button>
+  <button class="tab" onclick="switchTab(&#39;stress&#39;,this)">壓力測試</button>
+</div>
+
+<div class="panel active" id="panel-pool">
+  <div class="shbar">
+    <label>盾牌分數</label>
+    <input type="number" id="shieldScore" placeholder="0-100" min="0" max="100">
+    <span>留空=不過濾</span>
+  </div>
+  <div class="card">
+    <div class="ct">股池
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="bo sm" onclick="selectAll()">全選</button>
+        <button class="bo sm" onclick="selectNone()">全停</button>
+        <button class="bo sm" style="color:var(--tw);border-color:var(--tw)" onclick="selectTW(true)">台股全選</button>
+        <button class="bo sm" style="color:var(--tw);border-color:var(--tw)" onclick="selectTW(false)">台股全停</button>
+        <button class="bo sm" style="color:var(--us);border-color:var(--us)" onclick="selectIntl(true)">國際全選</button>
+        <button class="bo sm" style="color:var(--us);border-color:var(--us)" onclick="selectIntl(false)">國際全停</button>
+        <button class="bo sm" style="color:var(--ye);border-color:var(--ye)" onclick="selectCN(true)">中國全選</button>
+        <button class="bo sm" style="color:var(--ye);border-color:var(--ye)" onclick="selectCN(false)">中國全停</button>
+      </div>
+    </div>
+    <div id="poolContainer"></div>
+    <div class="cust">
+      <input type="text" id="cusT" placeholder="2330 or SPY" style="max-width:120px">
+      <input type="text" id="cusN" placeholder="Name" style="max-width:90px">
+      <select id="cusI" style="max-width:110px">
+        <option value="US-ETF">US-ETF</option>
+        <option value="US-Mag7">US-Mag7</option>
+        <option value="光學精密">光學精密</option>
+        <option value="半導體">半導體</option>
+        <option value="工業機械">工業機械</option>
+        <option value="工業電腦">工業電腦</option>
+        <option value="汽車">汽車</option>
+        <option value="生技醫療">生技醫療</option>
+        <option value="石化">石化</option>
+        <option value="航運">航運</option>
+        <option value="金融">金融</option>
+        <option value="龋鐵">龋鐵</option>
+        <option value="電信">電信</option>
+        <option value="電子製造">電子製造</option>
+        <option value="電子零組件">電子零組件</option>
+        <option value="電腦周邊">電腦周邊</option>
+        <option value="面板">面板</option>
+        <option value="食品消費">食品消費</option>
+        <option value="紡織成衣">紡織成衣</option>
+        <option value="橡詠汽車">橡詠汽車</option>
+        <option value="建材不動產">建材不動產</option>
+        <option value="通路流通">通路流通</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--mu);cursor:pointer">
+        <input type="checkbox" id="cusUS" style="width:14px;accent-color:var(--us)"> US
+      </label>
+      <button class="bo sm" onclick="addCustom()">+ Add</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">評分權重 <span style="font-size:10px;color:var(--gr)">改完權重直接重計</span></div>
+    <div class="g3">
+      <div class="fi"><label>動能z(%)</label><input type="number" id="wMom" value="40" min="0" max="100"></div>
+      <div class="fi"><label>Bias(%)</label><input type="number" id="wBias" value="10" min="0" max="100"></div>
+      <div class="fi"><label>Slope(%)</label><input type="number" id="wSlope" value="10" min="0" max="100"></div>
+      <div class="fi"><label>量能(%)</label><input type="number" id="wVol" value="20" min="0" max="100"></div>
+      <div class="fi"><label>K棒(%)</label><input type="number" id="wKbar" value="20" min="0" max="100"></div>
+      <div class="fi"><label>Corr Thresh</label><input type="number" id="corrT" value="0.8" step="0.05" min="0.3" max="1"></div>
+      <div class="fi"><label>Corr Window (mo)</label><input type="number" id="corrW" value="24" min="6" max="60" step="6"></div>
+      <div class="fi"><label>&gt;60MA 絕對門溻</label><select id="ma60Filter">
+  <option value="on">On (破線淘汰)</option>
+  <option value="off" selected="">Off (僅依評分)</option>
+</select></div>
+    </div>
+    <div class="ib2">
+      <b>動能</b>: 0.5z12+0.3z6+0.2z3 (月頻) | <b>台</b>: 週頻 13週 | <b>US/Mag7</b>: 日頻 50日<br>
+      <b>TS</b>: R12 &gt; ^TNX + spread%
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-fetch">
+  <div class="card">
+    <div class="ct">Proxy / 網路設定</div>
+    <div class="fi"><label>Primary Proxy URL</label>
+      <input type="text" id="proxyUrl" value="https://shield-proxy.depross0205.workers.dev?url=" autocorrect="off" spellcheck="false">
+    </div>
+  </div>
+
+  <div class="card" style="border-left: 4px solid var(--gr);">
+    <div class="ct">FRED Stress Score &#x6307;&#x6a19; (VIX + HY Spread)
+      <span style="font-size:10px;color:var(--mu);font-weight:400">&#x7368;&#x7acb;&#x6297;&#x53d6;&#xff0c;&#x4e0d;&#x9700;&#x91cd;&#x6293;&#x5168;&#x90e8;&#x80a1;&#x7968;</span>
+    </div>
+    <div class="ib2" style="margin-top:0;padding:6px 8px;font-size:10px;margin-bottom:8px">
+      &#x5168;&#x90e8;&#x6539;&#x7528; Yahoo Finance&#xff1a;<b style="color:var(--gr)">^VIX</b> &#x4f5c;&#x70ba; VIX&#xff0c;<b style="color:var(--gr)">HYG</b> &#x4f5c;&#x70ba; HY&#x5229;&#x5dee;&#x4ee3;&#x7406;&#xff0c;<b style="color:var(--gr)">RSP</b> &#x5e02;&#x5834;&#x5ee3;&#x5ea6;&#x3002;&#x4e0d;&#x9700; FRED Key&#x3002;
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+      <div class="ib2" style="margin-top:0;padding:6px 8px">
+        <div style="font-size:10px;color:var(--mu);margin-bottom:2px">^VIX &#x2192; VIXCLS</div>
+        <b id="fredVixStat" style="font-size:11px;font-family:monospace;color:var(--mu)">not fetched</b>
+      </div>
+      <div class="ib2" style="margin-top:0;padding:6px 8px">
+        <div style="font-size:10px;color:var(--mu);margin-bottom:2px">HYG &#x2192; HY Spread proxy</div>
+        <b id="fredHyStat" style="font-size:11px;font-family:monospace;color:var(--mu)">not fetched</b>
+      </div>
+      <div class="ib2" style="margin-top:0;padding:6px 8px">
+        <div style="font-size:10px;color:var(--mu);margin-bottom:2px">RSP &#x5e02;&#x5834;&#x5ee3;&#x5ea6;</div>
+        <b id="fredRspStat" style="font-size:11px;font-family:monospace;color:var(--mu)">not fetched</b>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button class="bo" style="flex:1;color:var(--gr);border-color:var(--gr)" onclick="fetchFredIndicators()">&#x6293;&#x53d6; ^VIX + HYG + RSP</button>
+      <button class="bo sm" style="color:var(--mu)" onclick="updFredStats()">&#x6a23;&#x6848;&#x72c0;&#x614b;</button>
+    </div>
+    <div class="log" id="fredLog"></div>
+  </div>
+
+  <div class="card" style="border-left: 4px solid var(--ye);">
+    <div class="ct">&#x8cc7;&#x6599;&#x5065;&#x5eb7;&#x8a3a;&#x65b7; <button class="bo sm" onclick="checkDataHealth()">&#x7acb;&#x5373;&#x8a3a;&#x65b7;</button></div>
+    <div id="healthDashboard">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+        <div class="ib2" style="margin-top:0">待更新股數：<b id="staleCount" style="color:var(--re)">0</b></div>
+        <div class="ib2" style="margin-top:0">平均延遲：<b id="avgDelay" style="color:var(--ye)">0</b> 天</div>
+      </div>
+      <div class="tw-wrap" style="max-height: 200px;">
+        <table>
+          <thead>
+            <tr><th>市場</th><th>代碼</th><th>最後日期</th><th>延遲天數</th><th>狀態</th></tr>
+          </thead>
+          <tbody id="healthBody">
+            <tr><td colspan="5" style="text-align:center; color:var(--mu)">請點擊診斷按鈕</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">資料抓取</div>
+    <div class="tnx-bar">
+      <span>^TNX:</span>
+      <b id="tnxVal" style="color:var(--bl);font-family:monospace">not fetched</b>
+      <span id="tnxThresh" style="color:var(--mu)"></span>
+    </div>
+    <div id="fetchStat" style="display:flex;flex-wrap:wrap;margin-bottom:8px"><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">SPY</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">SGOV</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">AAPL</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">MSFT</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">GOOGL</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">AMZN</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">META</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">NVDA</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">TSLA</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">BRK-B</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">LLY</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">AVGO</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">JPM</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">UNH</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">V</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">XOM</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">MA</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">JNJ</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">PG</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">HD</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">COST</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">ABBV</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">MRK</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">CRM</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">CVX</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">NFLX</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">AMD</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">PEP</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">KO</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">BAC</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">WMT</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">ADBE</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">ORCL</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">PLTR</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">CAT</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">GE</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">RTX</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">MS</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">GS</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">WFC</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">PM</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">GEV</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">IBM</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">ETN</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">LMT</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">UNP</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">SPGI</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">ACN</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">PANW</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">LOW</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">DELL</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">LIN</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">CSCO</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">TMUS</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">INTU</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">QCOM</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">TXN</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">AMAT</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">ISRG</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">AMGN</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">CMCSA</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">HON</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">SBUX</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">GILD</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">BKNG</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">MDLZ</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">ADP</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">VRTX</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">MU</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">INTC</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">LRCX</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">ADI</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">KLAC</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">NXPI</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">SNPS</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">CDNS</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">MRVL</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">MPWR</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">MCHP</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">ON</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">SWKS</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">TER</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7203.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7267.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8306.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8316.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8411.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9983.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8058.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8031.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8001.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8053.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8002.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8766.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8725.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8630.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8750.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6301.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6367.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7011.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6902.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4502.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4568.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4519.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4578.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2914.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4661.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7270.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7202.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7261.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8802.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8801.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1925.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1928.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">5401.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">5108.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9020.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9022.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9101.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9104.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8591.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8604.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8601.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4452.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4911.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2802.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2503.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2502.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9735.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1605.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">5020.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6178.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6758.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6861.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8035.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6501.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9984.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6098.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7974.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6594.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6981.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7741.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6857.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6954.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6273.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6503.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6702.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9432.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9433.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9434.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4063.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6762.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7751.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6723.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6920.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6146.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7733.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6752.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4901.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6971.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6988.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6701.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7735.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6645.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6479.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7832.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4543.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3382.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9843.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6724.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7731.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6504.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">7752.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">5803.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3436.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9766.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4385.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9613.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4689.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6753.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">5802.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6674.T</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3008</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3406</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2330</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2454</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2303</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3711</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2344</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2368</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2449</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2408</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3034</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2379</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2337</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3035</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6770</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3443</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6415</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3014</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4919</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2231</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">5269</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3661</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2059</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2049</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1590</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2467</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2395</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2207</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1789</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6446</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1301</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1303</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6505</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1326</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2615</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2603</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2609</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2610</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2618</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2645</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2881</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2882</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2884</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2885</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2886</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2887</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2891</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2892</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2883</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2880</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">5880</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2890</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2838</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">5876</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">5871</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2812</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2836</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2002</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2412</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3045</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4904</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2345</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2317</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2382</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2308</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2301</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2354</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2360</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">4938</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3231</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2356</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3702</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2385</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3037</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2383</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3653</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3189</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3533</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2327</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3017</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3044</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2492</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3665</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">8996</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2474</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2392</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2393</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6271</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6669</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6781</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6409</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6805</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">6515</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2357</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2353</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2324</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2377</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2376</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3706</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2409</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">3481</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1216</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2912</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1210</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1476</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9910</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1434</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1440</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2105</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2206</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2201</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2542</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">5522</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">1513</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2347</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2915</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">9904</span><span class="bdg" style="background:var(--sf2);color:var(--mu);border:1px solid var(--bd)">2903</span></div>
+    <button class="btw" onclick="fetchAll()">&#x667A;&#x6167;&#x62B4;&#x53D6; - &#x53EA;&#x8865;&#x7F3A;&#x5C11;&#x6216;&#x904E;&#x820A;</button>
+    <div class="log" id="fetchLog"></div>
+    <div class="pw hidden" id="fetchProg"><div class="pf" id="fetchFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="ct">存檔/載入
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="bo sm" onclick="dlJson()">JSON</button>
+        <button class="bo sm" onclick="dlOHLCV()">OHLCV</button>
+        <button class="bo sm" onclick="dlMonthly()">月頻</button>
+      </div>
+    </div>
+    <div class="cs-bar"><span id="cacheTxt" style="font-size:11px;font-weight:700">Cache: not built</span></div>
+    <div class="cs-bar" style="gap:10px;flex-wrap:wrap">
+      <label style="font-size:11px;color:var(--mu)"><input type="checkbox" id="persistToggle" checked> 永久儲存 IndexedDB</label>
+      <label style="font-size:11px;color:var(--mu)"><input type="checkbox" id="autoBuildCache"> 上傳/更新後自動重建快取</label>
+      <button class="bo sm" onclick="buildCache().then(function(){sl('dlLog','Cache built manually.',true);})">手動建立快取</button>
+    </div>
+    <button class="bte" onclick="fetchUpdate()" style="margin-bottom:8px">&#x6BCF;&#x65E5;&#x66F4;&#x65B0; - &#x53EA;&#x88DC;&#x4E0D;&#x8DB3;2&#x65E5;&#x7684;&#x8CC7;&#x6599;</button>
+    <div class="log" id="updateLog"></div>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <input type="file" id="fileJson" accept=".json" style="display:none" onchange="upJson(this)">
+      <button class="bo sm" onclick="document.getElementById(&#39;fileJson&#39;).click()">JSON 還原</button>
+      <button class="bo sm" style="color:var(--re);border-color:var(--re)" onclick="clearAndReset()">Clear DB</button>
+      <button class="bo sm" style="color:var(--ye);border-color:var(--ye)" onclick="debugDataLen()">Debug</button>
+      <span style="font-size:10px;color:var(--mu)">上傳後自動重建快取</span>
+    </div>
+    <div class="log" id="dlLog" style="color: var(--gr);">Clean start&#xFF1A;&#x5DF2;&#x505C;&#x7528;&#x555F;&#x52D5;&#x81EA;&#x52D5;&#x5FEB;&#x53D6;&#x8F09;&#x5165;&#xFF0C;&#x8ACB;&#x624B;&#x52D5;&#x6293;&#x53D6;&#x6216; JSON &#x9084;&#x539F;&#x3002;</div>
+  </div>
+
+  <!-- ══ Stress Score Dashboard ══ -->
+  <div class="card" id="stressDashCard" style="border-left:4px solid var(--re)">
+    <div class="ct" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Stress Score &#x5100;&#x8868;&#x677F;
+        <span style="font-size:10px;font-weight:400;color:var(--mu);margin-left:6px">VIX&#xD7;35 + HY&#xD7;35 + Trend&#xD7;20 + Breadth&#xD7;10</span>
+      </span>
+      <button class="bo sm" onclick="renderStressDash()" style="color:var(--ac)">&#x91CD;&#x7B97;</button>
+    </div>
+
+    <!-- Composite Score Bar -->
+    <div id="stressComposite" style="margin-bottom:14px">
+      <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:6px">
+        <div id="stressBigNum" style="font-size:48px;font-weight:700;font-family:monospace;color:var(--mu);line-height:1">--</div>
+        <div style="padding-bottom:8px">
+          <div id="stressLabel" style="font-size:13px;font-weight:700;color:var(--mu)">&#x7B49;&#x5F85;&#x8CC7;&#x6599;</div>
+          <div id="stressLabelSub" style="font-size:10px;color:var(--mu);margin-top:2px">&#x8ACB;&#x5148;&#x6293;&#x53D6; ^VIX + HYG + RSP</div>
+        </div>
+      </div>
+      <!-- Gradient bar: green(0) -> yellow(50) -> red(100) -->
+      <div style="position:relative;height:14px;border-radius:7px;background:linear-gradient(to right,#00e5a0,#ffb830 50%,#ff4d6d);margin-bottom:4px;overflow:visible">
+        <div id="stressNeedle" style="position:absolute;top:-4px;width:4px;height:22px;background:#fff;border-radius:2px;box-shadow:0 0 6px rgba(0,0,0,.6);transform:translateX(-50%);left:50%;transition:left .6s ease"></div>
+        <!-- Zone labels -->
+        <span style="position:absolute;left:8%;top:18px;font-size:9px;color:#00e5a0;font-weight:700">&#x5B89;&#x5168;</span>
+        <span style="position:absolute;left:42%;top:18px;font-size:9px;color:#ffb830;font-weight:700">&#x4E2D;&#x7ACB;</span>
+        <span style="position:absolute;left:78%;top:18px;font-size:9px;color:#ff4d6d;font-weight:700">&#x5371;&#x967A;</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:18px;font-size:9px;color:var(--mu);font-family:monospace">
+        <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
+      </div>
+    </div>
+
+    <!-- Four Factor Cards -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="stressFactorGrid">
+      <div class="ib2" id="sf_vix" style="padding:10px 8px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--mu);margin-bottom:4px">VIX ROC <span style="font-weight:400">&#xD7;35%</span></div>
+        <div id="sfv_val" style="font-size:20px;font-weight:700;font-family:monospace;color:var(--mu)">--</div>
+        <div id="sfv_z" style="font-size:10px;color:var(--mu);margin:2px 0">z = --</div>
+        <div style="height:3px;border-radius:2px;background:var(--border);margin-top:4px"><div id="sfv_bar" style="height:100%;border-radius:2px;width:0%;background:var(--mu);transition:width .5s"></div></div>
+        <div id="sfv_lv" style="font-size:9px;margin-top:4px;color:var(--mu)">Level --</div>
+      </div>
+      <div class="ib2" id="sf_hy" style="padding:10px 8px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--mu);margin-bottom:4px">HY Spread <span style="font-weight:400">&#xD7;35%</span></div>
+        <div id="sfh_val" style="font-size:20px;font-weight:700;font-family:monospace;color:var(--mu)">--</div>
+        <div id="sfh_z" style="font-size:10px;color:var(--mu);margin:2px 0">z = --</div>
+        <div style="height:3px;border-radius:2px;background:var(--border);margin-top:4px"><div id="sfh_bar" style="height:100%;border-radius:2px;width:0%;background:var(--mu);transition:width .5s"></div></div>
+        <div id="sfh_lv" style="font-size:9px;margin-top:4px;color:var(--mu)">Level --</div>
+      </div>
+      <div class="ib2" id="sf_tr" style="padding:10px 8px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Trend <span style="font-weight:400">&#xD7;20%</span></div>
+        <div id="sft_val" style="font-size:20px;font-weight:700;font-family:monospace;color:var(--mu)">--</div>
+        <div id="sft_z" style="font-size:10px;color:var(--mu);margin:2px 0">SPY vs MA</div>
+        <div style="height:3px;border-radius:2px;background:var(--border);margin-top:4px"><div id="sft_bar" style="height:100%;border-radius:2px;width:0%;background:var(--mu);transition:width .5s"></div></div>
+        <div id="sft_lv" style="font-size:9px;margin-top:4px;color:var(--mu)">Level --</div>
+      </div>
+      <div class="ib2" id="sf_br" style="padding:10px 8px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Breadth <span style="font-weight:400">&#xD7;10%</span></div>
+        <div id="sfb_val" style="font-size:20px;font-weight:700;font-family:monospace;color:var(--mu)">--</div>
+        <div id="sfb_z" style="font-size:10px;color:var(--mu);margin:2px 0">RSP/SPY vs MA</div>
+        <div style="height:3px;border-radius:2px;background:var(--border);margin-top:4px"><div id="sfb_bar" style="height:100%;border-radius:2px;width:0%;background:var(--mu);transition:width .5s"></div></div>
+        <div id="sfb_lv" style="font-size:9px;margin-top:4px;color:var(--mu)">Level --</div>
+      </div>
+    </div>
+
+
+    <div class="ib2" style="margin-top:10px;border:1px solid var(--ac)">
+      <div style="font-size:10px;font-weight:700;color:var(--ac);margin-bottom:8px">Stress 權重掃描 / 手動權重</div>
+      <div class="g3" style="grid-template-columns:repeat(4,1fr);gap:6px">
+        <div class="fi"><label>VIX 權重%</label><input type="number" id="swVix" value="35" min="0" max="100" step="5"></div>
+        <div class="fi"><label>HY 權重%</label><input type="number" id="swHy" value="35" min="0" max="100" step="5"></div>
+        <div class="fi"><label>Trend 權重%</label><input type="number" id="swTrend" value="20" min="0" max="100" step="5"></div>
+        <div class="fi"><label>Breadth 權重%</label><input type="number" id="swBreadth" value="10" min="0" max="100" step="5"></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <button class="bo sm" onclick="normalizeStressWeightInputs();renderStressDash()" style="color:var(--gr);border-color:var(--gr)">套用/正規化權重</button>
+        <button class="bo sm" onclick="resetStressWeights();renderStressDash()">恢復 35/35/20/10</button>
+        <button class="bo sm" onclick="runStressWeightSweepPanel()" style="color:var(--ye);border-color:var(--ye)">權重掃描 10%格點</button>
+      </div>
+      <div id="stressWeightSweepPanel" style="margin-top:8px;font-size:10px;color:var(--mu)">尚未執行權重掃描。掃描會暫時使用 Stress Gate 跑目前回測設定。</div>
+    </div>
+
+    <div id="stressNote" style="margin-top:10px;font-size:10px;color:var(--mu);font-family:monospace;line-height:1.7"></div>
+  </div>
+</div>
+
+<div class="panel" id="panel-signal">
+  <div class="card">
+    <div class="ct">即時信號 / 固定 T-N 觀察訊號</div>
+    <div class="g3" style="margin-bottom:10px">
+      <div class="fi">
+        <label>Signal T-N（固定倒數第N個交易日）</label>
+        <input type="number" id="sigTN" value="10" min="0" max="22" step="1">
+      </div>
+      <div class="fi">
+        <label>Signal Month（可留空）</label>
+        <input type="text" id="sigYM" placeholder="YYYY-MM，留空=最新可用月份">
+      </div>
+      <div class="fi">
+        <label>說明</label>
+        <div class="ib2" style="margin-top:0;padding:6px 8px">
+          信號頁只顯示觀察用 T-N 排名；正式回測仍維持月頻 T-1 訊號、T 月底收盤進場、T+1 月底收盤計算報酬。
+        </div>
+      </div>
+    </div>
+    <div id="sigContent" style="color:var(--mu);font-size:12px">請先抓取資料。</div>
+    <button class="btw" onclick="calcSignal()" style="margin-top:10px">計算信號</button>
+  </div>
+  <div class="card hidden" id="stCard">
+    <div class="ct">全股池排行</div>
+    <div class="tw-wrap"><table><thead><tr>
+      <th>#</th><th>Code</th><th>Name</th><th>Ind</th>
+      <th>Score</th><th>MomZ</th><th>BiasZ</th><th>SlopeZ</th><th>VolZ</th><th>KbarZ</th>
+      <th>R12</th><th>TS</th>
+    </tr></thead><tbody id="stBody"></tbody></table></div>
+  </div>
+</div>
+
+<div class="panel" id="panel-stress">
+  <div class="card">
+    <div class="ct">壓力測試</div>
+    <div class="g3">
+      <div class="fi"><label>模擬次數</label><input type="number" id="stSimN" value="1000" min="100" max="5000" step="100"></div>
+      <div class="fi"><label>Block Size (月)</label><input type="number" id="stBlock" value="4" min="1" max="12"></div>
+      <div class="fi"><label>WF 最少訓練年數</label><input type="number" id="wfMinTrain" value="8" min="3" max="20"></div>
+      <div class="fi"><label>WF 測試窗口(年)</label><input type="number" id="wfTestWin" value="1" min="1" max="3"></div>
+      <div class="fi"><label>Pool Compare ETF配額</label><input type="number" id="wfETFQuota" value="1" min="0" max="5"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="bo" onclick="runMonteCarlo()" style="flex:1">Monte Carlo</button>
+      <button class="bo" onclick="runBlockBootstrap()" style="flex:1">Block Bootstrap</button>
+      <button class="bo sm" onclick="document.getElementById(&#39;stressMetrics&#39;).innerHTML=&#39;&#39;" style="color:var(--re);border-color:var(--re)">清除</button>
+    </div>
+    <button class="bo" onclick="runWalkForward()" style="width:100%;margin-top:6px;color:var(--ye);border-color:var(--ye)">Walk-Forward Analysis (Anchored / T-N)</button>
+    <button class="bo" onclick="runRollingWalkForward()" style="width:100%;margin-top:6px;color:var(--tw);border-color:var(--tw)">Rolling Walk-Forward Analysis / T-N</button>
+    <button class="bo" onclick="runTNSweep()" style="width:100%;margin-top:6px;color:var(--gr);border-color:var(--gr)">T-N Sweep 回測表 (N=1~22)</button>
+    <button class="bo" onclick="runWFNCompare()" style="width:100%;margin-top:6px;color:var(--ac);border-color:var(--ac)">WF 持股數N比較 (套用T-N)</button>
+   <button class="bo" onclick="runPoolCompare()" style="width:100%;margin-top:6px;color:var(--bl);border-color:var(--bl)">Pool Compare A+B (約30~60秒)</button>
+    
+    <button class="bo" onclick="runRandomBaseline()" style="width:100%;margin-top:6px;color:var(--gr);border-color:var(--gr)">Random Baseline (N個隨機股)</button>
+    <button class="bo" onclick="runCostSensitivity()" style="width:100%;margin-top:6px;color:var(--ye);border-color:var(--ye)">Cost Sensitivity</button>
+    <div class="log" id="stressLog"></div>
+  </div>
+  <div id="stressRes" class="hidden">
+    <div id="stressMetrics"></div>
+  </div>
+</div>
+
+<div class="panel" id="panel-backtest">
+  <div class="card">
+    <div class="ct">回測設定</div>
+    <div class="g3">
+      <div class="fi"><label>Start</label><input type="text" id="btS" placeholder="YYYY-MM"></div>
+      <div class="fi"><label>End</label><input type="text" id="btE" placeholder="YYYY-MM"></div>
+      <div class="fi">
+        <label>選股模式</label>
+        <select id="poolMode" onchange="togglePoolUI()">
+          <option value="large" selected="">大池模式 (全局排名)</option>
+          <option value="small">小池模式 (分區配額)</option>
+        </select>
+      </div>
+      <div class="fi"><label>Max Hold (總名額)</label><input type="number" id="btH" value="6" style="background: var(--bg);"></div>
+      <div class="fi"><label>IC尾部模式</label><select id="tailMode"><option value="pct">百分比</option><option value="count">固定數量</option></select></div>
+      <div class="fi"><label>IC尾部百分比%</label><input type="number" id="tailPct" value="5" min="1" max="50"></div>
+      <div class="fi"><label>IC尾部固定檔數</label><input type="number" id="tailCount" value="10" min="1"></div>
+      <div class="fi"><label>同產業限額</label><input type="number" id="btIndLimit" value="0" min="0" max="10" step="1"><div style="font-size:9px;color:var(--mu);margin-top:3px">0=不限制；ETF/SGOV不受限；半導體依細分類計算，跨國同類共用名額</div></div>
+      <div class="fi"><label>台股配額</label><input type="number" id="btQuotaTW" value="0" onchange="updTotalH()" disabled="" style="opacity: 0.3;"></div>
+      <div class="fi"><label>美股配額</label><input type="number" id="btQuotaUS" value="0" onchange="updTotalH()" disabled="" style="opacity: 0.3;"></div>
+      <div class="fi"><label>ETF 配額</label><input type="number" id="btQuotaETF" value="0" onchange="updTotalH()" disabled="" style="opacity: 0.3;"></div>
+      <div class="fi"><label>Capital</label><input type="number" id="btCap" value="100000"></div>
+      <div class="fi"><label>Cost(%)</label><input type="number" id="btC" value="0.3" step="0.1"></div>
+      <div class="fi"><label>TNX Spread(%)</label><input type="number" id="btSpread" value="25" step="0.1"></div>
+      <div class="fi"><label>Weight Mode</label>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="wtMode" id="wtEq" value="eq" checked="" style="width:14px;accent-color:var(--tw)"> 等權
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="wtMode" id="wtRank" value="rank" style="width:14px;accent-color:var(--tw)"> 排名加權
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="wtMode" value="ivol" style="width:14px;accent-color:var(--tw)"> IV加權
+          </label>
+        </div>
+      </div>
+      <div class="fi"><label>Short N</label><input type="number" id="btSN" value="0" min="0" max="10" placeholder="0=off"></div>
+      <div class="fi"><label>Capital Mode</label>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="capMode" id="cap1000" value="1000" style="width:14px;accent-color:var(--bl)"> 100/0 純多
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="capMode" id="cap5050" value="5050" style="width:14px;accent-color:var(--bl)"> 50/50 多空對沖
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="capMode" id="cap1330" value="1330" checked="" style="width:14px;accent-color:var(--bl)"> 130/30
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="capMode" id="capShortOnly" value="short_only" style="width:14px;accent-color:var(--bl)"> 100% Short Only
+          </label>
+        </div>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">100/0=純多；50/50=多空各50%；130/30=多130%/空30%；Short Only=純空，不補SGOV。</div>
+      </div>
+      <div class="fi"><label>Short TS Filter</label>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="btSTSF" style="width:14px;accent-color:var(--bl)"> R12 &lt; 0 only
+        </label>
+      </div>
+      <div class="fi"><label>Rolling Periods</label>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl1" checked="" style="width:13px;accent-color:var(--tw)"> 1Y</label>
+          <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl2" checked="" style="width:13px;accent-color:var(--tw)"> 2Y</label>
+          <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl3" checked="" style="width:13px;accent-color:var(--tw)"> 3Y</label>
+          <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="rl5" style="width:13px;accent-color:var(--tw)"> 5Y</label>
+        </div>
+      </div>
+      <div class="fi"><label>Skip Month</label>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="btSkipMo" style="width:14px;accent-color:var(--tw)"> 跳過最近1月
+        </label>
+      </div>
+      <div class="fi"><label>Signal Lag</label>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="lagMode" id="lagT1" value="1" checked="" style="width:14px;accent-color:var(--tw)"> t-1</label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="lagMode" id="lagT2" value="2" style="width:14px;accent-color:var(--tw)"> t-2</label>
+        </div>
+      </div>
+      <div class="fi"><label>T-N 公平回測</label>
+        <input type="number" id="btSignalTN" value="10" min="0" max="22" step="1">
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">T-N只決定名單；仍用T月底收盤買、T+1月底收盤賣</div>
+      </div>
+      <div class="fi"><label>回測頻率</label>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="月末買賣\uff0c持倉期月末→次月末">
+            <input type="radio" name="btFreq" value="1" checked="" style="width:13px;accent-color:var(--tw)"> 月頻
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="每月1號&amp;15號交易">
+            <input type="radio" name="btFreq" value="2" style="width:13px;accent-color:var(--tw)"> 半月頻
+          </label>
+        </div>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">一般回測用 t-1/t-2；按「T-N公平回測」與壓力測試 WF 時，會套用左側 T-N。</div>
+      </div>
+      <div class="fi"><label>大盤風控 (Regime)</label>
+        <select id="btRegime">
+          <option value="off">Off</option>
+          <option value="on">On (0050/SPY &lt; 60MA)</option>
+        </select>
+      </div>
+      <div class="fi"><label>曝光度 (Regime)</label>
+        <input type="number" id="btRegimeExp" value="50" min="0" max="100">
+      </div>
+      <div class="fi"><label>Stress Score Gate</label>
+        <select id="btShieldGate">
+          <option value="off" selected="">Off</option>
+          <option value="stress">On (4-Factor Stress Score)</option>
+          <option value="on">On Legacy (SPY/TWII vs MA)</option>
+        </select>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">Stress: VIX_ROC + HY_Spread + Trend + Breadth | Level0-1=100% Level2=70% Level3=40% Level4=20%</div>
+      </div>
+      <div class="fi"><label>Shield MA(days) [Legacy]</label><input type="number" id="btShieldMA" value="240" min="60" max="300" step="20"></div>
+      <div class="fi"><label>個股強勢濾網</label>
+        <select id="btIndExit">
+          <option value="off">Off</option>
+          <option value="on">On (硆60MA且均線向下)</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btw" onclick="runBT()" style="flex:1">執行回測</button>
+      <button class="bo" onclick="runCompare()" style="flex:1">比較 N=1~max</button>
+    </div>
+    <button class="bo" onclick="runTNBacktest()" style="width:100%;margin-top:6px;color:var(--ye);border-color:var(--ye)">執行 T-N 公平回測</button>
+    <button class="bte" onclick="runRolling()" style="width:100%;margin-top:6px">滚動報酬分析</button>
+    <div class="log" id="btLog"></div>
+  </div>
+  <div id="btRes" class="hidden">
+    <div id="btMetrics" style="margin-bottom:10px"></div>
+    <div style="margin-bottom:8px">
+      <button class="bo sm" onclick="toggleCharts(this)" id="btnChart" style="width:100%;text-align:left">Show Charts (NAV / MDD)</button>
+      <div id="chartArea" style="display:none;margin-top:6px">
+        <div class="cw"><div class="ct2">NAV vs TAIEX</div><div style="position:relative;height:220px"><canvas id="navC"></canvas></div></div>
+        <div class="cw"><div class="ct2">MDD</div><div style="position:relative;height:120px"><canvas id="ddC"></canvas></div></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+      <button class="bo sm" onclick="dlBtCsv()">CSV</button>
+    </div>
+    <div class="tw-wrap"><table><thead><tr>
+      <th>Month / Stock</th><th>Holdings</th><th>Hurdle%</th><th>Return%</th><th>NAV / +$PnL</th><th>TAIEX / Contrib</th><th>Alpha%</th><th style="color:var(--re)">Stress / Exposure</th>
+    </tr></thead><tbody id="btBody"></tbody></table></div>
+    <div id="rollingRes" class="hidden" style="margin-top:10px"></div>
+  </div>
+</div>
+</div>
+<script src="pool-data.js"></script>
+<script src="app-core.js"></script>
+<script src="app-backtest.js"></script>
+</body>
+</html>
