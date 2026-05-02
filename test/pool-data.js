@@ -3291,2568 +3291,923 @@ var POOL_DEF = [
     "region": "tw"
   },
   {
-    "title": "[US] Tech MarketCap Top200 Add-on",
+    "title": "[US] Tech MarketCap Add-on",
     "pool": "us",
     "tw": false,
-    "stocks": [
-        {
-            "c": "ANET",
-            "n": "ANET",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SNDK",
-            "n": "SNDK",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "APP",
-            "n": "APP",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "UBER",
-            "n": "UBER",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "NOW",
-            "n": "NOW",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ABNB",
-            "n": "ABNB",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "NET",
-            "n": "NET",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "DASH",
-            "n": "DASH",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "LITE",
-            "n": "LITE",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "HOOD",
-            "n": "HOOD",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "FTNT",
-            "n": "FTNT",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "CRWV",
-            "n": "CRWV",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "MSTR",
-            "n": "MSTR",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "COHR",
-            "n": "COHR",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "KEYS",
-            "n": "KEYS",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ADSK",
-            "n": "ADSK",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "EA",
-            "n": "EA",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "TTWO",
-            "n": "TTWO",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "WDAY",
-            "n": "WDAY",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SNOW",
-            "n": "SNOW",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "VEEV",
-            "n": "VEEV",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "DDOG",
-            "n": "Datadog",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ZS",
-            "n": "Zscaler",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "MDB",
-            "n": "MongoDB",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "TEAM",
-            "n": "Atlassian",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "HUBS",
-            "n": "HubSpot",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "PAYC",
-            "n": "Paycom",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "CDW",
-            "n": "CDW",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "NTAP",
-            "n": "NetApp",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "WDC",
-            "n": "Western Digital",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "STX",
-            "n": "Seagate",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "HPQ",
-            "n": "HP Inc",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "HPE",
-            "n": "HPE",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "GLW",
-            "n": "Corning",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "FSLR",
-            "n": "First Solar",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ENPH",
-            "n": "Enphase",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "OLED",
-            "n": "Universal Display",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ENTG",
-            "n": "Entegris",
-            "industry": "半導體-材料",
-            "sector": "半導體",
-            "subInd": "半導體-材料",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "MKSI",
-            "n": "MKS Instruments",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "AMKR",
-            "n": "Amkor",
-            "industry": "半導體-封測",
-            "sector": "半導體",
-            "subInd": "半導體-封測",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "PINS",
-            "n": "PINS",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "RDDT",
-            "n": "RDDT",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "DUOL",
-            "n": "DUOL",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "FICO",
-            "n": "FICO",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ROKU",
-            "n": "ROKU",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ZM",
-            "n": "ZM",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "DOCU",
-            "n": "DOCU",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "BILL",
-            "n": "BILL",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "U",
-            "n": "U",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SMCI",
-            "n": "SMCI",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "GOOG",
-            "n": "Alphabet C",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ARM",
-            "n": "Arm Holdings",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SHOP",
-            "n": "Shopify",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SE",
-            "n": "Sea Ltd",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "CRWD",
-            "n": "CrowdStrike",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "OKTA",
-            "n": "Okta",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "PAYX",
-            "n": "Paychex",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "APH",
-            "n": "Amphenol",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "TEL",
-            "n": "TE Connectivity",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "TDY",
-            "n": "Teledyne",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "TRMB",
-            "n": "Trimble",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "TYL",
-            "n": "Tyler Tech",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "PTC",
-            "n": "PTC",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "MANH",
-            "n": "Manhattan Assoc",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "GEN",
-            "n": "Gen Digital",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "NLOP",
-            "n": "Net Lease Office",
-            "industry": "其他",
-            "sector": "其他",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SEDG",
-            "n": "SolarEdge",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "RUN",
-            "n": "Sunrun",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "LSCC",
-            "n": "Lattice Semi",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ALGM",
-            "n": "Allegro Micro",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "RMBS",
-            "n": "Rambus",
-            "industry": "半導體-EDA/IP",
-            "sector": "半導體",
-            "subInd": "半導體-EDA/IP",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "WOLF",
-            "n": "Wolfspeed",
-            "industry": "半導體-晶圓/IDM",
-            "sector": "半導體",
-            "subInd": "半導體-晶圓/IDM",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "POWI",
-            "n": "Power Integrations",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "DIOD",
-            "n": "Diodes",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "VSH",
-            "n": "Vishay",
-            "industry": "半導體-其他",
-            "sector": "半導體",
-            "subInd": "半導體-其他",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "QRVO",
-            "n": "Qorvo",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "FORM",
-            "n": "FormFactor",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ACLS",
-            "n": "Axcelis",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "AEIS",
-            "n": "Advanced Energy",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "VECO",
-            "n": "Veeco",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "UCTT",
-            "n": "Ultra Clean",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "CAMT",
-            "n": "Camtek",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ONTO",
-            "n": "Onto Innovation",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ASX",
-            "n": "ASE Tech ADR",
-            "industry": "半導體-封測",
-            "sector": "半導體",
-            "subInd": "半導體-封測",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "TSM",
-            "n": "TSMC ADR",
-            "industry": "半導體-晶圓/IDM",
-            "sector": "半導體",
-            "subInd": "半導體-晶圓/IDM",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "UMC",
-            "n": "UMC ADR",
-            "industry": "半導體-晶圓/IDM",
-            "sector": "半導體",
-            "subInd": "半導體-晶圓/IDM",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ASML",
-            "n": "ASML ADR",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ASMIY",
-            "n": "ASM Intl ADR",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "BESIY",
-            "n": "BESI ADR",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "NOK",
-            "n": "Nokia ADR",
-            "industry": "電信/公用",
-            "sector": "電信/公用",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ERIC",
-            "n": "Ericsson ADR",
-            "industry": "電信/公用",
-            "sector": "電信/公用",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "NICE",
-            "n": "NICE ADR",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "CYBR",
-            "n": "CyberArk",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "CHKP",
-            "n": "Check Point",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "WIX",
-            "n": "Wix.com",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "GLOB",
-            "n": "Globant",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "GTLB",
-            "n": "GitLab",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ESTC",
-            "n": "Elastic",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "PATH",
-            "n": "UiPath",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "AI",
-            "n": "C3.ai",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SOUN",
-            "n": "SoundHound AI",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "IONQ",
-            "n": "IonQ",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "QBTS",
-            "n": "D-Wave Quantum",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "RGTI",
-            "n": "Rigetti",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "S",
-            "n": "SentinelOne",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "TENB",
-            "n": "Tenable",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "VRNS",
-            "n": "Varonis",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SAIL",
-            "n": "SailPoint",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "BOX",
-            "n": "Box",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "DBX",
-            "n": "Dropbox",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "TWLO",
-            "n": "Twilio",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "FIVN",
-            "n": "Five9",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "RNG",
-            "n": "RingCentral",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "NCNO",
-            "n": "nCino",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "PEGA",
-            "n": "Pegasystems",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "APPF",
-            "n": "AppFolio",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "BL",
-            "n": "BlackLine",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "QLYS",
-            "n": "Qualys",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "MNDY",
-            "n": "Monday.com",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "IOT",
-            "n": "Samsara",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "DT",
-            "n": "Dynatrace",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "GWRE",
-            "n": "Guidewire",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "VERX",
-            "n": "Vertex Inc",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ALTR",
-            "n": "Altair Engineering",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "AZPN",
-            "n": "AspenTech",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SSNC",
-            "n": "SS&C Tech",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "JKHY",
-            "n": "Jack Henry",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "FIS",
-            "n": "Fidelity Info",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "FI",
-            "n": "Fiserv",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "GDDY",
-            "n": "GoDaddy",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "AKAM",
-            "n": "Akamai",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "FFIV",
-            "n": "F5",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "JNPR",
-            "n": "Juniper",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "CIEN",
-            "n": "Ciena",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "UI",
-            "n": "Ubiquiti",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "VSAT",
-            "n": "Viasat",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "IRDM",
-            "n": "Iridium",
-            "industry": "電信/公用",
-            "sector": "電信/公用",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SATS",
-            "n": "EchoStar",
-            "industry": "電信/公用",
-            "sector": "電信/公用",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ASTS",
-            "n": "AST SpaceMobile",
-            "industry": "電信/公用",
-            "sector": "電信/公用",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "ROG",
-            "n": "Rogers Corp",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SANM",
-            "n": "Sanmina",
-            "industry": "電子製造",
-            "sector": "電子製造",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "JBL",
-            "n": "Jabil",
-            "industry": "電子製造",
-            "sector": "電子製造",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "FLEX",
-            "n": "Flex",
-            "industry": "電子製造",
-            "sector": "電子製造",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "PLXS",
-            "n": "Plexus",
-            "industry": "電子製造",
-            "sector": "電子製造",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "CLS",
-            "n": "Celestica",
-            "industry": "電子製造",
-            "sector": "電子製造",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "OSIS",
-            "n": "OSI Systems",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "NOVT",
-            "n": "Novanta",
-            "industry": "硬體/電子",
-            "sector": "硬體/電子",
-            "subInd": "",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "COHU",
-            "n": "Cohu",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SIMO",
-            "n": "Silicon Motion",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SITM",
-            "n": "SiTime",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "SLAB",
-            "n": "Silicon Labs",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "CEVA",
-            "n": "CEVA",
-            "industry": "半導體-EDA/IP",
-            "sector": "半導體",
-            "subInd": "半導體-EDA/IP",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "AOSL",
-            "n": "Alpha and Omega",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "NVMI",
-            "n": "Nova Ltd",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "MTSI",
-            "n": "MACOM",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "TSEM",
-            "n": "Tower Semi",
-            "industry": "半導體-晶圓/IDM",
-            "sector": "半導體",
-            "subInd": "半導體-晶圓/IDM",
-            "region": "us",
-            "defaultOn": false
-        },
-        {
-            "c": "GFS",
-            "n": "GlobalFoundries",
-            "industry": "半導體-晶圓/IDM",
-            "sector": "半導體",
-            "subInd": "半導體-晶圓/IDM",
-            "region": "us",
-            "defaultOn": false
-        }
-    ],
     "region": "us",
-    "defaultOn": false
-},
+    "defaultOn": false,
+    "stocks": [
+      {
+        "c": "ANET",
+        "n": "Arista Networks",
+        "industry": "硬體/網通",
+        "sector": "硬體/網通",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "SNDK",
+        "n": "Sandisk",
+        "industry": "半導體-記憶體",
+        "sector": "半導體",
+        "subInd": "半導體-記憶體",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "APP",
+        "n": "AppLovin",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "UBER",
+        "n": "Uber",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "NOW",
+        "n": "ServiceNow",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "ABNB",
+        "n": "Airbnb",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "NET",
+        "n": "Cloudflare",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "DASH",
+        "n": "DoorDash",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "LITE",
+        "n": "Lumentum",
+        "industry": "硬體/電子",
+        "sector": "硬體/電子",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "HOOD",
+        "n": "Robinhood",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "FTNT",
+        "n": "Fortinet",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "CRWV",
+        "n": "CoreWeave",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "MSTR",
+        "n": "Strategy",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "COHR",
+        "n": "Coherent",
+        "industry": "硬體/電子",
+        "sector": "硬體/電子",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "KEYS",
+        "n": "Keysight",
+        "industry": "硬體/電子",
+        "sector": "硬體/電子",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "ADSK",
+        "n": "Autodesk",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "EA",
+        "n": "Electronic Arts",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "TTWO",
+        "n": "Take-Two",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "WDAY",
+        "n": "Workday",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "SNOW",
+        "n": "Snowflake",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "DDOG",
+        "n": "Datadog",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "ZS",
+        "n": "Zscaler",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "OKTA",
+        "n": "Okta",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "MDB",
+        "n": "MongoDB",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "HUBS",
+        "n": "HubSpot",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "VRSN",
+        "n": "VeriSign",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "AKAM",
+        "n": "Akamai",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "GEN",
+        "n": "Gen Digital",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "CDW",
+        "n": "CDW",
+        "industry": "硬體/電子",
+        "sector": "硬體/電子",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "WDC",
+        "n": "Western Digital",
+        "industry": "半導體-記憶體",
+        "sector": "半導體",
+        "subInd": "半導體-記憶體",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "HPQ",
+        "n": "HP",
+        "industry": "硬體/電子",
+        "sector": "硬體/電子",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "HPE",
+        "n": "HPE",
+        "industry": "硬體/電子",
+        "sector": "硬體/電子",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "ZBRA",
+        "n": "Zebra Tech",
+        "industry": "硬體/電子",
+        "sector": "硬體/電子",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "GLW",
+        "n": "Corning",
+        "industry": "硬體/電子",
+        "sector": "硬體/電子",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "GDDY",
+        "n": "GoDaddy",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "IOT",
+        "n": "Samsara",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "PATH",
+        "n": "UiPath",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "TWLO",
+        "n": "Twilio",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "ESTC",
+        "n": "Elastic",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "PAYC",
+        "n": "Paycom",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "PINS",
+        "n": "Pinterest",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "RDDT",
+        "n": "Reddit",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "DUOL",
+        "n": "Duolingo",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "FICO",
+        "n": "Fair Isaac",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "ROKU",
+        "n": "Roku",
+        "industry": "硬體/電子",
+        "sector": "硬體/電子",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "ZM",
+        "n": "Zoom",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "DOCU",
+        "n": "DocuSign",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "BILL",
+        "n": "BILL Holdings",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "U",
+        "n": "Unity",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      },
+      {
+        "c": "SMCI",
+        "n": "Super Micro",
+        "industry": "硬體/電子",
+        "sector": "硬體/電子",
+        "subInd": "",
+        "region": "us",
+        "pool": "us",
+        "tw": false,
+        "defaultOn": false
+      }
+    ]
+  },
   {
-    "title": "台灣科技市值 Top200 補充",
+    "title": "台灣科技市值 Top100 補充",
     "pool": "tw",
     "tw": true,
-    "stocks": [
-        {
-            "c": "8046.TW",
-            "n": "南電",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3529.TWO",
-            "n": "力旺",
-            "industry": "半導體-EDA/IP",
-            "sector": "半導體",
-            "subInd": "半導體-EDA/IP",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "5347.TWO",
-            "n": "世界",
-            "industry": "半導體-晶圓/IDM",
-            "sector": "半導體",
-            "subInd": "半導體-晶圓/IDM",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6488.TWO",
-            "n": "環球晶",
-            "industry": "半導體-晶圓/IDM",
-            "sector": "半導體",
-            "subInd": "半導體-晶圓/IDM",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3105.TWO",
-            "n": "穩懋",
-            "industry": "半導體-晶圓/IDM",
-            "sector": "半導體",
-            "subInd": "半導體-晶圓/IDM",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3293.TWO",
-            "n": "鈊象",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6789.TW",
-            "n": "采鈺",
-            "industry": "半導體-封測",
-            "sector": "半導體",
-            "subInd": "半導體-封測",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "4966.TW",
-            "n": "譜瑞-KY",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6414.TW",
-            "n": "樺漢",
-            "industry": "工業電腦",
-            "sector": "工業電腦",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2404.TW",
-            "n": "漢唐",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3324.TW",
-            "n": "雙鴻",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6239.TW",
-            "n": "力成",
-            "industry": "半導體-封測",
-            "sector": "半導體",
-            "subInd": "半導體-封測",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6285.TW",
-            "n": "啟碁",
-            "industry": "網通",
-            "sector": "網通",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6274.TW",
-            "n": "台燿",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3023.TW",
-            "n": "信邦",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6213.TW",
-            "n": "聯茂",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6147.TWO",
-            "n": "頎邦",
-            "industry": "半導體-封測",
-            "sector": "半導體",
-            "subInd": "半導體-封測",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3264.TWO",
-            "n": "欣銓",
-            "industry": "半導體-封測",
-            "sector": "半導體",
-            "subInd": "半導體-封測",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2458.TW",
-            "n": "義隆",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "5274.TWO",
-            "n": "信驊",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6187.TWO",
-            "n": "萬潤",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "5536.TWO",
-            "n": "聖暉*",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3450.TW",
-            "n": "聯鈞",
-            "industry": "光通訊",
-            "sector": "光通訊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6223.TWO",
-            "n": "旺矽",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6643.TWO",
-            "n": "M31",
-            "industry": "半導體-EDA/IP",
-            "sector": "半導體",
-            "subInd": "半導體-EDA/IP",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6531.TW",
-            "n": "愛普*",
-            "industry": "半導體-記憶體",
-            "sector": "半導體",
-            "subInd": "半導體-記憶體",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "4763.TW",
-            "n": "材料-KY",
-            "industry": "半導體-材料",
-            "sector": "半導體",
-            "subInd": "半導體-材料",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "4961.TW",
-            "n": "天鈺",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "8086.TWO",
-            "n": "宏捷科",
-            "industry": "半導體-晶圓/IDM",
-            "sector": "半導體",
-            "subInd": "半導體-晶圓/IDM",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3036.TW",
-            "n": "文曄",
-            "industry": "電子通路",
-            "sector": "電子通路",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3374.TW",
-            "n": "精材",
-            "industry": "半導體-封測",
-            "sector": "半導體",
-            "subInd": "半導體-封測",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "8210.TW",
-            "n": "勤誠",
-            "industry": "電腦周邊",
-            "sector": "電腦周邊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3227.TW",
-            "n": "原相",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "8069.TWO",
-            "n": "元太",
-            "industry": "面板",
-            "sector": "面板",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "4958.TW",
-            "n": "臻鼎-KY",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6269.TW",
-            "n": "台郡",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "5469.TW",
-            "n": "瀚宇博",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6191.TW",
-            "n": "精成科",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6412.TW",
-            "n": "群電",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6416.TW",
-            "n": "瑞祺電通",
-            "industry": "網通",
-            "sector": "網通",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6282.TW",
-            "n": "康舒",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2441.TW",
-            "n": "超豐",
-            "industry": "半導體-封測",
-            "sector": "半導體",
-            "subInd": "半導體-封測",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "8150.TW",
-            "n": "南茂",
-            "industry": "半導體-封測",
-            "sector": "半導體",
-            "subInd": "半導體-封測",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "8110.TW",
-            "n": "華東",
-            "industry": "半導體-封測",
-            "sector": "半導體",
-            "subInd": "半導體-封測",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "5483.TWO",
-            "n": "中美晶",
-            "industry": "半導體-材料",
-            "sector": "半導體",
-            "subInd": "半導體-材料",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3413.TW",
-            "n": "京鼎",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6533.TWO",
-            "n": "晶心科",
-            "industry": "半導體-EDA/IP",
-            "sector": "半導體",
-            "subInd": "半導體-EDA/IP",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6788.TWO",
-            "n": "華景電",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6937.TWO",
-            "n": "天虹",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6547.TW",
-            "n": "高端疫苗",
-            "industry": "生技醫療",
-            "sector": "生技醫療",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6612.TW",
-            "n": "奈米醫材",
-            "industry": "生技醫療",
-            "sector": "生技醫療",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6799.TWO",
-            "n": "來頡",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6732.TWO",
-            "n": "昇佳電子",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6691.TWO",
-            "n": "洋基工程",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6510.TWO",
-            "n": "精測",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3583.TWO",
-            "n": "辛耘",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3131.TWO",
-            "n": "弘塑",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3455.TWO",
-            "n": "由田",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3680.TWO",
-            "n": "家登",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6438.TWO",
-            "n": "迅得",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "4979.TWO",
-            "n": "華星光",
-            "industry": "光通訊",
-            "sector": "光通訊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "4908.TWO",
-            "n": "前鼎",
-            "industry": "光通訊",
-            "sector": "光通訊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3081.TWO",
-            "n": "聯亞",
-            "industry": "光通訊",
-            "sector": "光通訊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3163.TWO",
-            "n": "波若威",
-            "industry": "光通訊",
-            "sector": "光通訊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3363.TWO",
-            "n": "上詮",
-            "industry": "光通訊",
-            "sector": "光通訊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "4977.TWO",
-            "n": "眾達-KY",
-            "industry": "光通訊",
-            "sector": "光通訊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6284.TW",
-            "n": "佳邦",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2352.TW",
-            "n": "佳世達",
-            "industry": "電腦周邊",
-            "sector": "電腦周邊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2371.TW",
-            "n": "大同",
-            "industry": "電腦周邊",
-            "sector": "電腦周邊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2388.TW",
-            "n": "威盛",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2405.TW",
-            "n": "輔信",
-            "industry": "電腦周邊",
-            "sector": "電腦周邊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2417.TW",
-            "n": "圓剛",
-            "industry": "電腦周邊",
-            "sector": "電腦周邊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2421.TW",
-            "n": "建準",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2428.TW",
-            "n": "興勤",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2436.TW",
-            "n": "偉詮電",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2451.TW",
-            "n": "創見",
-            "industry": "記憶體",
-            "sector": "記憶體",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2455.TW",
-            "n": "全新",
-            "industry": "半導體-晶圓/IDM",
-            "sector": "半導體",
-            "subInd": "半導體-晶圓/IDM",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2464.TW",
-            "n": "盟立",
-            "industry": "工業電腦",
-            "sector": "工業電腦",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2471.TW",
-            "n": "資通",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "2480.TW",
-            "n": "敦陽科",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3005.TW",
-            "n": "神基",
-            "industry": "電腦周邊",
-            "sector": "電腦周邊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3010.TW",
-            "n": "華立",
-            "industry": "電子通路",
-            "sector": "電子通路",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3013.TW",
-            "n": "晟銘電",
-            "industry": "電腦周邊",
-            "sector": "電腦周邊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3015.TW",
-            "n": "全漢",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3016.TW",
-            "n": "嘉晶",
-            "industry": "半導體-晶圓/IDM",
-            "sector": "半導體",
-            "subInd": "半導體-晶圓/IDM",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3022.TW",
-            "n": "威強電",
-            "industry": "工業電腦",
-            "sector": "工業電腦",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3042.TW",
-            "n": "晶技",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3059.TW",
-            "n": "華晶科",
-            "industry": "光電",
-            "sector": "光電",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3094.TW",
-            "n": "聯傑",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3234.TW",
-            "n": "光環",
-            "industry": "光通訊",
-            "sector": "光通訊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3504.TW",
-            "n": "揚明光",
-            "industry": "光電",
-            "sector": "光電",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3596.TW",
-            "n": "智易",
-            "industry": "網通",
-            "sector": "網通",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "3714.TW",
-            "n": "富采",
-            "industry": "光電",
-            "sector": "光電",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "4952.TW",
-            "n": "凌通",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "4953.TW",
-            "n": "緯軟",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "5258.TW",
-            "n": "虹堡",
-            "industry": "電腦周邊",
-            "sector": "電腦周邊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "5289.TW",
-            "n": "宜鼎",
-            "industry": "記憶體",
-            "sector": "記憶體",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "5439.TW",
-            "n": "高技",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6183.TW",
-            "n": "關貿",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6206.TW",
-            "n": "飛捷",
-            "industry": "電腦周邊",
-            "sector": "電腦周邊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6245.TWO",
-            "n": "立端",
-            "industry": "工業電腦",
-            "sector": "工業電腦",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6257.TW",
-            "n": "矽格",
-            "industry": "半導體-封測",
-            "sector": "半導體",
-            "subInd": "半導體-封測",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6261.TWO",
-            "n": "久元",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6278.TW",
-            "n": "台表科",
-            "industry": "電子製造",
-            "sector": "電子製造",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6290.TW",
-            "n": "良維",
-            "industry": "電子零組件",
-            "sector": "電子零組件",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6472.TW",
-            "n": "保瑞",
-            "industry": "生技醫療",
-            "sector": "生技醫療",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6491.TW",
-            "n": "晶碩",
-            "industry": "光學精密",
-            "sector": "光學精密",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6517.TW",
-            "n": "保勝光學",
-            "industry": "光學精密",
-            "sector": "光學精密",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6579.TWO",
-            "n": "研揚",
-            "industry": "工業電腦",
-            "sector": "工業電腦",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6589.TW",
-            "n": "台康生技",
-            "industry": "生技醫療",
-            "sector": "生技醫療",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6689.TWO",
-            "n": "伊雲谷",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6719.TW",
-            "n": "力智",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6756.TW",
-            "n": "威鋒電子",
-            "industry": "半導體-IC設計",
-            "sector": "半導體",
-            "subInd": "半導體-IC設計",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6768.TW",
-            "n": "志強-KY",
-            "industry": "電子製造",
-            "sector": "電子製造",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6826.TWO",
-            "n": "和淞",
-            "industry": "半導體-設備",
-            "sector": "半導體",
-            "subInd": "半導體-設備",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6919.TW",
-            "n": "康霈*",
-            "industry": "生技醫療",
-            "sector": "生技醫療",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6922.TWO",
-            "n": "宸曜",
-            "industry": "工業電腦",
-            "sector": "工業電腦",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "6933.TW",
-            "n": "AMAX-KY",
-            "industry": "電腦周邊",
-            "sector": "電腦周邊",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "7556.TWO",
-            "n": "意德士",
-            "industry": "半導體-材料",
-            "sector": "半導體",
-            "subInd": "半導體-材料",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "8050.TWO",
-            "n": "廣積",
-            "industry": "工業電腦",
-            "sector": "工業電腦",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "8070.TWO",
-            "n": "長華*",
-            "industry": "電子通路",
-            "sector": "電子通路",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "8249.TW",
-            "n": "菱光",
-            "industry": "光電",
-            "sector": "光電",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "8299.TWO",
-            "n": "群聯",
-            "industry": "半導體-記憶體",
-            "sector": "半導體",
-            "subInd": "半導體-記憶體",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "8454.TW",
-            "n": "富邦媒",
-            "industry": "軟體/平台",
-            "sector": "軟體/平台",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "8478.TW",
-            "n": "東哥遊艇",
-            "industry": "電子製造",
-            "sector": "電子製造",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        },
-        {
-            "c": "9914.TW",
-            "n": "美利達",
-            "industry": "電子製造",
-            "sector": "電子製造",
-            "subInd": "",
-            "region": "tw",
-            "defaultOn": false
-        }
-    ],
     "region": "tw",
-    "defaultOn": false
-}
+    "defaultOn": false,
+    "stocks": [
+      {
+        "c": "8046",
+        "n": "南電",
+        "industry": "電子零組件",
+        "sector": "電子零組件",
+        "subInd": "",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "3529",
+        "n": "力旺",
+        "industry": "半導體-IC設計",
+        "sector": "半導體",
+        "subInd": "半導體-IC設計",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "5347",
+        "n": "世界",
+        "industry": "半導體-晶圓/IDM",
+        "sector": "半導體",
+        "subInd": "半導體-晶圓/IDM",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "6488",
+        "n": "環球晶",
+        "industry": "半導體-晶圓/材料",
+        "sector": "半導體",
+        "subInd": "半導體-晶圓/材料",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "3105",
+        "n": "穩懋",
+        "industry": "半導體-晶圓/IDM",
+        "sector": "半導體",
+        "subInd": "半導體-晶圓/IDM",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "3293",
+        "n": "鈊象",
+        "industry": "軟體/平台",
+        "sector": "軟體/平台",
+        "subInd": "",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "6789",
+        "n": "采鈺",
+        "industry": "半導體-其他",
+        "sector": "半導體",
+        "subInd": "半導體-其他",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "4966",
+        "n": "譜瑞-KY",
+        "industry": "半導體-IC設計",
+        "sector": "半導體",
+        "subInd": "半導體-IC設計",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "6414",
+        "n": "樺漢",
+        "industry": "工業電腦",
+        "sector": "工業電腦",
+        "subInd": "",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "2404",
+        "n": "漢唐",
+        "industry": "工業/機械",
+        "sector": "工業/機械",
+        "subInd": "",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "3324",
+        "n": "雙鴻",
+        "industry": "電子零組件",
+        "sector": "電子零組件",
+        "subInd": "",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "6239",
+        "n": "力成",
+        "industry": "半導體-封測",
+        "sector": "半導體",
+        "subInd": "半導體-封測",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "6285",
+        "n": "啟碁",
+        "industry": "硬體/網通",
+        "sector": "硬體/網通",
+        "subInd": "",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "6274",
+        "n": "台燿",
+        "industry": "電子零組件",
+        "sector": "電子零組件",
+        "subInd": "",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "3023",
+        "n": "信邦",
+        "industry": "電子零組件",
+        "sector": "電子零組件",
+        "subInd": "",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "6213",
+        "n": "聯茂",
+        "industry": "電子零組件",
+        "sector": "電子零組件",
+        "subInd": "",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "6147",
+        "n": "頎邦",
+        "industry": "半導體-封測",
+        "sector": "半導體",
+        "subInd": "半導體-封測",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "3264",
+        "n": "欣銓",
+        "industry": "半導體-封測",
+        "sector": "半導體",
+        "subInd": "半導體-封測",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "2458",
+        "n": "義隆",
+        "industry": "半導體-IC設計",
+        "sector": "半導體",
+        "subInd": "半導體-IC設計",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "5274",
+        "n": "信驊",
+        "industry": "半導體-IC設計",
+        "sector": "半導體",
+        "subInd": "半導體-IC設計",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "8299",
+        "n": "群聯",
+        "industry": "半導體-記憶體",
+        "sector": "半導體",
+        "subInd": "半導體-記憶體",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "4749",
+        "n": "新應材",
+        "industry": "半導體-材料",
+        "sector": "半導體",
+        "subInd": "半導體-材料",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "3413",
+        "n": "京鼎",
+        "industry": "半導體-設備",
+        "sector": "半導體",
+        "subInd": "半導體-設備",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "6187",
+        "n": "萬潤",
+        "industry": "半導體-設備",
+        "sector": "半導體",
+        "subInd": "半導體-設備",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "5536",
+        "n": "聖暉*",
+        "industry": "半導體-設備/工程",
+        "sector": "半導體",
+        "subInd": "半導體-設備/工程",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "3450",
+        "n": "聯鈞",
+        "industry": "光通訊",
+        "sector": "硬體/電子",
+        "subInd": "",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "6223",
+        "n": "旺矽",
+        "industry": "半導體-設備/測試",
+        "sector": "半導體",
+        "subInd": "半導體-設備/測試",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "6643",
+        "n": "M31",
+        "industry": "半導體-EDA/IP",
+        "sector": "半導體",
+        "subInd": "半導體-EDA/IP",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "6531",
+        "n": "愛普*",
+        "industry": "半導體-記憶體",
+        "sector": "半導體",
+        "subInd": "半導體-記憶體",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "4763",
+        "n": "材料-KY",
+        "industry": "半導體-材料",
+        "sector": "半導體",
+        "subInd": "半導體-材料",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "4961",
+        "n": "天鈺",
+        "industry": "半導體-IC設計",
+        "sector": "半導體",
+        "subInd": "半導體-IC設計",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      },
+      {
+        "c": "8086",
+        "n": "宏捷科",
+        "industry": "半導體-晶圓/IDM",
+        "sector": "半導體",
+        "subInd": "半導體-晶圓/IDM",
+        "region": "tw",
+        "pool": "tw",
+        "tw": true,
+        "defaultOn": false
+      }
+    ]
+  }
 ];
