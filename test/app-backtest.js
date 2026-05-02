@@ -1373,7 +1373,9 @@ function renderStress(cagrs,mdds,sharpes,label,simN) {
 // FIX4: runWalkForward - togglePoolUI() called on restore
 
 function wfSafeRatio(oosCagr, isCagr) {
-  if (!isFinite(oosCagr) || !isFinite(isCagr) || Math.abs(isCagr) < 1e-9) return null;
+  // OOS/IS is meaningful only when IS CAGR is positive.
+  // If IS <= 0, a ratio can flip sign or explode and becomes misleading.
+  if (!isFinite(oosCagr) || !isFinite(isCagr) || isCagr <= 0) return null;
   return oosCagr / isCagr;
 }
 function wfRatioColor(r) {
@@ -1381,18 +1383,32 @@ function wfRatioColor(r) {
   return r >= 0.6 ? 'var(--gr)' : (r >= 0.4 ? 'var(--ye)' : 'var(--re)');
 }
 function wfRatioText(r) {
-  return (r === null || !isFinite(r)) ? 'NA' : ((r * 100).toFixed(0) + '%');
+  return (r === null || !isFinite(r)) ? '—' : ((r * 100).toFixed(0) + '%');
+}
+function wfValidRatioList(results) {
+  return results.map(function(r){ return r.ratio; }).filter(function(v){ return v !== null && isFinite(v); });
 }
 function wfAvgRatio(results) {
-  var arr = results.map(function(r){ return r.ratio; }).filter(function(v){ return v !== null && isFinite(v); });
+  var arr = wfValidRatioList(results);
   if (!arr.length) return null;
   return arr.reduce(function(a,b){ return a+b; }, 0) / arr.length;
 }
 function wfMedianRatio(results) {
-  var arr = results.map(function(r){ return r.ratio; }).filter(function(v){ return v !== null && isFinite(v); }).sort(function(a,b){return a-b;});
+  var arr = wfValidRatioList(results).sort(function(a,b){return a-b;});
   if (!arr.length) return null;
   var m = Math.floor(arr.length/2);
   return arr.length % 2 ? arr[m] : (arr[m-1] + arr[m]) / 2;
+}
+function wfValidRatioCount(results) {
+  return wfValidRatioList(results).length;
+}
+function wfRatioSummaryHtml(results, spliced) {
+  var validN = wfValidRatioCount(results);
+  return '<div class="card" style="border-top:2px solid '+wfRatioColor(spliced.medianRatio)+';padding:9px;">'
+    + '<div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px">Median OOS/IS</div>'
+    + '<div class="mono" style="font-size:20px;color:'+wfRatioColor(spliced.medianRatio)+'">'+wfRatioText(spliced.medianRatio)+'</div>'
+    + '<div style="font-size:9px;color:var(--mu)">Avg '+wfRatioText(spliced.avgRatio)+' | valid '+validN+'/'+results.length+'</div>'
+    + '</div>';
 }
 function wfKpiFromRecords(recs) {
   if (!recs || !recs.length) return null;
@@ -1549,7 +1565,7 @@ function renderWalkForward(results,spliced,settingsLabel) {
   html+='<div class="card" style="border-top:2px solid var(--gr);padding:9px;"><div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px">OOS CAGR (spliced)</div><div class="mono" style="font-size:20px;color:'+gc(spliced.cagr)+'">'+fp(spliced.cagr)+'</div></div>';
   html+='<div class="card" style="border-top:2px solid var(--re);padding:9px;"><div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px">OOS MDD (spliced)</div><div class="mono" style="font-size:20px;color:var(--re)">'+fp(spliced.mdd)+'</div></div>';
   html+='<div class="card" style="border-top:2px solid var(--bl);padding:9px;"><div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px">OOS Sharpe (spliced)</div><div class="mono" style="font-size:20px;color:'+gc(spliced.sharpe)+'">'+spliced.sharpe.toFixed(2)+'</div></div>';
-  html+='<div class="card" style="border-top:2px solid '+wfRatioColor(spliced.avgRatio)+';padding:9px;"><div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px">Avg OOS/IS</div><div class="mono" style="font-size:20px;color:'+wfRatioColor(spliced.avgRatio)+'">'+wfRatioText(spliced.avgRatio)+'</div><div style="font-size:9px;color:var(--mu)">Median '+wfRatioText(spliced.medianRatio)+'</div></div>';
+  html+=wfRatioSummaryHtml(results, spliced);
   html+='</div>';
   var winCount=results.filter(function(r){return r.cagr>0;}).length;
   var winRate=results.length>0?winCount/results.length:0;
@@ -1567,7 +1583,7 @@ function renderWalkForward(results,spliced,settingsLabel) {
       +'<td style="color:'+(ok?'var(--gr)':'var(--re)')+';font-size:11px">'+(ok?'Profit':'Loss')+'</td></tr>';
   });
   html+='</tbody></table></div>';
-  html+='<div style="font-size:10px;color:var(--mu);margin-top:8px;">OOS/IS = each window OOS CAGR divided by IS CAGR. Average is computed from window-level ratios.</div>';
+  html+='<div style="font-size:10px;color:var(--mu);margin-top:8px;">OOS/IS is shown only when IS CAGR is positive. IS <= 0 windows are displayed as — and excluded from Avg/Median.</div>';
   html+='</div>';
   $('stressRes').classList.remove('hidden');
   var el=$('stressMetrics');
@@ -1650,7 +1666,7 @@ function renderRollingWalkForward(results,spliced,settingsLabel) {
   html+='<div class="card" style="border-top:2px solid var(--gr);padding:9px;"><div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px">Rolling OOS CAGR</div><div class="mono" style="font-size:20px;color:'+gc(spliced.cagr)+'">'+fp(spliced.cagr)+'</div></div>';
   html+='<div class="card" style="border-top:2px solid var(--re);padding:9px;"><div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px">Rolling OOS MDD</div><div class="mono" style="font-size:20px;color:var(--re)">'+fp(spliced.mdd)+'</div></div>';
   html+='<div class="card" style="border-top:2px solid var(--bl);padding:9px;"><div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px">Rolling OOS Sharpe</div><div class="mono" style="font-size:20px;color:'+gc(spliced.sharpe)+'">'+spliced.sharpe.toFixed(2)+'</div></div>';
-  html+='<div class="card" style="border-top:2px solid '+wfRatioColor(spliced.avgRatio)+';padding:9px;"><div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px">Avg OOS/IS</div><div class="mono" style="font-size:20px;color:'+wfRatioColor(spliced.avgRatio)+'">'+wfRatioText(spliced.avgRatio)+'</div><div style="font-size:9px;color:var(--mu)">Median '+wfRatioText(spliced.medianRatio)+'</div></div>';
+  html+=wfRatioSummaryHtml(results, spliced);
   html+='</div>';
   var winCount=results.filter(function(r){return r.cagr>0;}).length;
   var winRate=results.length?winCount/results.length:0;
@@ -1665,7 +1681,7 @@ function renderRollingWalkForward(results,spliced,settingsLabel) {
       +'<td class="mono" style="color:'+gc(r.sharpe)+'">'+r.sharpe.toFixed(2)+'</td></tr>';
   });
   html+='</tbody></table></div>';
-  html+='<div style="font-size:10px;color:var(--mu);margin-top:8px;">Rolling WF uses fixed-length training windows. OOS/IS ratio is computed per window, then averaged.</div>';
+  html+='<div style="font-size:10px;color:var(--mu);margin-top:8px;">Rolling WF uses fixed-length training windows. OOS/IS is shown only when IS CAGR is positive; IS <= 0 windows are excluded from Avg/Median.</div>';
   html+='</div>';
   $('stressRes').classList.remove('hidden');
   var el=$('stressMetrics');
