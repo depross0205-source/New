@@ -153,6 +153,151 @@ var POOL_DEF = [
     "region": "etf"
   },
   {
+    "title": "[ETF] iShares Top30 AUM 增補",
+    "pool": "etf",
+    "tw": false,
+    "defaultOn": false,
+    "stocks": [
+      {
+        "c": "IEFA",
+        "n": "iShares Core MSCI EAFE",
+        "industry": "ETF-國際已開發",
+        "sector": "ETF-國際股票",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IEMG",
+        "n": "iShares Core MSCI EM",
+        "industry": "ETF-新興市場",
+        "sector": "ETF-國際股票",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IAU",
+        "n": "iShares Gold Trust",
+        "industry": "ETF-黃金",
+        "sector": "ETF-商品",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IVW",
+        "n": "iShares S&P500 Growth",
+        "industry": "ETF-成長股",
+        "sector": "ETF-美股因子",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IXUS",
+        "n": "iShares Core Total Intl",
+        "industry": "ETF-國際股票",
+        "sector": "ETF-國際股票",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IBIT",
+        "n": "iShares Bitcoin Trust",
+        "industry": "ETF-比特幣",
+        "sector": "ETF-另類資產",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "QUAL",
+        "n": "iShares MSCI USA Quality",
+        "industry": "ETF-品質因子",
+        "sector": "ETF-美股因子",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IVE",
+        "n": "iShares S&P500 Value",
+        "industry": "ETF-價值股",
+        "sector": "ETF-美股因子",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IWR",
+        "n": "iShares Russell Midcap",
+        "industry": "ETF-中型股",
+        "sector": "ETF-美股規模",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IWB",
+        "n": "iShares Russell 1000",
+        "industry": "ETF-大型股",
+        "sector": "ETF-美股規模",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "MUB",
+        "n": "iShares National Muni Bond",
+        "industry": "ETF-市政債",
+        "sector": "ETF-固定收益",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "MBB",
+        "n": "iShares MBS ETF",
+        "industry": "ETF-房貸抵押債",
+        "sector": "ETF-固定收益",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "DGRO",
+        "n": "iShares Core Dividend Growth",
+        "industry": "ETF-股息成長",
+        "sector": "ETF-美股因子",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "IUSB",
+        "n": "iShares Core Total USD Bond",
+        "industry": "ETF-美元債券",
+        "sector": "ETF-固定收益",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "GOVT",
+        "n": "iShares US Treasury Bond",
+        "industry": "ETF-美國公債",
+        "sector": "ETF-固定收益",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "DYNF",
+        "n": "iShares US Equity Factor Rotation",
+        "industry": "ETF-因子輪動",
+        "sector": "ETF-美股因子",
+        "subInd": "ETF",
+        "region": "etf"
+      },
+      {
+        "c": "EFV",
+        "n": "iShares MSCI EAFE Value",
+        "industry": "ETF-國際價值",
+        "sector": "ETF-國際股票",
+        "subInd": "ETF",
+        "region": "etf"
+      }
+    ],
+    "region": "etf"
+  },
+  {
     "title": "[ETF] iShares Country",
     "pool": "etf",
     "tw": false,
