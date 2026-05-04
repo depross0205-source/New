@@ -100,7 +100,7 @@ tr:hover{background:var(--sf2)}
   <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">...</div>
 </div>
 <div class="wrap">
-<h1>TW 台股動能選股 <span class="tag">V2.1-FINAL-CLOSURE</span></h1>
+<h1>TW 台股動能選股 <span class="tag">V2.1-CLOSURE+ISHARES</span></h1>
 <div class="sub">Global ex-CN預設 + CN獨立可選 | 國際版372檔基準 | 半導體細分 + 同產業限額 | T-N公平回測</div>
 <div class="tabs">
   <button class="tab active" onclick="switchTab(&#39;pool&#39;,this)">股池</button>
@@ -411,10 +411,10 @@ tr:hover{background:var(--sf2)}
       <button class="bo" onclick="runBlockBootstrap()" style="flex:1">Block Bootstrap</button>
       <button class="bo sm" onclick="document.getElementById(&#39;stressMetrics&#39;).innerHTML=&#39;&#39;" style="color:var(--re);border-color:var(--re)">清除</button>
     </div>
-    <button class="bo" onclick="runWalkForward()" style="width:100%;margin-top:6px;color:var(--ye);border-color:var(--ye)">Walk-Forward Analysis (Anchored)</button>
-    <button class="bo" onclick="runRollingWalkForward()" style="width:100%;margin-top:6px;color:var(--tw);border-color:var(--tw)">Rolling Walk-Forward Analysis</button>
+    <button class="bo" onclick="runWalkForward()" style="width:100%;margin-top:6px;color:var(--ye);border-color:var(--ye)">Walk-Forward Analysis (Anchored / T-N)</button>
+    <button class="bo" onclick="runRollingWalkForward()" style="width:100%;margin-top:6px;color:var(--tw);border-color:var(--tw)">Rolling Walk-Forward Analysis / T-N</button>
     <button class="bo" onclick="runTNSweep()" style="width:100%;margin-top:6px;color:var(--gr);border-color:var(--gr)">T-N Sweep 回測表 (N=1~22)</button>
-    <button class="bo" onclick="runWFNCompare()" style="width:100%;margin-top:6px;color:var(--ac);border-color:var(--ac)">WF N比較 (N=2~15)</button>
+    <button class="bo" onclick="runWFNCompare()" style="width:100%;margin-top:6px;color:var(--ac);border-color:var(--ac)">WF 持股數N比較 (套用T-N)</button>
    <button class="bo" onclick="runPoolCompare()" style="width:100%;margin-top:6px;color:var(--bl);border-color:var(--bl)">Pool Compare A+B (約30~60秒)</button>
     
     <button class="bo" onclick="runRandomBaseline()" style="width:100%;margin-top:6px;color:var(--gr);border-color:var(--gr)">Random Baseline (N個隨機股)</button>
@@ -467,15 +467,19 @@ tr:hover{background:var(--sf2)}
       <div class="fi"><label>Capital Mode</label>
         <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="radio" name="capMode" id="capNeutral" value="neutral" checked="" style="width:14px;accent-color:var(--bl)"> 50% Long / 50% SGOV
+            <input type="radio" name="capMode" id="cap1000" value="1000" style="width:14px;accent-color:var(--bl)"> 100/0 純多
           </label>
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="radio" name="capMode" id="cap1330" value="1330" style="width:14px;accent-color:var(--bl)"> 130/30
+            <input type="radio" name="capMode" id="cap5050" value="5050" style="width:14px;accent-color:var(--bl)"> 50/50 多空對沖
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="radio" name="capMode" id="cap1330" value="1330" checked="" style="width:14px;accent-color:var(--bl)"> 130/30
           </label>
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
             <input type="radio" name="capMode" id="capShortOnly" value="short_only" style="width:14px;accent-color:var(--bl)"> 100% Short Only
           </label>
         </div>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">100/0=純多；50/50=多空各50%；130/30=多130%/空30%；Short Only=純空，不補SGOV。</div>
       </div>
       <div class="fi"><label>Short TS Filter</label>
         <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer">
@@ -514,7 +518,7 @@ tr:hover{background:var(--sf2)}
             <input type="radio" name="btFreq" value="2" style="width:13px;accent-color:var(--tw)"> 半月頻
           </label>
         </div>
-        <div style="font-size:9px;color:var(--mu);margin-top:3px">正式回測維持月頻/半月頻；T-N 僅在信號頁獨立顯示，不影響 NAV。</div>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">一般回測用 t-1/t-2；按「T-N公平回測」與壓力測試 WF 時，會套用左側 T-N。</div>
       </div>
       <div class="fi"><label>大盤風控 (Regime)</label>
         <select id="btRegime">
@@ -558,10 +562,8 @@ tr:hover{background:var(--sf2)}
         <div class="cw"><div class="ct2">MDD</div><div style="position:relative;height:120px"><canvas id="ddC"></canvas></div></div>
       </div>
     </div>
-    <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
       <button class="bo sm" onclick="dlBtCsv()">CSV</button>
-      <button class="bo sm" onclick="downloadAuditCSV()" style="color:var(--gr);border-color:var(--gr)">對帳CSV</button>
-      <button class="bo sm" onclick="downloadFrictionCSV()" style="color:var(--bl);border-color:var(--bl)">Friction彙整</button>
     </div>
     <div class="tw-wrap"><table><thead><tr>
       <th>Month / Stock</th><th>Holdings</th><th>Hurdle%</th><th>Return%</th><th>NAV / +$PnL</th><th>TAIEX / Contrib</th><th>Alpha%</th><th style="color:var(--re)">Stress / Exposure</th>
