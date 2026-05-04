@@ -1,3 +1,4 @@
+// 修正版：已將照片下方無法擷取的上櫃股代碼改為 Yahoo Finance .TWO suffix。
 var POOL_DEF = [
   {
     "title": "[ETF] iShares ETF",
@@ -4013,7 +4014,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "3529",
+        "c": "3529.TWO",
         "n": "力旺",
         "industry": "半導體-IC設計",
         "sector": "半導體",
@@ -4024,7 +4025,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "5347",
+        "c": "5347.TWO",
         "n": "世界",
         "industry": "半導體-晶圓/IDM",
         "sector": "半導體",
@@ -4035,7 +4036,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "6488",
+        "c": "6488.TWO",
         "n": "環球晶",
         "industry": "半導體-晶圓/材料",
         "sector": "半導體",
@@ -4046,7 +4047,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "3105",
+        "c": "3105.TWO",
         "n": "穩懋",
         "industry": "半導體-晶圓/IDM",
         "sector": "半導體",
@@ -4057,7 +4058,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "3293",
+        "c": "3293.TWO",
         "n": "鈊象",
         "industry": "軟體/平台",
         "sector": "軟體/平台",
@@ -4079,7 +4080,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "4966",
+        "c": "4966.TWO",
         "n": "譜瑞-KY",
         "industry": "半導體-IC設計",
         "sector": "半導體",
@@ -4112,7 +4113,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "3324",
+        "c": "3324.TWO",
         "n": "雙鴻",
         "industry": "電子零組件",
         "sector": "電子零組件",
@@ -4145,7 +4146,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "6274",
+        "c": "6274.TWO",
         "n": "台燿",
         "industry": "電子零組件",
         "sector": "電子零組件",
@@ -4178,7 +4179,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "6147",
+        "c": "6147.TWO",
         "n": "頎邦",
         "industry": "半導體-封測",
         "sector": "半導體",
@@ -4189,7 +4190,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "3264",
+        "c": "3264.TWO",
         "n": "欣銓",
         "industry": "半導體-封測",
         "sector": "半導體",
@@ -4211,7 +4212,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "5274",
+        "c": "5274.TWO",
         "n": "信驊",
         "industry": "半導體-IC設計",
         "sector": "半導體",
@@ -4222,7 +4223,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "8299",
+        "c": "8299.TWO",
         "n": "群聯",
         "industry": "半導體-記憶體",
         "sector": "半導體",
@@ -4233,7 +4234,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "4749",
+        "c": "4749.TWO",
         "n": "新應材",
         "industry": "半導體-材料",
         "sector": "半導體",
@@ -4255,7 +4256,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "6187",
+        "c": "6187.TWO",
         "n": "萬潤",
         "industry": "半導體-設備",
         "sector": "半導體",
@@ -4266,7 +4267,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "5536",
+        "c": "5536.TWO",
         "n": "聖暉*",
         "industry": "半導體-設備/工程",
         "sector": "半導體",
@@ -4288,7 +4289,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "6223",
+        "c": "6223.TWO",
         "n": "旺矽",
         "industry": "半導體-設備/測試",
         "sector": "半導體",
@@ -4299,7 +4300,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "6643",
+        "c": "6643.TWO",
         "n": "M31",
         "industry": "半導體-EDA/IP",
         "sector": "半導體",
@@ -4343,7 +4344,7 @@ var POOL_DEF = [
         "defaultOn": false
       },
       {
-        "c": "8086",
+        "c": "8086.TWO",
         "n": "宏捷科",
         "industry": "半導體-晶圓/IDM",
         "sector": "半導體",
