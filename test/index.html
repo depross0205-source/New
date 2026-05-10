@@ -100,7 +100,7 @@ tr:hover{background:var(--sf2)}
   <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">...</div>
 </div>
 <div class="wrap">
-<h1>TW 台股動能選股 <span class="tag">V2.1-DATAFIX</span></h1>
+<h1>TW 台股動能選股 <span class="tag">V2.1-CLOSURE+ISHARES</span></h1>
 <div class="sub">Global ex-CN預設 + CN獨立可選 | 國際版372檔基準 | 半導體細分 + 同產業限額 | T-N公平回測</div>
 <div class="tabs">
   <button class="tab active" onclick="switchTab(&#39;pool&#39;,this)">股池</button>
@@ -373,13 +373,20 @@ tr:hover{background:var(--sf2)}
         <input type="number" id="sigTN" value="10" min="0" max="22" step="1">
       </div>
       <div class="fi">
+        <label>T-N 成交價基準</label>
+        <select id="tnExecMode">
+          <option value="T" selected>原始：T-N訊號，T日收盤買入</option>
+          <option value="NEXT">新增：T-N訊號，T-(N-1)收盤買入</option>
+        </select>
+      </div>
+      <div class="fi">
         <label>Signal Month（可留空）</label>
         <input type="text" id="sigYM" placeholder="YYYY-MM，留空=最新可用月份">
       </div>
       <div class="fi">
         <label>說明</label>
         <div class="ib2" style="margin-top:0;padding:6px 8px">
-          信號頁只顯示觀察用 T-N 排名；正式回測仍維持月頻 T-1 訊號、T 月底收盤進場、T+1 月底收盤計算報酬。
+          信號頁只顯示觀察用 T-N 排名；成交價可選 T日收盤或 T-(N-1)收盤。正式回測會套用同一個 T-N 成交價基準。
         </div>
       </div>
     </div>
@@ -410,6 +417,9 @@ tr:hover{background:var(--sf2)}
       <button class="bo" onclick="runMonteCarlo()" style="flex:1">Monte Carlo</button>
       <button class="bo" onclick="runBlockBootstrap()" style="flex:1">Block Bootstrap</button>
       <button class="bo sm" onclick="document.getElementById(&#39;stressMetrics&#39;).innerHTML=&#39;&#39;" style="color:var(--re);border-color:var(--re)">清除</button>
+    </div>
+    <div class="ib2" style="margin-top:8px">
+      <b>WF定義</b>：Anchored = 起點固定、訓練窗逐步擴張、測試窗只取下一段；Rolling = 固定長度訓練窗逐段前移、測試窗只取下一段。兩者皆以 OOS 期末月份歸屬報酬，避免 IS/OOS 交叉。
     </div>
     <button class="bo" onclick="runWalkForward()" style="width:100%;margin-top:6px;color:var(--ye);border-color:var(--ye)">Walk-Forward Analysis (Anchored / T-N)</button>
     <button class="bo" onclick="runRollingWalkForward()" style="width:100%;margin-top:6px;color:var(--tw);border-color:var(--tw)">Rolling Walk-Forward Analysis / T-N</button>
@@ -507,7 +517,14 @@ tr:hover{background:var(--sf2)}
       </div>
       <div class="fi"><label>T-N 公平回測</label>
         <input type="number" id="btSignalTN" value="10" min="0" max="22" step="1">
-        <div style="font-size:9px;color:var(--mu);margin-top:3px">T-N只決定名單；仍用T月底收盤買、T+1月底收盤賣</div>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">T-N只決定名單；成交日由下方基準決定</div>
+      </div>
+      <div class="fi"><label>T-N 成交價基準</label>
+        <select id="btTNExecMode">
+          <option value="T" selected>原始：T-N訊號，T日收盤買入</option>
+          <option value="NEXT">新增：T-N訊號，T-(N-1)收盤買入</option>
+        </select>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">新設定會用同基準出場：下期 T-(N-1) 收盤</div>
       </div>
       <div class="fi"><label>回測頻率</label>
         <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">
