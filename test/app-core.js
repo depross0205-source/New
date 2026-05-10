@@ -175,12 +175,19 @@ function buildProxies() {
 
 async function fp(url, proxies) {
   var last;
+  var timeoutMs = 18000;
   for (var i = 0; i < proxies.length; i++) {
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function(){ try { ctrl.abort(); } catch(e){} }, timeoutMs) : null;
     try {
-      var r = await fetch(proxies[i] + encodeURIComponent(url));
+      var r = await fetch(proxies[i] + encodeURIComponent(url), ctrl ? {signal: ctrl.signal} : undefined);
+      if (timer) clearTimeout(timer);
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r;
-    } catch (e) { last = e; }
+    } catch (e) {
+      if (timer) clearTimeout(timer);
+      last = e;
+    }
   }
   throw last || new Error('all proxies failed');
 }
@@ -213,153 +220,144 @@ async function fetchOHLCV(s, interval, range) {
   }).filter(function(v){ return v.c != null; });
 }
 
-async function fetchAll() {
-  var stocks = getEnabledStocks();
-  if (!stocks.length) return alert('\u8acb\u5148\u9078\u64c7\u80a1\u6c60');
-  var usCut = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  var twCut = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  var toFetch = [], upToDate = 0;
-  stocks.forEach(function(s) {
-    var bars = DAILY[s.c];
-    var cut = s.tw ? twCut : usCut;
-    if (!bars || !bars.length) { toFetch.push({s:s, range:'max'}); return; }
-    var last = bars[bars.length-1].date;
-    if (last < cut) {
-      var days = Math.floor((new Date() - new Date(last)) / 86400000);
-      var range = days <= 7 ? '5d' : days <= 30 ? '1mo' : days <= 90 ? '3mo' : days <= 365 ? '1y' : 'max';
-      toFetch.push({s:s, range:range});
-    } else { upToDate++; }
-  });
-  var benchList = [
-    {s:{c:'^TNX',tw:false}},{s:{c:'^TWII',tw:true}},
-    {s:{c:'RSP',tw:false}},{s:{c:'^VIX',tw:false}},{s:{c:'HYG',tw:false}}
+function getMarketFreshCut(isTW) {
+  // 台股遇週末/假日延遲較常見，容忍 8 天；美股容忍 2 天。
+  return new Date(Date.now() - (isTW ? 8 : 2) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+function getIncrementalRangeFromLast(lastDate) {
+  if (!lastDate) return 'max';
+  var days = Math.floor((new Date() - new Date(lastDate)) / 86400000);
+  if (days <= 7) return '5d';
+  if (days <= 30) return '1mo';
+  if (days <= 90) return '3mo';
+  if (days <= 180) return '6mo';
+  if (days <= 365) return '1y';
+  // 超過一年缺口才抓 max，避免小缺口也重抓完整歷史。
+  return 'max';
+}
+function makeBenchList() {
+  return [
+    {c:'^TNX',tw:false}, {c:'^TWII',tw:true}, {c:'RSP',tw:false},
+    {c:'^VIX',tw:false}, {c:'HYG',tw:false}
   ];
-  benchList.forEach(function(b) {
-    var bars = DAILY[b.s.c];
-    var cut = b.s.tw ? twCut : usCut;
-    if (!bars || !bars.length) { toFetch.push({s:b.s, range:'max', isBench:true}); return; }
-    var last = bars[bars.length-1].date;
-    if (last < cut) {
-      var days = Math.floor((new Date() - new Date(last)) / 86400000);
-      var range = days <= 7 ? '5d' : days <= 30 ? '1mo' : days <= 90 ? '3mo' : '1y';
-      toFetch.push({s:b.s, range:range, isBench:true});
-    }
-  });
-  if (!toFetch.length) {
-    sl('updateLog', '\u5168\u90e8\u8cc7\u6599\u5df2\u662f\u6700\u65b0 (' + upToDate + ' \u6a94)', true);
-    renderStressDash(); return;
+}
+function applyDerivedSeriesAfterFetch(code) {
+  if (code === '^VIX') DAILY['VIXCLS'] = DAILY['^VIX'];
+  if (code === 'HYG') {
+    DAILY['BAMLH0A0HYM2'] = (DAILY['HYG'] || []).map(function(b) {
+      var sp = Math.max(0.5, Math.min(20, (90 / b.c - 1) * 35));
+      return {date:b.date, o:sp, h:sp, l:sp, c:+sp.toFixed(3), v:0};
+    });
   }
-  showL('\u4e26\u884c\u62b4\u53d6 ' + toFetch.length + ' \u6a94 (' + (stocks.length+5) + ' total, skip:' + upToDate + ')');
-  $('fetchProg').classList.remove('hidden');
-  var success = 0, failed = [], done = 0;
-
+}
+function collectFetchItems(stocks, includeBench) {
+  var seen = {}, items = [], upToDate = 0;
+  function add(s, isBench) {
+    if (!s || !s.c || seen[s.c]) return;
+    seen[s.c] = 1;
+    var bars = DAILY[s.c];
+    var cut = getMarketFreshCut(!!s.tw);
+    if (!bars || !bars.length) {
+      items.push({s:s, range:'max', isBench:!!isBench});
+      return;
+    }
+    var last = bars[bars.length - 1].date;
+    if (last < cut) items.push({s:s, range:getIncrementalRangeFromLast(last), isBench:!!isBench});
+    else upToDate++;
+  }
+  (stocks || []).forEach(function(s){ add(s, false); });
+  if (includeBench) makeBenchList().forEach(function(s){ add(s, true); });
+  return {items:items, upToDate:upToDate};
+}
+async function runFetchQueue(items, logPrefix) {
+  var failed = [], success = 0, done = 0;
+  var ordered = items.slice().sort(function(a,b){
+    if (a.range === 'max' && b.range !== 'max') return 1;
+    if (a.range !== 'max' && b.range === 'max') return -1;
+    return (a.isBench ? -1 : 0) - (b.isBench ? -1 : 0);
+  });
   async function fetchOne(item) {
     try {
       var fresh = await fetchOHLCV(item.s, '1d', item.range);
       DAILY[item.s.c] = mergeArr(DAILY[item.s.c], fresh);
-      if (item.s.c === '^VIX') DAILY['VIXCLS'] = DAILY['^VIX'];
-      if (item.s.c === 'HYG') {
-        DAILY['BAMLH0A0HYM2'] = (DAILY['HYG']||[]).map(function(b) {
-          var sp = Math.max(0.5, Math.min(20, (90/b.c-1)*35));
-          return {date:b.date, o:sp, h:sp, l:sp, c:+sp.toFixed(3), v:0};
-        });
-      }
+      applyDerivedSeriesAfterFetch(item.s.c);
       success++;
-    } catch(e) { failed.push(item.s.c); }
+    } catch(e) {
+      failed.push(item.s.c);
+      console.warn('Fetch failed:', item.s.c, item.range, e);
+    }
     done++;
-    var pct = Math.round(done/toFetch.length*100);
-    $('fetchFill').style.width = pct + '%';
-    $('loadTxt').textContent = done + ' / ' + toFetch.length + '  (' + pct + '%)' + (failed.length ? '  fail:'+failed.length : '');
+    var pct = Math.round(done / ordered.length * 100);
+    if ($('fetchFill')) $('fetchFill').style.width = pct + '%';
+    if ($('loadTxt')) $('loadTxt').textContent = (logPrefix || 'FETCH') + ' ' + done + '/' + ordered.length + ' (' + pct + '%)' + (failed.length ? ' fail:' + failed.length : '');
   }
-
-  // Short-range first (faster), max-range last
-  var shortF = toFetch.filter(function(i){return i.range!=='max';});
-  var maxF   = toFetch.filter(function(i){return i.range==='max';});
-  var ordered = shortF.concat(maxF);
-  var BATCH = 6;
-  for (var bi = 0; bi < ordered.length; bi += BATCH) {
-    // yield to browser before each batch - prevents UI freeze
-    await new Promise(function(r){setTimeout(r,0);});
-    await Promise.all(ordered.slice(bi, bi+BATCH).map(fetchOne));
+  var i = 0;
+  while (i < ordered.length) {
+    var isMaxBatch = ordered[i].range === 'max';
+    var batchSize = isMaxBatch ? 4 : 10;
+    await Promise.all(ordered.slice(i, i + batchSize).map(fetchOne));
+    i += batchSize;
     updFetchStat();
-    await new Promise(function(r){setTimeout(r,250);});
+    // 只讓出 UI thread，不再固定等 350ms；速度主要由網路與 proxy 限速決定。
+    await new Promise(function(r){ setTimeout(r, 0); });
   }
-
-  hideL(); $('fetchProg').classList.add('hidden');
-  var msg = '\u5b8c\u6210! \u62b4\u53d6:'+success+' skip:'+upToDate+' fail:'+failed.length;
-  if (failed.length) msg += ' ('+failed.slice(0,8).join(',')+(failed.length>8?'...':'')+')';
-  sl('updateLog', msg, failed.length===0);
-  if(isAutoBuildCache()){await buildCache();}else{CACHE_BUILT=false;CACHE_TS=null;if($('cacheTxt'))$('cacheTxt').textContent='Cache: data updated; not built';}
+  return {success:success, failed:failed};
+}
+async function finishDataUpdate(message, ok) {
+  updFetchStat();
+  if(isAutoBuildCache()){
+    await buildCache();
+  } else {
+    CACHE_BUILT = false;
+    CACHE_TS = null;
+    if($('cacheTxt')) $('cacheTxt').textContent = 'Cache: data updated; build on demand';
+  }
   await saveAllToDB();
   renderStressDash();
+  if (message) sl('updateLog', message, ok);
 }
 
+async function fetchAll() {
+  var stocks = getEnabledStocks();
+  if (!stocks.length) return alert('請先選擇股池');
+  var plan = collectFetchItems(stocks, true);
+  if (!plan.items.length) {
+    await finishDataUpdate('全部資料已是最新，skip:' + plan.upToDate, true);
+    return;
+  }
+  showL('智慧並行抓取 ' + plan.items.length + ' 檔；已略過 ' + plan.upToDate + ' 檔');
+  if ($('fetchProg')) $('fetchProg').classList.remove('hidden');
+  if ($('fetchFill')) $('fetchFill').style.width = '0%';
+  try {
+    var res = await runFetchQueue(plan.items, 'FETCH');
+    var msg = '完成! 抓取:' + res.success + ' skip:' + plan.upToDate + ' fail:' + res.failed.length;
+    if (res.failed.length) msg += ' (' + res.failed.slice(0, 10).join(',') + (res.failed.length > 10 ? '...' : '') + ')';
+    await finishDataUpdate(msg, res.failed.length === 0);
+  } finally {
+    hideL();
+    if ($('fetchProg')) $('fetchProg').classList.add('hidden');
+  }
+}
 
 async function fetchUpdate() {
   var stocks = getEnabledStocks();
-  var twCut = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  var usCut = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  var missing = [], stale = [];
-  stocks.forEach(function(s) {
-    if (!DAILY[s.c] || !DAILY[s.c].length) { missing.push(s); return; }
-    if (DAILY[s.c][DAILY[s.c].length - 1].date < (s.tw ? twCut : usCut)) stale.push(s);
-  });
-  if (!missing.length && !stale.length) { sl('updateLog', 'All stocks up to date.', true); }
-  var toFetch = missing.concat(stale), failed = [];
-  if (toFetch.length) {
-    showL('Smart update ' + toFetch.length + ' files...');
-    for (var i = 0; i < toFetch.length; i++) {
-      var s = toFetch[i];
-      $('loadTxt').textContent = '[UPD] ' + s.c + ' (' + (i + 1) + '/' + toFetch.length + ')';
-      try {
-        var range = 'max';
-        if (DAILY[s.c] && DAILY[s.c].length > 0) {
-          var lastDate = new Date(DAILY[s.c][DAILY[s.c].length - 1].date);
-          var delayDays = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
-          if (delayDays <= 7) range = '5d';
-          else if (delayDays <= 30) range = '1mo';
-          else if (delayDays <= 90) range = '3mo';
-          else if (delayDays <= 180) range = '6mo';
-          else if (delayDays <= 365) range = '1y';
-        }
-        DAILY[s.c] = mergeArr(DAILY[s.c], await fetchOHLCV(s, '1d', range));
-      } catch (e) { failed.push(s.c); }
-      await new Promise(function(r){ setTimeout(r, 350); });
-    }
-    sl('updateLog', 'Done. new:' + missing.length + ' updated:' + stale.length + ' failed:' + failed.length, failed.length === 0);
+  var plan = collectFetchItems(stocks, true);
+  if (!plan.items.length) {
+    await finishDataUpdate('All stocks up to date. skip:' + plan.upToDate, true);
+    return;
   }
-  var benchList = [
-    {c:'^TNX',tw:false}, {c:'^TWII',tw:true}, {c:'RSP',tw:false},
-    {c:'^VIX',tw:false}, {c:'HYG',tw:false}
-  ];
-  for (var bi = 0; bi < benchList.length; bi++) {
-    var bs = benchList[bi];
-    var bars = DAILY[bs.c];
-    var cut = bs.tw ? twCut : usCut;
-    if (bars && bars.length && bars[bars.length-1].date >= cut) continue;
-    try {
-      var bLast = bars && bars.length ? bars[bars.length-1].date : null;
-      var bDays = bLast ? Math.floor((new Date() - new Date(bLast)) / 86400000) : 9999;
-      var bRange = !bLast ? 'max' : bDays <= 7 ? '5d' : bDays <= 30 ? '1mo' : bDays <= 90 ? '3mo' : '6mo';
-      $('loadTxt').textContent = '[BENCH] ' + bs.c + ' ' + bRange;
-      var fresh = await fetchOHLCV(bs, '1d', bRange);
-      DAILY[bs.c] = mergeArr(DAILY[bs.c], fresh);
-      if (bs.c === '^VIX') DAILY['VIXCLS'] = DAILY['^VIX'];
-      if (bs.c === 'HYG') {
-        DAILY['BAMLH0A0HYM2'] = (DAILY['HYG'] || []).map(function(b) {
-          var sp = Math.max(0.5, Math.min(20, (90 / b.c - 1) * 35));
-          return { date: b.date, o: sp, h: sp, l: sp, c: +sp.toFixed(3), v: 0 };
-        });
-      }
-    } catch (e) { console.warn('Bench update failed: ' + bs.c, e); }
-    await new Promise(function(r){ setTimeout(r, 350); });
+  showL('每日更新：並行補資料 ' + plan.items.length + ' 檔');
+  if ($('fetchProg')) $('fetchProg').classList.remove('hidden');
+  if ($('fetchFill')) $('fetchFill').style.width = '0%';
+  try {
+    var missing = plan.items.filter(function(x){ return !DAILY[x.s.c] || !DAILY[x.s.c].length; }).length;
+    var res = await runFetchQueue(plan.items, 'UPD');
+    await finishDataUpdate('Done. new:' + missing + ' updated:' + (plan.items.length - missing) + ' failed:' + res.failed.length, res.failed.length === 0);
+  } finally {
+    hideL();
+    if ($('fetchProg')) $('fetchProg').classList.add('hidden');
   }
-  hideL(); updFetchStat();
-  if(isAutoBuildCache()){await buildCache();}else{CACHE_BUILT=false;CACHE_TS=null;if($('cacheTxt'))$('cacheTxt').textContent='Cache: data updated; not built';}
-  await saveAllToDB();
-  renderStressDash();
 }
-
 
 function updTNX(){
   var bars = DAILY['^TNX'];
