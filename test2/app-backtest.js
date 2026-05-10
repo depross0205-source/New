@@ -24,6 +24,31 @@ function getMarketMonthEndPrice(code, refDate) {
   return p ? p.price : null;
 }
 
+function getRefMonthEndDate(refDaily, refDate) {
+  if (!refDaily || !refDaily.length || !refDate) return refDate;
+  var ym = refDate.slice(0, 7);
+  for (var i = refDaily.length - 1; i >= 0; i--) {
+    if (refDaily[i].date.slice(0, 7) === ym && refDaily[i].date <= ym + '-31') return refDaily[i].date;
+  }
+  return refDate;
+}
+function getTNExecMode() {
+  var e = $('btTNExecMode') || $('tnExecMode');
+  return e ? e.value : 'T';
+}
+function getTNExecutionDate(refDaily, monthEndDate, signalN, execMode) {
+  if (!monthEndDate) return null;
+  if (execMode === 'NEXT' && signalN !== undefined && signalN !== null) {
+    var n = Math.max(0, (parseInt(signalN, 10) || 0) - 1);
+    return getFixedTNDate(refDaily, monthEndDate, n) || monthEndDate;
+  }
+  return monthEndDate;
+}
+function describeTNExecMode(execMode, n) {
+  if (execMode === 'NEXT') return '訊號=T-' + n + '；交易=T-(' + Math.max(0, n - 1) + ')收盤→下期同基準';
+  return '訊號=T-' + n + '；交易=T月底→下期T月底';
+}
+
 
 function getLatestMarketPoint(code) {
   var bars = DAILY[code];
@@ -76,23 +101,25 @@ function renderLatestHoldingsPriceBox(record) {
   });
   if (!rows.length) return '';
   return '<div class="card" style="border-top:3px solid var(--ac);margin-top:8px">'
-    + '<div class="ct">最新一個月持股價格追蹤 <span style="font-size:10px;color:var(--mu);font-weight:400">買入價=該期月末進場價；最新市價=資料庫最後收盤價</span></div>'
+    + '<div class="ct">最新一個月持股價格追蹤 <span style="font-size:10px;color:var(--mu);font-weight:400">買入價=目前選擇的T-N成交基準；最新市價=資料庫最後收盤價</span></div>'
     + '<div class="tw-wrap" style="max-height:none;margin-bottom:0"><table><thead><tr>'
     + '<th>Code</th><th>Name</th><th>Side</th><th>Weight</th><th>買入日</th><th>買入價</th><th>最新日</th><th>最新市價</th><th>即時損益%</th>'
     + '</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>'
     + '</div>';
 }
-function renderSignalPriceLine(code, scoreDate, weightSign) {
-  var entry = getMarketMonthEndPoint(code, scoreDate);
+function renderSignalPriceLine(code, scoreDate, weightSign, sigN) {
+  var refDaily = DAILY['^TWII'] || DAILY['0050'] || DAILY['SPY'] || DAILY[code];
+  var monthEnd = getRefMonthEndDate(refDaily, scoreDate);
+  var execMode = getTNExecMode();
+  var entryDate = getTNExecutionDate(refDaily, monthEnd, sigN, execMode);
+  var entry = getMarketMonthEndPoint(code, entryDate);
   var latest = getLatestMarketPoint(code);
   var liveRet = calcLivePositionReturn(entry ? entry.price : null, latest ? latest.price : null, weightSign || 1);
   var retColor = liveRet === null ? 'var(--mu)' : (liveRet >= 0 ? 'var(--gr)' : 'var(--re)');
+  var modeLabel = execMode === 'NEXT' ? ('買入=T-(' + Math.max(0, (parseInt(sigN,10)||0)-1) + ')') : '買入=T';
   return '<div style="margin-top:5px;padding-top:5px;border-top:1px dashed var(--bd);font-size:10px;color:var(--mu);font-family:monospace;line-height:1.7">'
-    + '買入價: <span style="color:var(--tw)">'+fmtPx(entry ? entry.price : null)+'</span>'
-    + ' <span style="color:var(--mu)">('+(entry ? entry.date : '--')+')</span><br>'
-    + '最新市價: <span style="color:var(--ac)">'+fmtPx(latest ? latest.price : null)+'</span>'
-    + ' <span style="color:var(--mu)">('+(latest ? latest.date : '--')+')</span>'
-    + ' / 損益: <span style="color:'+retColor+';font-weight:700">'+fmtRet(liveRet)+'</span>'
+    + '<div>'+modeLabel+' | 買入日: <span style="color:var(--tw)">'+(entry?entry.date:'--')+'</span> | 買入價: <span style="color:var(--tw)">'+fmtPx(entry?entry.price:null)+'</span></div>'
+    + '<div>最新日: <span style="color:var(--ac)">'+(latest?latest.date:'--')+'</span> | 最新市價: <span style="color:var(--ac)">'+fmtPx(latest?latest.price:null)+'</span> | 即時損益: <span style="color:'+retColor+';font-weight:700">'+fmtRet(liveRet)+'</span></div>'
     + '</div>';
 }
 
@@ -127,6 +154,7 @@ function runBTcore(mh, mode, opts) {
   var regimeOn=$('btRegime')&&$('btRegime').value==='on';
   var regimeExp=gv('btRegimeExp')||100;
   var useMA60=$('ma60Filter')?$('ma60Filter').value==='on':true;
+  var tnExecMode = opts.tnExecMode || getTNExecMode();
 
   var nav=INIT, bNav=INIT, records=[], holdings={CASH:1.0};
       var DEFENSIVE=['SGOV'];
@@ -157,6 +185,13 @@ function runBTcore(mh, mode, opts) {
         ? getPrevWorkDay(refDaily, scoreBaseM, 1)
         : (LAG === 2 ? getPrevWorkDay(refDaily, scoreBaseM, 2) : scoreBaseM);
     }
+    var tradePrevM = prevM;
+    var tradeSigM = sigM;
+    if (opts.signalN !== undefined && opts.signalN !== null) {
+      tradePrevM = getTNExecutionDate(refDaily, prevM, opts.signalN, tnExecMode);
+      tradeSigM = getTNExecutionDate(refDaily, sigM, opts.signalN, tnExecMode);
+    }
+    var tradePeriod = tradePrevM + " ~ " + tradeSigM;
     var scoringM = scoreM;
     var hurdle = getHurdle(scoringM);
     var sc2 = calcAllScores(scoringM);
@@ -164,9 +199,9 @@ function runBTcore(mh, mode, opts) {
     valid.sort(function(a,b){ return b.score-a.score; });
 
     if (valid.length < 5) {
-      var b0x=getPriceOnDate(refDaily,prevM), b1x=getPriceOnDate(refDaily,sigM);
+      var b0x=getPriceOnDate(refDaily,tradePrevM), b1x=getPriceOnDate(refDaily,tradeSigM);
       if(b0x&&b1x&&b0x>0) bNav*=(1+(b1x/b0x-1));
-      records.push({month:sigM,period:prevM+" ~ "+sigM,nav:nav,bNav:bNav,holdings:{CASH:1.0},pRet:0,hurdle:hurdle,stockRets:{},scoringM:scoreM});
+      records.push({month:sigM,period:tradePeriod,nav:nav,bNav:bNav,holdings:{CASH:1.0},pRet:0,hurdle:hurdle,stockRets:{},scoringM:scoreM,tnExecMode:tnExecMode,tradeStart:tradePrevM,tradeEnd:tradeSigM});
       holdings={CASH:1.0}; continue;
     }
 
@@ -403,7 +438,7 @@ function runBTcore(mh, mode, opts) {
     var friction=(turnover*COST)+impactCost;
 
     var cashRet=0;
-    var s0p=getMarketMonthEndPoint('SGOV', prevM), s1p=getMarketMonthEndPoint('SGOV', sigM);
+    var s0p=getMarketMonthEndPoint('SGOV', tradePrevM), s1p=getMarketMonthEndPoint('SGOV', tradeSigM);
     if (s0p && s1p && s0p.price > 0) {
       cashRet=s1p.price/s0p.price-1;
     } else {
@@ -416,9 +451,9 @@ function runBTcore(mh, mode, opts) {
     Object.keys(target).forEach(function(c){
       var nominalW = target[c];
       if (c==='CASH') {
-        stockRets[c]={ret:cashRet,w:nominalW,wNominal:nominalW,wEff:nominalW,prevDate:prevM,currDate:sigM,prevPrice:null,currPrice:null};
+        stockRets[c]={ret:cashRet,w:nominalW,wNominal:nominalW,wEff:nominalW,prevDate:tradePrevM,currDate:tradeSigM,prevPrice:null,currPrice:null};
       } else {
-        var p0pt=getMarketMonthEndPoint(c, prevM), p1pt=getMarketMonthEndPoint(c, sigM);
+        var p0pt=getMarketMonthEndPoint(c, tradePrevM), p1pt=getMarketMonthEndPoint(c, tradeSigM);
         var retVal=(p0pt&&p1pt&&p0pt.price>0)?(p1pt.price/p0pt.price-1):null;
         stockRets[c]={
           ret:retVal,
@@ -467,7 +502,7 @@ function runBTcore(mh, mode, opts) {
     });
     if (nominalPos>0 && validPos<=0) {
       validTarget['CASH']=(validTarget['CASH']||0)+nominalPos;
-      stockRets['CASH']={ret:cashRet,w:validTarget['CASH'],wNominal:nominalPos,wEff:validTarget['CASH'],prevDate:prevM,currDate:sigM,prevPrice:null,currPrice:null,note:'PositiveMissingToCash'};
+      stockRets['CASH']={ret:cashRet,w:validTarget['CASH'],wNominal:nominalPos,wEff:validTarget['CASH'],prevDate:tradePrevM,currDate:tradeSigM,prevPrice:null,currPrice:null,note:'PositiveMissingToCash'};
       grossRet += nominalPos*cashRet;
     }
     if (!isFinite(grossRet)||grossRet<=-0.9999) grossRet=-0.9999;
@@ -488,16 +523,16 @@ function runBTcore(mh, mode, opts) {
       drifted[c]=(validTarget[c]*(1+(stockRets[c]?stockRets[c].ret:0)))/driftDenom;
     }
 
-    var b0=getMarketMonthEndPrice(masterTicker,prevM), b1=getMarketMonthEndPrice(masterTicker,sigM);
+    var b0=getMarketMonthEndPrice(masterTicker,tradePrevM), b1=getMarketMonthEndPrice(masterTicker,tradeSigM);
     if (b0&&b1&&b0>0) bNav*=(1+(b1/b0-1));
 
     var hCopy={};
     Object.keys(validTarget).forEach(function(k){ hCopy[k]=validTarget[k]; });
-    var recPeriod = prevM + " ~ " + sigM;
+    var recPeriod = tradePeriod;
     var allScoresCopy = sc2.filter(function(r){return r.score!==null;}).map(function(r){
       return {c:r.s.c, pool:r.s.pool, score:r.score};
     });
-    records.push({month:sigM,period:recPeriod,nav:nav,bNav:bNav,holdings:hCopy,pRet:netRet,grossRet:grossRet,turnover:turnover,turnoverCost:turnoverCost,impactCost:impactCost,totalCost:totalCost,closureCostDiff:closureCostDiff,closureNavDiff:closureNavDiff,hurdle:hurdle,stockRets:stockRets,scoringM:scoreM,shield:shield,stressLevel:shield.stressLevel||0,allScores:allScoresCopy});
+    records.push({month:sigM,period:recPeriod,nav:nav,bNav:bNav,holdings:hCopy,pRet:netRet,grossRet:grossRet,turnover:turnover,turnoverCost:turnoverCost,impactCost:impactCost,totalCost:totalCost,closureCostDiff:closureCostDiff,closureNavDiff:closureNavDiff,hurdle:hurdle,stockRets:stockRets,scoringM:scoreM,shield:shield,stressLevel:shield.stressLevel||0,allScores:allScoresCopy,tnExecMode:tnExecMode,tradeStart:tradePrevM,tradeEnd:tradeSigM});
     holdings=drifted;
   }
   return records.length>=6 ? records : null;
@@ -745,13 +780,13 @@ async function runTNBacktest() {
       if (CACHE_SKIP_MO!==SKIP_MO) { await buildCache(); }
       var mh=parseInt($('btH')?$('btH').value:'3')||3;
       var mode=getWeightMode(), init=gv('btCap')||100000;
-      var records=runBTcore(mh,mode,{signalN:tn});
+      var records=runBTcore(mh,mode,{signalN:tn,tnExecMode:getTNExecMode()});
       if (!records) { alert('Not enough data'); hideL(); return; }
-      BT_RESULT={records:records,initial:init,mode:mode,mh:mh,signalTN:tn};
+      BT_RESULT={records:records,initial:init,mode:mode,mh:mh,signalTN:tn,tnExecMode:getTNExecMode()};
       BT_RESULT.icResult = calcIC(records);
       renderBT(records,init,mode);
       var dStart=records[0].month, dEnd=records[records.length-1].month;
-      sl('btLog','T-'+tn+' 公平回測完成: '+dStart+' 至 '+dEnd+' | 訊號=T-'+tn+'；交易=T月底→T+1月底',true);
+      sl('btLog','T-'+tn+' 公平回測完成: '+dStart+' 至 '+dEnd+' | '+describeTNExecMode(getTNExecMode(), tn),true);
     } catch(err) {
       sl('btLog','Error: '+err.message,false); console.error(err);
     } finally {
@@ -1371,7 +1406,7 @@ function renderSignalGroup(title, list, type, zf, pf, scoreDate) {
     html += '<div style="margin-top:5px;font-size:10px;color:var(--mu);font-family:monospace">'
       + 'R240:'+pf(r.r240)+' / Pool:'+(r.s.pool||'-')+' / Region:'+(r.s.region||'-')
       + '</div>'
-      + renderSignalPriceLine(r.s.c, scoreDate, isShort ? -1 : 1)
+      + renderSignalPriceLine(r.s.c, scoreDate, isShort ? -1 : 1, ($('sigTN') ? ($('sigTN').value || 10) : 10))
       + '</div>';
   });
   html += '</div>';
@@ -1383,7 +1418,8 @@ function renderSig(sel,selS,all,date,hurdle) {
   var pf=function(v){return v!==null?(v>=0?'+':'')+(v*100).toFixed(1)+'%':'-';};
   var tnx=getTNXRate(date);
   var sigN = $('sigTN') ? ($('sigTN').value || '10') : '10';
-  var html='<div style="font-size:11px;color:var(--mu);margin-bottom:9px">Signal: <b style="color:var(--tw)">T-'+sigN+'</b> | Score Date: <b style="color:var(--tw)">'+date+'</b> | ^TNX: <b style="color:var(--bl)">'+(tnx*100).toFixed(2)+'%</b> | Hurdle: <b style="color:var(--ye)">'+(hurdle*100).toFixed(2)+'%</b><br><span style="color:var(--mu)">此為信號頁獨立觀察訊號；未指定月份時使用最新資料所在月份，若尚未到達 T-N 則提示等待；正式回測仍用純月頻/半月頻。</span></div>';
+  var execMode = getTNExecMode();
+  var html='<div style="font-size:11px;color:var(--mu);margin-bottom:9px">Signal: <b style="color:var(--tw)">T-'+sigN+'</b> | Score Date: <b style="color:var(--tw)">'+date+'</b> | 成交基準: <b style="color:var(--ac)">'+describeTNExecMode(execMode, parseInt(sigN,10)||0)+'</b> | ^TNX: <b style="color:var(--bl)">'+(tnx*100).toFixed(2)+'%</b> | Hurdle: <b style="color:var(--ye)">'+(hurdle*100).toFixed(2)+'%</b><br><span style="color:var(--mu)">此為信號頁獨立觀察訊號；未指定月份時使用最新資料所在月份。正式T-N回測會套用同一個成交價基準。</span></div>';
 
   sel = sel || [];
   selS = selS || [];
@@ -1860,7 +1896,7 @@ async function runTNSweep() {
       var bestSharpe = null, bestCAGR = null, bestMDD = null;
 
       for (var n = 1; n <= 22; n++) {
-        var records = runBTcore(mh, mode, {signalN:n});
+        var records = runBTcore(mh, mode, {signalN:n,tnExecMode:getTNExecMode()});
         if (!records || !records.length) {
           rows.push({n:n, ok:false});
           continue;

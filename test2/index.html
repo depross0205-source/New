@@ -373,13 +373,20 @@ tr:hover{background:var(--sf2)}
         <input type="number" id="sigTN" value="10" min="0" max="22" step="1">
       </div>
       <div class="fi">
+        <label>T-N 成交價基準</label>
+        <select id="tnExecMode">
+          <option value="T" selected>原始：T-N訊號，T日收盤買入</option>
+          <option value="NEXT">新增：T-N訊號，T-(N-1)收盤買入</option>
+        </select>
+      </div>
+      <div class="fi">
         <label>Signal Month（可留空）</label>
         <input type="text" id="sigYM" placeholder="YYYY-MM，留空=最新可用月份">
       </div>
       <div class="fi">
         <label>說明</label>
         <div class="ib2" style="margin-top:0;padding:6px 8px">
-          信號頁只顯示觀察用 T-N 排名；正式回測仍維持月頻 T-1 訊號、T 月底收盤進場、T+1 月底收盤計算報酬。
+          信號頁只顯示觀察用 T-N 排名；成交價可選 T日收盤或 T-(N-1)收盤。正式回測會套用同一個 T-N 成交價基準。
         </div>
       </div>
     </div>
@@ -507,7 +514,14 @@ tr:hover{background:var(--sf2)}
       </div>
       <div class="fi"><label>T-N 公平回測</label>
         <input type="number" id="btSignalTN" value="10" min="0" max="22" step="1">
-        <div style="font-size:9px;color:var(--mu);margin-top:3px">T-N只決定名單；仍用T月底收盤買、T+1月底收盤賣</div>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">T-N只決定名單；成交日由下方基準決定</div>
+      </div>
+      <div class="fi"><label>T-N 成交價基準</label>
+        <select id="btTNExecMode">
+          <option value="T" selected>原始：T-N訊號，T日收盤買入</option>
+          <option value="NEXT">新增：T-N訊號，T-(N-1)收盤買入</option>
+        </select>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">新設定會用同基準出場：下期 T-(N-1) 收盤</div>
       </div>
       <div class="fi"><label>回測頻率</label>
         <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">
