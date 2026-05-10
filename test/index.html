@@ -418,9 +418,6 @@ tr:hover{background:var(--sf2)}
       <button class="bo" onclick="runBlockBootstrap()" style="flex:1">Block Bootstrap</button>
       <button class="bo sm" onclick="document.getElementById(&#39;stressMetrics&#39;).innerHTML=&#39;&#39;" style="color:var(--re);border-color:var(--re)">清除</button>
     </div>
-    <div class="ib2" style="margin-top:8px">
-      <b>WF定義</b>：Anchored = 起點固定、訓練窗逐步擴張、測試窗只取下一段；Rolling = 固定長度訓練窗逐段前移、測試窗只取下一段。兩者皆以 OOS 期末月份歸屬報酬，避免 IS/OOS 交叉。
-    </div>
     <button class="bo" onclick="runWalkForward()" style="width:100%;margin-top:6px;color:var(--ye);border-color:var(--ye)">Walk-Forward Analysis (Anchored / T-N)</button>
     <button class="bo" onclick="runRollingWalkForward()" style="width:100%;margin-top:6px;color:var(--tw);border-color:var(--tw)">Rolling Walk-Forward Analysis / T-N</button>
     <button class="bo" onclick="runTNSweep()" style="width:100%;margin-top:6px;color:var(--gr);border-color:var(--gr)">T-N Sweep 回測表 (N=1~22)</button>
