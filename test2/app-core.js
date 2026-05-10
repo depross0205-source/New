@@ -97,6 +97,52 @@ function getEnabledStocks() {
 }
 
 var DB_NAME='FearlessConsoleDB', DB_VERSION=1;
+var CACHE_SIG=null;
+function getCacheSignature(){
+  try{
+    var codes = getEnabledStocks().map(function(s){return s.c;}).sort();
+    var parts = codes.map(function(c){
+      var b=DAILY[c]||[]; var last=b.length?b[b.length-1]:null;
+      return c+':' + b.length + ':' + (last?last.date:'') + ':' + (last&&last.c!=null?last.c:'');
+    });
+    var freq = (typeof getFreq==='function') ? getFreq() : '1';
+    return [freq,N_TREND,MOM_CONSISTENCY_MULT,parts.join('|')].join('::');
+  }catch(e){ return null; }
+}
+async function saveScoreCacheToDB(sig){
+  if(!isPersist()||!sig||!CACHE_BUILT) return;
+  try{
+    var db=await initDB();
+    var tx=db.transaction('stockData','readwrite');
+    tx.objectStore('stockData').put({id:'score_cache',sig:sig,RAW_SCORES:RAW_SCORES,CACHE_TS:CACHE_TS,ts:new Date().toISOString()});
+  }catch(e){ console.warn('Score cache save failed',e); }
+}
+async function loadScoreCacheFromDB(sig){
+  if(!isPersist()||!sig) return false;
+  try{
+    var db=await initDB();
+    var tx=db.transaction('stockData','readonly');
+    var req=tx.objectStore('stockData').get('score_cache');
+    return await new Promise(function(resolve){
+      req.onsuccess=function(){
+        var r=req.result;
+        if(r&&r.sig===sig&&r.RAW_SCORES){
+          RAW_SCORES=r.RAW_SCORES||{};
+          CACHE_BUILT=true;
+          CACHE_TS=r.CACHE_TS||r.ts||new Date().toISOString();
+          CACHE_SIG=sig;
+          updCacheSt();
+          resolve(true);
+        }else resolve(false);
+      };
+      req.onerror=function(){resolve(false);};
+    });
+  }catch(e){ return false; }
+}
+function invalidateScoreCache(){
+  RAW_SCORES={}; CACHE_BUILT=false; CACHE_TS=null; CACHE_SIG=null; CACHE_SKIP_MO=false;
+  if($('cacheTxt')) $('cacheTxt').textContent='Cache: data changed; build on demand';
+}
 function initDB(){return new Promise(function(resolve,reject){var request=indexedDB.open(DB_NAME,DB_VERSION);request.onupgradeneeded=function(e){var db=e.target.result;if(!db.objectStoreNames.contains('stockData'))db.createObjectStore('stockData',{keyPath:'id'});};request.onsuccess=function(){resolve(request.result);};request.onerror=function(){reject(request.error);};});}
 async function saveAllToDB(){if(!isPersist())return;try{var db=await initDB();var tx=db.transaction('stockData','readwrite');tx.objectStore('stockData').put({id:'main_cache',DAILY:DAILY,ts:new Date().toISOString()});}catch(e){console.error('DB Error:',e);}}
 async function loadFromDB(){try{var db=await initDB();var tx=db.transaction('stockData','readonly');var request=tx.objectStore('stockData').get('main_cache');return new Promise(function(resolve){request.onsuccess=async function(){var res=request.result;if(res){DAILY=res.DAILY||{};updFetchStat();updTNX();if(isAutoBuildCache()){await buildCache();}else{CACHE_BUILT=false;CACHE_TS=null;if($('cacheTxt'))$('cacheTxt').textContent='Cache: data loaded; not built';}sl('dlLog','\u5f9e\u8cc7\u6599\u5eab\u6062\u5fa9\u6210\u529f ('+res.ts.slice(0,16).replace('T',' ')+')',true);resolve(true);}else resolve(false);};});}catch(e){return false;}}
@@ -175,12 +221,19 @@ function buildProxies() {
 
 async function fp(url, proxies) {
   var last;
+  var timeoutMs = 18000;
   for (var i = 0; i < proxies.length; i++) {
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function(){ try { ctrl.abort(); } catch(e){} }, timeoutMs) : null;
     try {
-      var r = await fetch(proxies[i] + encodeURIComponent(url));
+      var r = await fetch(proxies[i] + encodeURIComponent(url), ctrl ? {signal: ctrl.signal} : undefined);
+      if (timer) clearTimeout(timer);
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r;
-    } catch (e) { last = e; }
+    } catch (e) {
+      if (timer) clearTimeout(timer);
+      last = e;
+    }
   }
   throw last || new Error('all proxies failed');
 }
@@ -213,153 +266,144 @@ async function fetchOHLCV(s, interval, range) {
   }).filter(function(v){ return v.c != null; });
 }
 
-async function fetchAll() {
-  var stocks = getEnabledStocks();
-  if (!stocks.length) return alert('\u8acb\u5148\u9078\u64c7\u80a1\u6c60');
-  var usCut = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  var twCut = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  var toFetch = [], upToDate = 0;
-  stocks.forEach(function(s) {
-    var bars = DAILY[s.c];
-    var cut = s.tw ? twCut : usCut;
-    if (!bars || !bars.length) { toFetch.push({s:s, range:'max'}); return; }
-    var last = bars[bars.length-1].date;
-    if (last < cut) {
-      var days = Math.floor((new Date() - new Date(last)) / 86400000);
-      var range = days <= 7 ? '5d' : days <= 30 ? '1mo' : days <= 90 ? '3mo' : days <= 365 ? '1y' : 'max';
-      toFetch.push({s:s, range:range});
-    } else { upToDate++; }
-  });
-  var benchList = [
-    {s:{c:'^TNX',tw:false}},{s:{c:'^TWII',tw:true}},
-    {s:{c:'RSP',tw:false}},{s:{c:'^VIX',tw:false}},{s:{c:'HYG',tw:false}}
+function getMarketFreshCut(isTW) {
+  // 台股遇週末/假日延遲較常見，容忍 8 天；美股容忍 2 天。
+  return new Date(Date.now() - (isTW ? 8 : 2) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+function getIncrementalRangeFromLast(lastDate) {
+  if (!lastDate) return 'max';
+  var days = Math.floor((new Date() - new Date(lastDate)) / 86400000);
+  if (days <= 7) return '5d';
+  if (days <= 30) return '1mo';
+  if (days <= 90) return '3mo';
+  if (days <= 180) return '6mo';
+  if (days <= 365) return '1y';
+  // 超過一年缺口才抓 max，避免小缺口也重抓完整歷史。
+  return 'max';
+}
+function makeBenchList() {
+  return [
+    {c:'^TNX',tw:false}, {c:'^TWII',tw:true}, {c:'RSP',tw:false},
+    {c:'^VIX',tw:false}, {c:'HYG',tw:false}
   ];
-  benchList.forEach(function(b) {
-    var bars = DAILY[b.s.c];
-    var cut = b.s.tw ? twCut : usCut;
-    if (!bars || !bars.length) { toFetch.push({s:b.s, range:'max', isBench:true}); return; }
-    var last = bars[bars.length-1].date;
-    if (last < cut) {
-      var days = Math.floor((new Date() - new Date(last)) / 86400000);
-      var range = days <= 7 ? '5d' : days <= 30 ? '1mo' : days <= 90 ? '3mo' : '1y';
-      toFetch.push({s:b.s, range:range, isBench:true});
-    }
-  });
-  if (!toFetch.length) {
-    sl('updateLog', '\u5168\u90e8\u8cc7\u6599\u5df2\u662f\u6700\u65b0 (' + upToDate + ' \u6a94)', true);
-    renderStressDash(); return;
+}
+function applyDerivedSeriesAfterFetch(code) {
+  if (code === '^VIX') DAILY['VIXCLS'] = DAILY['^VIX'];
+  if (code === 'HYG') {
+    DAILY['BAMLH0A0HYM2'] = (DAILY['HYG'] || []).map(function(b) {
+      var sp = Math.max(0.5, Math.min(20, (90 / b.c - 1) * 35));
+      return {date:b.date, o:sp, h:sp, l:sp, c:+sp.toFixed(3), v:0};
+    });
   }
-  showL('\u4e26\u884c\u62b4\u53d6 ' + toFetch.length + ' \u6a94 (' + (stocks.length+5) + ' total, skip:' + upToDate + ')');
-  $('fetchProg').classList.remove('hidden');
-  var success = 0, failed = [], done = 0;
-
+}
+function collectFetchItems(stocks, includeBench) {
+  var seen = {}, items = [], upToDate = 0;
+  function add(s, isBench) {
+    if (!s || !s.c || seen[s.c]) return;
+    seen[s.c] = 1;
+    var bars = DAILY[s.c];
+    var cut = getMarketFreshCut(!!s.tw);
+    if (!bars || !bars.length) {
+      items.push({s:s, range:'max', isBench:!!isBench});
+      return;
+    }
+    var last = bars[bars.length - 1].date;
+    if (last < cut) items.push({s:s, range:getIncrementalRangeFromLast(last), isBench:!!isBench});
+    else upToDate++;
+  }
+  (stocks || []).forEach(function(s){ add(s, false); });
+  if (includeBench) makeBenchList().forEach(function(s){ add(s, true); });
+  return {items:items, upToDate:upToDate};
+}
+async function runFetchQueue(items, logPrefix) {
+  var failed = [], success = 0, done = 0;
+  var ordered = items.slice().sort(function(a,b){
+    if (a.range === 'max' && b.range !== 'max') return 1;
+    if (a.range !== 'max' && b.range === 'max') return -1;
+    return (a.isBench ? -1 : 0) - (b.isBench ? -1 : 0);
+  });
   async function fetchOne(item) {
     try {
       var fresh = await fetchOHLCV(item.s, '1d', item.range);
       DAILY[item.s.c] = mergeArr(DAILY[item.s.c], fresh);
-      if (item.s.c === '^VIX') DAILY['VIXCLS'] = DAILY['^VIX'];
-      if (item.s.c === 'HYG') {
-        DAILY['BAMLH0A0HYM2'] = (DAILY['HYG']||[]).map(function(b) {
-          var sp = Math.max(0.5, Math.min(20, (90/b.c-1)*35));
-          return {date:b.date, o:sp, h:sp, l:sp, c:+sp.toFixed(3), v:0};
-        });
-      }
+      applyDerivedSeriesAfterFetch(item.s.c);
       success++;
-    } catch(e) { failed.push(item.s.c); }
+    } catch(e) {
+      failed.push(item.s.c);
+      console.warn('Fetch failed:', item.s.c, item.range, e);
+    }
     done++;
-    var pct = Math.round(done/toFetch.length*100);
-    $('fetchFill').style.width = pct + '%';
-    $('loadTxt').textContent = done + ' / ' + toFetch.length + '  (' + pct + '%)' + (failed.length ? '  fail:'+failed.length : '');
+    var pct = Math.round(done / ordered.length * 100);
+    if ($('fetchFill')) $('fetchFill').style.width = pct + '%';
+    if ($('loadTxt')) $('loadTxt').textContent = (logPrefix || 'FETCH') + ' ' + done + '/' + ordered.length + ' (' + pct + '%)' + (failed.length ? ' fail:' + failed.length : '');
   }
-
-  // Short-range first (faster), max-range last
-  var shortF = toFetch.filter(function(i){return i.range!=='max';});
-  var maxF   = toFetch.filter(function(i){return i.range==='max';});
-  var ordered = shortF.concat(maxF);
-  var BATCH = 6;
-  for (var bi = 0; bi < ordered.length; bi += BATCH) {
-    // yield to browser before each batch - prevents UI freeze
-    await new Promise(function(r){setTimeout(r,0);});
-    await Promise.all(ordered.slice(bi, bi+BATCH).map(fetchOne));
+  var i = 0;
+  while (i < ordered.length) {
+    var isMaxBatch = ordered[i].range === 'max';
+    var batchSize = isMaxBatch ? 4 : 10;
+    await Promise.all(ordered.slice(i, i + batchSize).map(fetchOne));
+    i += batchSize;
     updFetchStat();
-    await new Promise(function(r){setTimeout(r,250);});
+    // 只讓出 UI thread，不再固定等 350ms；速度主要由網路與 proxy 限速決定。
+    await new Promise(function(r){ setTimeout(r, 0); });
   }
-
-  hideL(); $('fetchProg').classList.add('hidden');
-  var msg = '\u5b8c\u6210! \u62b4\u53d6:'+success+' skip:'+upToDate+' fail:'+failed.length;
-  if (failed.length) msg += ' ('+failed.slice(0,8).join(',')+(failed.length>8?'...':'')+')';
-  sl('updateLog', msg, failed.length===0);
-  if(isAutoBuildCache()){await buildCache();}else{CACHE_BUILT=false;CACHE_TS=null;if($('cacheTxt'))$('cacheTxt').textContent='Cache: data updated; not built';}
+  return {success:success, failed:failed};
+}
+async function finishDataUpdate(message, ok) {
+  updFetchStat();
+  if(isAutoBuildCache()){
+    await buildCache();
+  } else {
+    CACHE_BUILT = false;
+    CACHE_TS = null;
+    if($('cacheTxt')) $('cacheTxt').textContent = 'Cache: data updated; build on demand';
+  }
   await saveAllToDB();
   renderStressDash();
+  if (message) sl('updateLog', message, ok);
 }
 
+async function fetchAll() {
+  var stocks = getEnabledStocks();
+  if (!stocks.length) return alert('請先選擇股池');
+  var plan = collectFetchItems(stocks, true);
+  if (!plan.items.length) {
+    await finishDataUpdate('全部資料已是最新，skip:' + plan.upToDate, true);
+    return;
+  }
+  showL('智慧並行抓取 ' + plan.items.length + ' 檔；已略過 ' + plan.upToDate + ' 檔');
+  if ($('fetchProg')) $('fetchProg').classList.remove('hidden');
+  if ($('fetchFill')) $('fetchFill').style.width = '0%';
+  try {
+    var res = await runFetchQueue(plan.items, 'FETCH');
+    var msg = '完成! 抓取:' + res.success + ' skip:' + plan.upToDate + ' fail:' + res.failed.length;
+    if (res.failed.length) msg += ' (' + res.failed.slice(0, 10).join(',') + (res.failed.length > 10 ? '...' : '') + ')';
+    await finishDataUpdate(msg, res.failed.length === 0);
+  } finally {
+    hideL();
+    if ($('fetchProg')) $('fetchProg').classList.add('hidden');
+  }
+}
 
 async function fetchUpdate() {
   var stocks = getEnabledStocks();
-  var twCut = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  var usCut = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  var missing = [], stale = [];
-  stocks.forEach(function(s) {
-    if (!DAILY[s.c] || !DAILY[s.c].length) { missing.push(s); return; }
-    if (DAILY[s.c][DAILY[s.c].length - 1].date < (s.tw ? twCut : usCut)) stale.push(s);
-  });
-  if (!missing.length && !stale.length) { sl('updateLog', 'All stocks up to date.', true); }
-  var toFetch = missing.concat(stale), failed = [];
-  if (toFetch.length) {
-    showL('Smart update ' + toFetch.length + ' files...');
-    for (var i = 0; i < toFetch.length; i++) {
-      var s = toFetch[i];
-      $('loadTxt').textContent = '[UPD] ' + s.c + ' (' + (i + 1) + '/' + toFetch.length + ')';
-      try {
-        var range = 'max';
-        if (DAILY[s.c] && DAILY[s.c].length > 0) {
-          var lastDate = new Date(DAILY[s.c][DAILY[s.c].length - 1].date);
-          var delayDays = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
-          if (delayDays <= 7) range = '5d';
-          else if (delayDays <= 30) range = '1mo';
-          else if (delayDays <= 90) range = '3mo';
-          else if (delayDays <= 180) range = '6mo';
-          else if (delayDays <= 365) range = '1y';
-        }
-        DAILY[s.c] = mergeArr(DAILY[s.c], await fetchOHLCV(s, '1d', range));
-      } catch (e) { failed.push(s.c); }
-      await new Promise(function(r){ setTimeout(r, 350); });
-    }
-    sl('updateLog', 'Done. new:' + missing.length + ' updated:' + stale.length + ' failed:' + failed.length, failed.length === 0);
+  var plan = collectFetchItems(stocks, true);
+  if (!plan.items.length) {
+    await finishDataUpdate('All stocks up to date. skip:' + plan.upToDate, true);
+    return;
   }
-  var benchList = [
-    {c:'^TNX',tw:false}, {c:'^TWII',tw:true}, {c:'RSP',tw:false},
-    {c:'^VIX',tw:false}, {c:'HYG',tw:false}
-  ];
-  for (var bi = 0; bi < benchList.length; bi++) {
-    var bs = benchList[bi];
-    var bars = DAILY[bs.c];
-    var cut = bs.tw ? twCut : usCut;
-    if (bars && bars.length && bars[bars.length-1].date >= cut) continue;
-    try {
-      var bLast = bars && bars.length ? bars[bars.length-1].date : null;
-      var bDays = bLast ? Math.floor((new Date() - new Date(bLast)) / 86400000) : 9999;
-      var bRange = !bLast ? 'max' : bDays <= 7 ? '5d' : bDays <= 30 ? '1mo' : bDays <= 90 ? '3mo' : '6mo';
-      $('loadTxt').textContent = '[BENCH] ' + bs.c + ' ' + bRange;
-      var fresh = await fetchOHLCV(bs, '1d', bRange);
-      DAILY[bs.c] = mergeArr(DAILY[bs.c], fresh);
-      if (bs.c === '^VIX') DAILY['VIXCLS'] = DAILY['^VIX'];
-      if (bs.c === 'HYG') {
-        DAILY['BAMLH0A0HYM2'] = (DAILY['HYG'] || []).map(function(b) {
-          var sp = Math.max(0.5, Math.min(20, (90 / b.c - 1) * 35));
-          return { date: b.date, o: sp, h: sp, l: sp, c: +sp.toFixed(3), v: 0 };
-        });
-      }
-    } catch (e) { console.warn('Bench update failed: ' + bs.c, e); }
-    await new Promise(function(r){ setTimeout(r, 350); });
+  showL('每日更新：並行補資料 ' + plan.items.length + ' 檔');
+  if ($('fetchProg')) $('fetchProg').classList.remove('hidden');
+  if ($('fetchFill')) $('fetchFill').style.width = '0%';
+  try {
+    var missing = plan.items.filter(function(x){ return !DAILY[x.s.c] || !DAILY[x.s.c].length; }).length;
+    var res = await runFetchQueue(plan.items, 'UPD');
+    await finishDataUpdate('Done. new:' + missing + ' updated:' + (plan.items.length - missing) + ' failed:' + res.failed.length, res.failed.length === 0);
+  } finally {
+    hideL();
+    if ($('fetchProg')) $('fetchProg').classList.add('hidden');
   }
-  hideL(); updFetchStat();
-  if(isAutoBuildCache()){await buildCache();}else{CACHE_BUILT=false;CACHE_TS=null;if($('cacheTxt'))$('cacheTxt').textContent='Cache: data updated; not built';}
-  await saveAllToDB();
-  renderStressDash();
 }
-
 
 function updTNX(){
   var bars = DAILY['^TNX'];
@@ -640,7 +684,89 @@ function rawMom(daily, idx) {
   return score;
 }
 
-async function buildCache() {
+
+function buildFastScoreIndicators(bars){
+  var n=bars.length, N=N_TREND;
+  function rollingAvg(values, win){
+    var out=new Array(n).fill(null), sum=0, cnt=0, q=[];
+    for(var i=0;i<n;i++){
+      var v=values[i]; q.push(v);
+      if(v!==null && v!==undefined && isFinite(v)){sum+=v;cnt++;}
+      if(q.length>win){var old=q.shift(); if(old!==null && old!==undefined && isFinite(old)){sum-=old;cnt--;}}
+      if(cnt>=Math.max(1,Math.floor(win*0.5))) out[i]=sum/cnt;
+    }
+    return out;
+  }
+  function momZFast(period){
+    var ret=new Array(n).fill(null), z=new Array(n).fill(null);
+    for(var i=period;i<n;i++) ret[i]=bars[i].c/bars[i-period].c-1;
+    var sum=0,sq=0,cnt=0,q=[];
+    for(var j=0;j<n;j++){
+      var v=ret[j]; q.push(v);
+      if(v!==null && isFinite(v)){sum+=v; sq+=v*v; cnt++;}
+      if(q.length>251){var old=q.shift(); if(old!==null && isFinite(old)){sum-=old; sq-=old*old; cnt--;}}
+      if(ret[j]!==null && cnt>1){
+        var mean=sum/cnt;
+        var variance=Math.max(0,(sq-cnt*mean*mean)/(cnt-1));
+        var sd=Math.sqrt(variance)||0.01;
+        z[j]=(ret[j]-mean)/sd;
+      }
+    }
+    return z;
+  }
+  var z240=momZFast(240), z120=momZFast(120), z60=momZFast(60);
+  var raw=new Array(n).fill(null), r240=new Array(n).fill(null);
+  for(var a=0;a<n;a++){
+    if(a>=240 && z240[a]!==null && z120[a]!==null && z60[a]!==null){
+      var sc=0.5*z240[a]+0.3*z120[a]+0.2*z60[a];
+      if(z240[a]>0 && z120[a]>0 && z60[a]>0) sc*=MOM_CONSISTENCY_MULT;
+      raw[a]=sc;
+      r240[a]=bars[a].c/(bars[a-240]?bars[a-240].c:1)-1;
+    }
+  }
+  var vwma=new Array(n).fill(null), sp=0, sv=0, pv=[], vv=[];
+  for(var b=0;b<n;b++){
+    var vol=bars[b].v>0?bars[b].v:1, pc=bars[b].c*vol;
+    pv.push(pc); vv.push(vol); sp+=pc; sv+=vol;
+    if(pv.length>N){sp-=pv.shift(); sv-=vv.shift();}
+    if(pv.length===N && sv>0) vwma[b]=sp/sv;
+  }
+  var bias=new Array(n).fill(null);
+  for(var c=0;c<n;c++) if(vwma[c]) bias[c]=(bars[c].c-vwma[c])/vwma[c];
+  var slope=new Array(n).fill(null);
+  for(var d=0;d<n;d++){
+    if(d<N*2-2) continue;
+    var start=d-N+1, vals=[], ok=true;
+    for(var e=start;e<=d;e++){ if(vwma[e]===null){ok=false;break;} vals.push(vwma[e]); }
+    if(!ok || vals.length<Math.floor(N/2)) continue;
+    var m=vals.length,sx=0,sy=0,sxy=0,sx2=0;
+    for(var f=0;f<m;f++){sx+=f; sy+=vals[f]; sxy+=f*vals[f]; sx2+=f*f;}
+    var den=m*sx2-sx*sx;
+    slope[d]=den?((m*sxy-sx*sy)/den/(vals[0]||1)):0;
+  }
+  var volUnit=new Array(n).fill(null);
+  for(var g=1;g<n;g++){
+    var pr=(bars[g].c-bars[g-1].c)/(bars[g-1].c||1);
+    var vr=bars[g-1].v>0?bars[g].v/bars[g-1].v:1;
+    volUnit[g]=(pr>=0?1:-1)*(pr>=0?(vr-1):(1-vr));
+  }
+  var volScore=rollingAvg(volUnit,N-1);
+  var kUnit=new Array(n).fill(null);
+  for(var h=0;h<n;h++){var range=bars[h].h-bars[h].l; kUnit[h]=range>0?(bars[h].c-bars[h].l)/range:0.5;}
+  var kbar=rollingAvg(kUnit,N);
+  return {raw:raw,bias:bias,slope:slope,vol:volScore,kbar:kbar,r240:r240};
+}
+
+async function buildCache(force) {
+  var sig = getCacheSignature();
+  if (!force && CACHE_BUILT && CACHE_SIG === sig && RAW_SCORES && Object.keys(RAW_SCORES).length) {
+    updCacheSt();
+    return;
+  }
+  if (!force && await loadScoreCacheFromDB(sig)) {
+    if($('dlLog')) sl('dlLog','已載入已儲存的回測快取，不需重建。',true);
+    return;
+  }
   var stocks = getEnabledStocks();
   var withData = stocks.filter(function(s){ return DAILY[s.c] && DAILY[s.c].length > 0; });
   if(!withData.length){ updCacheSt(); return; }
@@ -672,24 +798,25 @@ async function buildCache() {
     $('loadTxt').textContent='Cache: '+s.c+' ('+(si+1)+'/'+withData.length+')';
     var bars=DAILY[s.c];
     RAW_SCORES[s.c]={};
+    var ind = buildFastScoreIndicators(bars);
     var bIdx=0;
     cacheDates.forEach(function(d){
       while(bIdx < bars.length - 1 && bars[bIdx + 1].date <= d) { bIdx++; }
       if(bars[bIdx].date <= d && bIdx >= 240){
-        var cut = bars.slice(0, bIdx+1);
         RAW_SCORES[s.c][d]={
-          rm: rawMom(bars, bIdx),
-          rb: calcBias(cut, N_TREND),
-          rs: calcSlope(cut, N_TREND),
-          rv: calcVol(cut, N_TREND),
-          rk: calcKbar(cut, N_TREND),
-          r240: bars[bIdx].c/(bars[bIdx-240]?bars[bIdx-240].c:1)-1
+          rm: ind.raw[bIdx],
+          rb: ind.bias[bIdx],
+          rs: ind.slope[bIdx],
+          rv: ind.vol[bIdx],
+          rk: ind.kbar[bIdx],
+          r240: ind.r240[bIdx]
         };
       }
     });
     if(si%5===4) await new Promise(function(r){ setTimeout(r,0); });
   }
-  CACHE_BUILT=true; CACHE_TS=new Date().toISOString(); CACHE_SKIP_MO=SKIP_MO;
+  CACHE_BUILT=true; CACHE_TS=new Date().toISOString(); CACHE_SKIP_MO=SKIP_MO; CACHE_SIG=sig;
+  await saveScoreCacheToDB(sig);
   hideL(); updCacheSt(); updTNX();
 }
 
