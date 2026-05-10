@@ -1234,7 +1234,7 @@ async function upJson(el) {
     var text=await file.text(); var obj=JSON.parse(text);
     if(!obj.DAILY){ sl('dlLog','Error: no DAILY field',false); return; }
     DAILY=obj.DAILY||{};
-    updFetchStat(); updTNX(); if(isAutoBuildCache()){await buildCache();}else{CACHE_BUILT=false;CACHE_TS=null;if($('cacheTxt'))$('cacheTxt').textContent='Cache: uploaded data; not built';}
+    updFetchStat(); updTNX(); if(isAutoBuildCache()){await buildCache();}else{CACHE_BUILT=false;CACHE_TS=null;CACHE_SIG=null;if($('cacheTxt'))$('cacheTxt').textContent='Cache: uploaded data; build on demand';}
     if(isPersist()) await saveAllToDB();
     sl('dlLog','Loaded! Data restored. Cache will build only when requested.',true);
   } catch(err){ sl('dlLog','Error: '+err.message,false); }
@@ -1243,7 +1243,7 @@ async function upJson(el) {
 async function clearAndReset() {
   if(!confirm('Clear all cached data and IndexedDB?'))return;
   await indexedDB.deleteDatabase('FearlessConsoleDB');
-  DAILY={}; CACHE_BUILT=false; CACHE_TS=null; RAW_SCORES={};
+  DAILY={}; CACHE_BUILT=false; CACHE_TS=null; CACHE_SIG=null; RAW_SCORES={};
   sl('dlLog','DB cleared. Please run Fetch All.',true);
   updFetchStat(); updCacheSt();
 }
@@ -2594,6 +2594,7 @@ window.onload = async function() {
   RAW_SCORES = {};
   CACHE_BUILT = false;
   CACHE_TS = null;
+  CACHE_SIG = null;
   CACHE_SKIP_MO = false;
 
   if (isPersist()) {

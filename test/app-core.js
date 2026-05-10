@@ -97,6 +97,52 @@ function getEnabledStocks() {
 }
 
 var DB_NAME='FearlessConsoleDB', DB_VERSION=1;
+var CACHE_SIG=null;
+function getCacheSignature(){
+  try{
+    var codes = getEnabledStocks().map(function(s){return s.c;}).sort();
+    var parts = codes.map(function(c){
+      var b=DAILY[c]||[]; var last=b.length?b[b.length-1]:null;
+      return c+':' + b.length + ':' + (last?last.date:'') + ':' + (last&&last.c!=null?last.c:'');
+    });
+    var freq = (typeof getFreq==='function') ? getFreq() : '1';
+    return [freq,N_TREND,MOM_CONSISTENCY_MULT,parts.join('|')].join('::');
+  }catch(e){ return null; }
+}
+async function saveScoreCacheToDB(sig){
+  if(!isPersist()||!sig||!CACHE_BUILT) return;
+  try{
+    var db=await initDB();
+    var tx=db.transaction('stockData','readwrite');
+    tx.objectStore('stockData').put({id:'score_cache',sig:sig,RAW_SCORES:RAW_SCORES,CACHE_TS:CACHE_TS,ts:new Date().toISOString()});
+  }catch(e){ console.warn('Score cache save failed',e); }
+}
+async function loadScoreCacheFromDB(sig){
+  if(!isPersist()||!sig) return false;
+  try{
+    var db=await initDB();
+    var tx=db.transaction('stockData','readonly');
+    var req=tx.objectStore('stockData').get('score_cache');
+    return await new Promise(function(resolve){
+      req.onsuccess=function(){
+        var r=req.result;
+        if(r&&r.sig===sig&&r.RAW_SCORES){
+          RAW_SCORES=r.RAW_SCORES||{};
+          CACHE_BUILT=true;
+          CACHE_TS=r.CACHE_TS||r.ts||new Date().toISOString();
+          CACHE_SIG=sig;
+          updCacheSt();
+          resolve(true);
+        }else resolve(false);
+      };
+      req.onerror=function(){resolve(false);};
+    });
+  }catch(e){ return false; }
+}
+function invalidateScoreCache(){
+  RAW_SCORES={}; CACHE_BUILT=false; CACHE_TS=null; CACHE_SIG=null; CACHE_SKIP_MO=false;
+  if($('cacheTxt')) $('cacheTxt').textContent='Cache: data changed; build on demand';
+}
 function initDB(){return new Promise(function(resolve,reject){var request=indexedDB.open(DB_NAME,DB_VERSION);request.onupgradeneeded=function(e){var db=e.target.result;if(!db.objectStoreNames.contains('stockData'))db.createObjectStore('stockData',{keyPath:'id'});};request.onsuccess=function(){resolve(request.result);};request.onerror=function(){reject(request.error);};});}
 async function saveAllToDB(){if(!isPersist())return;try{var db=await initDB();var tx=db.transaction('stockData','readwrite');tx.objectStore('stockData').put({id:'main_cache',DAILY:DAILY,ts:new Date().toISOString()});}catch(e){console.error('DB Error:',e);}}
 async function loadFromDB(){try{var db=await initDB();var tx=db.transaction('stockData','readonly');var request=tx.objectStore('stockData').get('main_cache');return new Promise(function(resolve){request.onsuccess=async function(){var res=request.result;if(res){DAILY=res.DAILY||{};updFetchStat();updTNX();if(isAutoBuildCache()){await buildCache();}else{CACHE_BUILT=false;CACHE_TS=null;if($('cacheTxt'))$('cacheTxt').textContent='Cache: data loaded; not built';}sl('dlLog','\u5f9e\u8cc7\u6599\u5eab\u6062\u5fa9\u6210\u529f ('+res.ts.slice(0,16).replace('T',' ')+')',true);resolve(true);}else resolve(false);};});}catch(e){return false;}}
@@ -638,7 +684,89 @@ function rawMom(daily, idx) {
   return score;
 }
 
-async function buildCache() {
+
+function buildFastScoreIndicators(bars){
+  var n=bars.length, N=N_TREND;
+  function rollingAvg(values, win){
+    var out=new Array(n).fill(null), sum=0, cnt=0, q=[];
+    for(var i=0;i<n;i++){
+      var v=values[i]; q.push(v);
+      if(v!==null && v!==undefined && isFinite(v)){sum+=v;cnt++;}
+      if(q.length>win){var old=q.shift(); if(old!==null && old!==undefined && isFinite(old)){sum-=old;cnt--;}}
+      if(cnt>=Math.max(1,Math.floor(win*0.5))) out[i]=sum/cnt;
+    }
+    return out;
+  }
+  function momZFast(period){
+    var ret=new Array(n).fill(null), z=new Array(n).fill(null);
+    for(var i=period;i<n;i++) ret[i]=bars[i].c/bars[i-period].c-1;
+    var sum=0,sq=0,cnt=0,q=[];
+    for(var j=0;j<n;j++){
+      var v=ret[j]; q.push(v);
+      if(v!==null && isFinite(v)){sum+=v; sq+=v*v; cnt++;}
+      if(q.length>251){var old=q.shift(); if(old!==null && isFinite(old)){sum-=old; sq-=old*old; cnt--;}}
+      if(ret[j]!==null && cnt>1){
+        var mean=sum/cnt;
+        var variance=Math.max(0,(sq-cnt*mean*mean)/(cnt-1));
+        var sd=Math.sqrt(variance)||0.01;
+        z[j]=(ret[j]-mean)/sd;
+      }
+    }
+    return z;
+  }
+  var z240=momZFast(240), z120=momZFast(120), z60=momZFast(60);
+  var raw=new Array(n).fill(null), r240=new Array(n).fill(null);
+  for(var a=0;a<n;a++){
+    if(a>=240 && z240[a]!==null && z120[a]!==null && z60[a]!==null){
+      var sc=0.5*z240[a]+0.3*z120[a]+0.2*z60[a];
+      if(z240[a]>0 && z120[a]>0 && z60[a]>0) sc*=MOM_CONSISTENCY_MULT;
+      raw[a]=sc;
+      r240[a]=bars[a].c/(bars[a-240]?bars[a-240].c:1)-1;
+    }
+  }
+  var vwma=new Array(n).fill(null), sp=0, sv=0, pv=[], vv=[];
+  for(var b=0;b<n;b++){
+    var vol=bars[b].v>0?bars[b].v:1, pc=bars[b].c*vol;
+    pv.push(pc); vv.push(vol); sp+=pc; sv+=vol;
+    if(pv.length>N){sp-=pv.shift(); sv-=vv.shift();}
+    if(pv.length===N && sv>0) vwma[b]=sp/sv;
+  }
+  var bias=new Array(n).fill(null);
+  for(var c=0;c<n;c++) if(vwma[c]) bias[c]=(bars[c].c-vwma[c])/vwma[c];
+  var slope=new Array(n).fill(null);
+  for(var d=0;d<n;d++){
+    if(d<N*2-2) continue;
+    var start=d-N+1, vals=[], ok=true;
+    for(var e=start;e<=d;e++){ if(vwma[e]===null){ok=false;break;} vals.push(vwma[e]); }
+    if(!ok || vals.length<Math.floor(N/2)) continue;
+    var m=vals.length,sx=0,sy=0,sxy=0,sx2=0;
+    for(var f=0;f<m;f++){sx+=f; sy+=vals[f]; sxy+=f*vals[f]; sx2+=f*f;}
+    var den=m*sx2-sx*sx;
+    slope[d]=den?((m*sxy-sx*sy)/den/(vals[0]||1)):0;
+  }
+  var volUnit=new Array(n).fill(null);
+  for(var g=1;g<n;g++){
+    var pr=(bars[g].c-bars[g-1].c)/(bars[g-1].c||1);
+    var vr=bars[g-1].v>0?bars[g].v/bars[g-1].v:1;
+    volUnit[g]=(pr>=0?1:-1)*(pr>=0?(vr-1):(1-vr));
+  }
+  var volScore=rollingAvg(volUnit,N-1);
+  var kUnit=new Array(n).fill(null);
+  for(var h=0;h<n;h++){var range=bars[h].h-bars[h].l; kUnit[h]=range>0?(bars[h].c-bars[h].l)/range:0.5;}
+  var kbar=rollingAvg(kUnit,N);
+  return {raw:raw,bias:bias,slope:slope,vol:volScore,kbar:kbar,r240:r240};
+}
+
+async function buildCache(force) {
+  var sig = getCacheSignature();
+  if (!force && CACHE_BUILT && CACHE_SIG === sig && RAW_SCORES && Object.keys(RAW_SCORES).length) {
+    updCacheSt();
+    return;
+  }
+  if (!force && await loadScoreCacheFromDB(sig)) {
+    if($('dlLog')) sl('dlLog','已載入已儲存的回測快取，不需重建。',true);
+    return;
+  }
   var stocks = getEnabledStocks();
   var withData = stocks.filter(function(s){ return DAILY[s.c] && DAILY[s.c].length > 0; });
   if(!withData.length){ updCacheSt(); return; }
@@ -670,24 +798,25 @@ async function buildCache() {
     $('loadTxt').textContent='Cache: '+s.c+' ('+(si+1)+'/'+withData.length+')';
     var bars=DAILY[s.c];
     RAW_SCORES[s.c]={};
+    var ind = buildFastScoreIndicators(bars);
     var bIdx=0;
     cacheDates.forEach(function(d){
       while(bIdx < bars.length - 1 && bars[bIdx + 1].date <= d) { bIdx++; }
       if(bars[bIdx].date <= d && bIdx >= 240){
-        var cut = bars.slice(0, bIdx+1);
         RAW_SCORES[s.c][d]={
-          rm: rawMom(bars, bIdx),
-          rb: calcBias(cut, N_TREND),
-          rs: calcSlope(cut, N_TREND),
-          rv: calcVol(cut, N_TREND),
-          rk: calcKbar(cut, N_TREND),
-          r240: bars[bIdx].c/(bars[bIdx-240]?bars[bIdx-240].c:1)-1
+          rm: ind.raw[bIdx],
+          rb: ind.bias[bIdx],
+          rs: ind.slope[bIdx],
+          rv: ind.vol[bIdx],
+          rk: ind.kbar[bIdx],
+          r240: ind.r240[bIdx]
         };
       }
     });
     if(si%5===4) await new Promise(function(r){ setTimeout(r,0); });
   }
-  CACHE_BUILT=true; CACHE_TS=new Date().toISOString(); CACHE_SKIP_MO=SKIP_MO;
+  CACHE_BUILT=true; CACHE_TS=new Date().toISOString(); CACHE_SKIP_MO=SKIP_MO; CACHE_SIG=sig;
+  await saveScoreCacheToDB(sig);
   hideL(); updCacheSt(); updTNX();
 }
 
