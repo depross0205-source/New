@@ -100,7 +100,7 @@ tr:hover{background:var(--sf2)}
   <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">...</div>
 </div>
 <div class="wrap">
-<h1>TW 台股動能選股 <span class="tag">V2.1-CLOSURE+ISHARES</span></h1>
+<h1>TW 台股動能選股 <span class="tag">V2.1-NATURAL-ISOLATED</span></h1>
 <div class="sub">Global ex-CN預設 + CN獨立可選 | 國際版372檔基準 | 半導體細分 + 同產業限額 | T-N公平回測</div>
 <div class="tabs">
   <button class="tab active" onclick="switchTab(&#39;pool&#39;,this)">股池</button>
@@ -523,16 +523,6 @@ tr:hover{background:var(--sf2)}
         </select>
         <div style="font-size:9px;color:var(--mu);margin-top:3px">新設定會用同基準出場：下期 T-(N-1) 收盤</div>
       </div>
-      <div class="fi"><label>自然淘汰法</label>
-        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer">
-          <input type="checkbox" id="btNaturalElim" style="width:14px;accent-color:var(--tw)"> 開啟月內跌出前N名汰換
-        </label>
-        <div style="display:flex;gap:6px;margin-top:5px">
-          <input type="number" id="btNaturalDropRank" value="10" min="1" max="50" title="跌出此名次外就淘汰">
-          <input type="number" id="btNaturalCheckEvery" value="1" min="1" max="10" title="每幾個交易日檢查一次，1=每日">
-        </div>
-        <div style="font-size:9px;color:var(--mu);margin-top:3px">預設：跌出前10名外淘汰；依原始順位補齊；目前套用多方持股。</div>
-      </div>
       <div class="fi"><label>回測頻率</label>
         <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="月末買賣\uff0c持倉期月末→次月末">
@@ -568,6 +558,13 @@ tr:hover{background:var(--sf2)}
           <option value="on">On (硆60MA且均線向下)</option>
         </select>
       </div>
+      <div class="fi"><label>自然淘汰法</label>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:7px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="btNaturalElim" style="width:14px;accent-color:var(--tw)"> 開啟：跌出前N名外換股
+        </label>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">OFF 時完全走原始月頻回測；ON 時才啟用月內分段換股。</div>
+      </div>
+      <div class="fi"><label>自然淘汰門檻 Rank</label><input type="number" id="btNaturalRank" value="10" min="1" max="50" step="1"><div style="font-size:9px;color:var(--mu);margin-top:3px">預設10：跌出前10名外，賣出並由下一順位繼承剩餘資金。</div></div>
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btw" onclick="runBT()" style="flex:1">執行回測</button>

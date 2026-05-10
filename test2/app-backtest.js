@@ -123,105 +123,96 @@ function renderSignalPriceLine(code, scoreDate, weightSign, sigN) {
     + '</div>';
 }
 
-function getNaturalElimConfig() {
-  var on = !!($('btNaturalElim') && $('btNaturalElim').checked);
-  var dropRank = parseInt($('btNaturalDropRank') ? $('btNaturalDropRank').value : '10', 10);
-  if (!isFinite(dropRank) || dropRank < 1) dropRank = 10;
-  var checkEvery = parseInt($('btNaturalCheckEvery') ? $('btNaturalCheckEvery').value : '1', 10);
-  if (!isFinite(checkEvery) || checkEvery < 1) checkEvery = 1;
-  return {enabled:on, dropRank:dropRank, checkEvery:checkEvery};
+
+
+// === NATURAL ELIMINATION HELPERS (isolated; OFF path does not alter original engine) ===
+function getNaturalElimConfig(){
+  var onEl = $('btNaturalElim');
+  var rankEl = $('btNaturalRank');
+  return { enabled: !!(onEl && onEl.checked), rankLimit: Math.max(1, parseInt(rankEl ? rankEl.value : '10', 10) || 10) };
 }
-function getRefTradingDatesBetween(refDaily, startDate, endDate, step) {
-  step = Math.max(1, parseInt(step || 1, 10));
-  if (!refDaily || !refDaily.length || !startDate || !endDate) return [];
-  var out = [];
-  for (var i=0; i<refDaily.length; i++) {
-    var d = refDaily[i].date;
-    if (d > startDate && d <= endDate) {
-      if (out.length % step === 0) out.push(d);
-      else out.push(d); // keep all trading dates; step handled below by counter for clearer month-end inclusion
-    }
-  }
-  if (step <= 1) return out;
-  var sampled = [];
-  for (var j=0; j<out.length; j++) {
-    if (j % step === 0 || j === out.length - 1) sampled.push(out[j]);
-  }
-  return sampled;
-}
-function buildRankMapForDate(dateStr) {
-  if (typeof buildScoreCacheForDate === 'function') buildScoreCacheForDate(dateStr);
-  var rows = calcAllScores(dateStr).filter(function(r){ return r.score !== null && isFinite(r.score); });
-  rows.sort(function(a,b){ return b.score - a.score; });
-  var map = {};
-  rows.forEach(function(r,i){ map[r.s.c] = i + 1; });
-  return {rows:rows, map:map};
-}
-function pickNaturalReplacement(originalQueue, activeMap, usedEver, dateStr) {
-  for (var i=0; i<originalQueue.length; i++) {
-    var code = originalQueue[i].s.c;
-    if (activeMap[code] || usedEver[code]) continue;
-    if (code === 'CASH' || code === 'SGOV') continue;
-    var pt = getMarketMonthEndPoint(code, dateStr);
-    if (pt && pt.price > 0) return originalQueue[i];
-  }
+function getPointOnOrBeforeNE(code, refDate){
+  var bars = DAILY[code];
+  if (!bars || !bars.length || !refDate) return null;
+  for (var i=bars.length-1; i>=0; i--) if (bars[i].date <= refDate && bars[i].c != null) return {date:bars[i].date, price:bars[i].c};
   return null;
 }
-function simulateNaturalEliminationSlots(longSlots, originalQueue, refDaily, startDate, endDate, cfg) {
-  var result = {slots:[], events:[]};
-  if (!cfg || !cfg.enabled || !longSlots || !longSlots.length || !originalQueue || !originalQueue.length) {
-    result.slots = longSlots || [];
-    return result;
-  }
-  var dates = getRefTradingDatesBetween(refDaily, startDate, endDate, cfg.checkEvery);
-  var activeMap = {}, usedEver = {};
-  longSlots.forEach(function(slot){ activeMap[slot.code]=1; usedEver[slot.code]=1; slot.chain=[{code:slot.code, from:startDate, price:slot.entryPrice}]; });
-  dates.forEach(function(d){
-    var rk = buildRankMapForDate(d).map;
-    longSlots.forEach(function(slot){
-      if (!slot.active) return;
-      var cur = slot.code;
-      var rank = rk[cur] || 999999;
-      if (rank <= cfg.dropRank) return;
-      var exitPt = getMarketMonthEndPoint(cur, d);
-      if (!exitPt || !exitPt.price || !slot.entryPrice || slot.entryPrice <= 0) return;
-      var rep = pickNaturalReplacement(originalQueue, activeMap, usedEver, d);
-      if (!rep) return;
-      var repPt = getMarketMonthEndPoint(rep.s.c, d);
-      if (!repPt || !repPt.price || repPt.price <= 0) return;
-      delete activeMap[cur];
-      activeMap[rep.s.c]=1;
-      usedEver[rep.s.c]=1;
-      slot.chain[slot.chain.length-1].to = exitPt.date;
-      slot.chain[slot.chain.length-1].exitPrice = exitPt.price;
-      slot.chain[slot.chain.length-1].exitRank = rank;
-      slot.chain.push({code:rep.s.c, from:repPt.date, price:repPt.price, replacedFrom:cur, triggerDate:d, triggerRank:rank});
-      slot.code = rep.s.c;
-      slot.entryDate = repPt.date;
-      slot.entryPrice = repPt.price;
-      result.events.push({date:d, out:cur, outRank:rank, in:rep.s.c, inName:rep.s.n || '', threshold:cfg.dropRank, weight:slot.weight || 0});
+function getRefTradingDatesBetweenNE(refDaily, startDate, endDate){
+  if (!refDaily || !refDaily.length || !startDate || !endDate) return [];
+  return refDaily.filter(function(b){ return b.date > startDate && b.date < endDate; }).map(function(b){ return b.date; });
+}
+function buildNaturalRankListNE(dateStr, hurdle){
+  var sc = calcAllScores(dateStr).filter(function(r){ return r && r.s && r.score !== null && r.r240 !== null && r.r240 > hurdle && r.s.c !== 'SGOV' && r.s.c !== 'CASH'; });
+  sc.sort(function(a,b){ return b.score-a.score; });
+  return sc;
+}
+function calcNaturalLongChainsNE(target, tradeStart, tradeEnd, refDaily, hurdle, rankLimit){
+  var events = [], slots = [], blocked = {};
+  Object.keys(target).forEach(function(c){ if ((target[c] || 0) < 0) blocked[c] = true; });
+  Object.keys(target).forEach(function(c){
+    var w = target[c];
+    if (w > 0 && c !== 'CASH' && c !== 'SGOV') {
+      var p0 = getPointOnOrBeforeNE(c, tradeStart);
+      slots.push({ original:c, current:c, startDate:p0 ? p0.date : tradeStart, startPrice:p0 ? p0.price : null, initialWeight:w, capital:w, chain:[c], alive:!!(p0 && p0.price>0) });
+      blocked[c] = true;
+    }
+  });
+  if (!slots.length) return {slotDetails:{}, events:events, extraTurnover:0, finalHoldings:{}};
+  var extraTurnover = 0;
+  getRefTradingDatesBetweenNE(refDaily, tradeStart, tradeEnd).forEach(function(d){
+    var rankList = buildNaturalRankListNE(d, hurdle);
+    if (!rankList.length) return;
+    var rankMap = {};
+    rankList.forEach(function(r,i){ rankMap[r.s.c] = i+1; });
+    slots.forEach(function(slot){
+      if (!slot.alive || slot.capital <= 0 || slot.current === 'CASH') return;
+      var currentRank = rankMap[slot.current] || 999999;
+      if (currentRank <= rankLimit) return;
+      var sell = getPointOnOrBeforeNE(slot.current, d);
+      if (!sell || !sell.price || !slot.startPrice) return;
+      slot.capital = slot.capital * (sell.price / slot.startPrice);
+      if (!isFinite(slot.capital) || slot.capital < 0) slot.capital = 0;
+      var heldNow = {};
+      slots.forEach(function(s){ if (s.alive && s.current && s.current !== 'CASH') heldNow[s.current] = true; });
+      var repl = null;
+      for (var i=0; i<rankList.length; i++){
+        var cand = rankList[i].s.c;
+        if (heldNow[cand] || blocked[cand]) continue;
+        if (slot.chain.indexOf(cand) !== -1) continue;
+        var bp = getPointOnOrBeforeNE(cand, d);
+        if (!bp || !bp.price) continue;
+        repl = {code:cand, rank:i+1, point:bp};
+        break;
+      }
+      extraTurnover += Math.abs(slot.capital); // replacement uses remaining capital only
+      blocked[slot.current] = false;
+      if (!repl) {
+        events.push({date:d, from:slot.current, to:'CASH', rank:currentRank, inheritedCapital:slot.capital});
+        slot.current='CASH'; slot.startDate=d; slot.startPrice=null; slot.chain.push('CASH'); slot.alive=false;
+        return;
+      }
+      events.push({date:d, from:slot.current, to:repl.code, rank:currentRank, newRank:repl.rank, inheritedCapital:slot.capital});
+      slot.current=repl.code; slot.startDate=repl.point.date; slot.startPrice=repl.point.price; slot.chain.push(repl.code); blocked[repl.code]=true;
     });
   });
-  result.slots = longSlots;
-  return result;
+  var slotDetails = {}, finalHoldings = {};
+  slots.forEach(function(slot){
+    if (slot.alive && slot.current !== 'CASH') {
+      var end = getPointOnOrBeforeNE(slot.current, tradeEnd);
+      if (end && end.price && slot.startPrice) slot.capital = slot.capital * (end.price / slot.startPrice);
+    }
+    if (!isFinite(slot.capital) || slot.capital < 0) slot.capital = 0;
+    var r = slot.initialWeight > 0 ? (slot.capital / slot.initialWeight - 1) : 0;
+    finalHoldings[slot.current] = (finalHoldings[slot.current] || 0) + slot.capital;
+    slotDetails[slot.original] = { ret:r, w:slot.initialWeight, wNominal:slot.initialWeight, wEff:slot.initialWeight, prevDate:tradeStart, currDate:tradeEnd, prevPrice:null, currPrice:null, note: slot.chain.length>1 ? ('自然淘汰鏈: '+slot.chain.join('→')) : '', chain:slot.chain.slice(), finalCode:slot.current, finalCapital:slot.capital };
+  });
+  return {slotDetails:slotDetails, events:events, extraTurnover:extraTurnover, finalHoldings:finalHoldings};
 }
-function finalizeNaturalSlotReturn(slot, endDate) {
-  if (!slot || !slot.chain || !slot.chain.length) return null;
-  var total = 1.0;
-  for (var i=0; i<slot.chain.length; i++) {
-    var seg = slot.chain[i];
-    var exitDate = seg.to || endDate;
-    var exitPt = seg.exitPrice ? {date:seg.to, price:seg.exitPrice} : getMarketMonthEndPoint(seg.code, exitDate);
-    if (!exitPt || !exitPt.price || !seg.price || seg.price <= 0) return null;
-    total *= (exitPt.price / seg.price);
-    seg.to = exitPt.date;
-    seg.exitPrice = exitPt.price;
-  }
-  return total - 1;
-}
-function naturalChainLabel(slot) {
-  if (!slot || !slot.chain || !slot.chain.length) return '';
-  return slot.chain.map(function(seg){ return seg.code; }).join('→');
+function csvCell(v){
+  if (v === null || v === undefined) return '';
+  var s = String(v);
+  if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g,'""') + '"';
+  return s;
 }
 
 function runBTcore(mh, mode, opts) {
@@ -256,6 +247,7 @@ function runBTcore(mh, mode, opts) {
   var regimeExp=gv('btRegimeExp')||100;
   var useMA60=$('ma60Filter')?$('ma60Filter').value==='on':true;
   var tnExecMode = opts.tnExecMode || getTNExecMode();
+  var naturalCfg = getNaturalElimConfig();
 
   var nav=INIT, bNav=INIT, records=[], holdings={CASH:1.0};
       var DEFENSIVE=['SGOV'];
@@ -367,8 +359,6 @@ function runBTcore(mh, mode, opts) {
     // 多方缺額只記錄為 longFillSlots，後面補到 target 的 SGOV/CASH。
     // 不再 push 到 sel，避免 SGOV/CASH 被當成多方候選，甚至再流入空方候選。
     var longFillSlots = Math.max(0, totalQuota - sel.length);
-
-    var naturalOriginalQueue = mainCands.slice().sort(function(a,b){ return b.score-a.score; });
 
     var selS=[];
     if (shortN>0) {
@@ -509,61 +499,20 @@ function runBTcore(mh, mode, opts) {
           target = {};
           target[shieldCode] = 1.0;
         } else {
-          // Partial exposure: scale down equity, fill rest with SGOV
+          // Partial exposure: scale every existing target by shieldExposure,
+          // then add the reduced portion to SGOV/CASH. This preserves any
+          // pre-existing SGOV/CASH fill instead of dropping it when shieldCode is SGOV.
           var newTarget = {};
-          var sgovFill = 1.0 - shieldExposure;
           Object.keys(target).forEach(function(c) {
-            if (c === 'SGOV' || c === 'CASH') return;
-            newTarget[c] = (target[c] || 0) * shieldExposure;
+            newTarget[c] = (newTarget[c] || 0) + (target[c] || 0) * shieldExposure;
           });
-          newTarget[shieldCode] = (newTarget[shieldCode] || 0) + sgovFill;
-          // Keep any existing SGOV/CASH weight scaled too
-          if (target['SGOV'] && shieldCode !== 'SGOV') newTarget['SGOV'] = (target['SGOV'] || 0) * shieldExposure;
-          if (target['CASH'] && shieldCode !== 'CASH') newTarget['CASH'] = (target['CASH'] || 0) * shieldExposure;
+          var absBase = 0;
+          Object.keys(target).forEach(function(c) { absBase += Math.abs(target[c] || 0); });
+          if (!absBase || absBase <= 0) absBase = 1.0;
+          var defensiveFill = absBase * (1.0 - shieldExposure);
+          newTarget[shieldCode] = (newTarget[shieldCode] || 0) + defensiveFill;
           target = newTarget;
         }
-      }
-    }
-
-    var naturalCfg = getNaturalElimConfig();
-    var naturalOverrides = {}, naturalEvents = [], naturalExtraTurnover = 0;
-    if (naturalCfg.enabled && !isShortOnly) {
-      var longSlots = [];
-      Object.keys(target).forEach(function(c){
-        var w = target[c];
-        if (w <= 0 || c === 'CASH' || c === 'SGOV') return;
-        var ep = getMarketMonthEndPoint(c, tradePrevM);
-        if (!ep || !ep.price || ep.price <= 0) return;
-        longSlots.push({origCode:c, code:c, weight:w, active:true, entryDate:ep.date, entryPrice:ep.price});
-      });
-      var simNE = simulateNaturalEliminationSlots(longSlots, naturalOriginalQueue, refDaily, tradePrevM, tradeSigM, naturalCfg);
-      naturalEvents = simNE.events || [];
-      if (naturalEvents.length) {
-        simNE.slots.forEach(function(slot){
-          var rNE = finalizeNaturalSlotReturn(slot, tradeSigM);
-          var finalCode = slot.code;
-          if (rNE === null || !finalCode) return;
-          if (slot.origCode !== finalCode) {
-            var oldW = target[slot.origCode] || 0;
-            delete target[slot.origCode];
-            target[finalCode] = (target[finalCode] || 0) + oldW;
-          }
-          naturalOverrides[finalCode] = {
-            ret:rNE,
-            prevDate:slot.chain[0].from,
-            currDate:slot.chain[slot.chain.length-1].to,
-            prevPrice:slot.chain[0].price,
-            currPrice:slot.chain[slot.chain.length-1].exitPrice,
-            chain:naturalChainLabel(slot),
-            events:naturalEvents.filter(function(e){ return slot.chain.some(function(seg){ return seg.triggerDate === e.date && seg.replacedFrom === e.out; }); })
-          };
-        });
-        // Each intramonth replacement is a full sell + buy for that slot.
-        // Existing turnover is computed from previous holdings to final month-end holdings,
-        // so this extra term adds the missing round-trip caused by each replacement.
-        naturalEvents.forEach(function(e){
-          naturalExtraTurnover += Math.abs(e.weight || 0);
-        });
       }
     }
 
@@ -576,7 +525,6 @@ function runBTcore(mh, mode, opts) {
       turnover+=Math.abs(newW-oldW);
     });
     turnover/=2;
-    if (naturalExtraTurnover > 0) turnover += naturalExtraTurnover;
 
     var baseSlippage=0.001;
     var impactMultiplier=Math.max(1,Math.pow(turnover/0.2,1.5));
@@ -593,37 +541,69 @@ function runBTcore(mh, mode, opts) {
       cashRet=(cr*CASH_FACTOR)/cashDivisor;
     }
 
+    var naturalResult = null;
+    var naturalExtraTurnover = 0;
+    if (naturalCfg.enabled) {
+      naturalResult = calcNaturalLongChainsNE(target, tradePrevM, tradeSigM, refDaily, hurdle, naturalCfg.rankLimit);
+      naturalExtraTurnover = naturalResult.extraTurnover || 0;
+      turnover += naturalExtraTurnover;
+      // Natural elimination ON uses linear impact on actual turnover to avoid artificial cost explosions.
+      impactCost = turnover * baseSlippage;
+      friction = (turnover * COST) + impactCost;
+    }
+
     var stockRets={};
     Object.keys(target).forEach(function(c){
       var nominalW = target[c];
       if (c==='CASH') {
         stockRets[c]={ret:cashRet,w:nominalW,wNominal:nominalW,wEff:nominalW,prevDate:tradePrevM,currDate:tradeSigM,prevPrice:null,currPrice:null};
       } else {
-        var overNE = naturalOverrides[c];
+        if (naturalResult && naturalResult.slotDetails && naturalResult.slotDetails[c] && nominalW > 0) {
+          stockRets[c] = naturalResult.slotDetails[c];
+          return;
+        }
         var p0pt=getMarketMonthEndPoint(c, tradePrevM), p1pt=getMarketMonthEndPoint(c, tradeSigM);
         var retVal=(p0pt&&p1pt&&p0pt.price>0)?(p1pt.price/p0pt.price-1):null;
-        if (overNE) retVal = overNE.ret;
         stockRets[c]={
           ret:retVal,
           w:nominalW,
           wNominal:nominalW,
           wEff:0,
-          prevDate:overNE?overNE.prevDate:(p0pt?p0pt.date:null),
-          currDate:overNE?overNE.currDate:(p1pt?p1pt.date:null),
-          prevPrice:overNE?overNE.prevPrice:(p0pt?p0pt.price:null),
-          currPrice:overNE?overNE.currPrice:(p1pt?p1pt.price:null),
-          note:overNE?('NaturalElim '+overNE.chain):(retVal===null?'Missing':((p0pt&&p0pt.fallback)||(p1pt&&p1pt.fallback)?'FallbackDate':'')),
-          naturalChain:overNE?overNE.chain:null,
-          naturalEvents:overNE?overNE.events:null
+          prevDate:p0pt?p0pt.date:null,
+          currDate:p1pt?p1pt.date:null,
+          prevPrice:p0pt?p0pt.price:null,
+          currPrice:p1pt?p1pt.price:null,
+          note:(retVal===null?'Missing':((p0pt&&p0pt.fallback)||(p1pt&&p1pt.fallback)?'FallbackDate':''))
         };
       }
     });
 
-    // Missing handling: redistribute missing long weight among valid long holdings,
-    // and missing short weight among valid short holdings. This preserves the intended side exposure.
+    // Missing handling:
+    // - Original/OFF path keeps the existing redistribution behavior.
+    // - Natural elimination slots are capital-tracked chains; their return contribution must be
+    //   initialWeight * chainReturn exactly. Do NOT apply posFactor to them, otherwise missing
+    //   non-natural holdings can incorrectly leverage natural-chain returns.
     var validTarget={}, grossRet=0;
+    var naturalOriginals = {};
+    if (naturalResult && naturalResult.slotDetails) {
+      Object.keys(naturalResult.slotDetails).forEach(function(c){ naturalOriginals[c] = true; });
+    }
+
+    // First, book natural-chain contributions independently.
+    Object.keys(naturalOriginals).forEach(function(c){
+      var rd = stockRets[c];
+      if (!rd || rd.ret === null) return;
+      var iw = (rd.wNominal !== undefined ? rd.wNominal : (rd.w !== undefined ? rd.w : (target[c] || 0))) || 0;
+      rd.wEff = iw;
+      rd.w = iw;
+      validTarget[c] = iw;
+      grossRet += iw * rd.ret;
+    });
+
+    // Then redistribute only the remaining non-natural positions.
     var nominalPos=0, validPos=0, nominalNeg=0, validNeg=0;
     Object.keys(target).forEach(function(c){
+      if (naturalOriginals[c]) return;
       var w=target[c], rd=stockRets[c];
       if (w>=0) {
         nominalPos += w;
@@ -637,6 +617,7 @@ function runBTcore(mh, mode, opts) {
     var negFactor = (validNeg<0) ? (nominalNeg/validNeg) : 0;
 
     Object.keys(target).forEach(function(c){
+      if (naturalOriginals[c]) return;
       var w=target[c], rd=stockRets[c];
       if (!rd || rd.ret===null) {
         if (rd) { rd.wEff=0; rd.note='Missing'; }
@@ -672,20 +653,48 @@ function runBTcore(mh, mode, opts) {
     for (var c in validTarget) {
       drifted[c]=(validTarget[c]*(1+(stockRets[c]?stockRets[c].ret:0)))/driftDenom;
     }
+    if (naturalResult && naturalResult.finalHoldings) {
+      var nd = {};
+      Object.keys(drifted).forEach(function(k){
+        if (target[k] > 0 && k !== 'CASH' && k !== 'SGOV') return;
+        nd[k] = drifted[k];
+      });
+      Object.keys(naturalResult.finalHoldings).forEach(function(k){ nd[k] = (nd[k] || 0) + naturalResult.finalHoldings[k] / driftDenom; });
+      drifted = nd;
+    }
 
     var b0=getMarketMonthEndPrice(masterTicker,tradePrevM), b1=getMarketMonthEndPrice(masterTicker,tradeSigM);
     if (b0&&b1&&b0>0) bNav*=(1+(b1/b0-1));
 
     var hCopy={};
-    Object.keys(validTarget).forEach(function(k){ hCopy[k]=validTarget[k]; });
+    if (naturalResult && naturalResult.finalHoldings) {
+      Object.keys(validTarget).forEach(function(k){
+        if (target[k] > 0 && k !== 'CASH' && k !== 'SGOV') return;
+        hCopy[k] = validTarget[k];
+      });
+      Object.keys(naturalResult.finalHoldings).forEach(function(k){ hCopy[k]=(hCopy[k]||0)+naturalResult.finalHoldings[k]; });
+    } else {
+      Object.keys(validTarget).forEach(function(k){ hCopy[k]=validTarget[k]; });
+    }
     var recPeriod = tradePeriod;
     var allScoresCopy = sc2.filter(function(r){return r.score!==null;}).map(function(r){
       return {c:r.s.c, pool:r.s.pool, score:r.score};
     });
-    records.push({month:sigM,period:recPeriod,nav:nav,bNav:bNav,holdings:hCopy,pRet:netRet,grossRet:grossRet,turnover:turnover,turnoverCost:turnoverCost,impactCost:impactCost,totalCost:totalCost,closureCostDiff:closureCostDiff,closureNavDiff:closureNavDiff,hurdle:hurdle,stockRets:stockRets,scoringM:scoreM,shield:shield,stressLevel:shield.stressLevel||0,allScores:allScoresCopy,naturalEvents:naturalEvents,naturalCfg:naturalCfg,tnExecMode:tnExecMode,tradeStart:tradePrevM,tradeEnd:tradeSigM});
+    records.push({month:sigM,period:recPeriod,nav:nav,bNav:bNav,holdings:hCopy,pRet:netRet,grossRet:grossRet,turnover:turnover,turnoverCost:turnoverCost,impactCost:impactCost,totalCost:totalCost,closureCostDiff:closureCostDiff,closureNavDiff:closureNavDiff,hurdle:hurdle,stockRets:stockRets,scoringM:scoreM,shield:shield,stressLevel:shield.stressLevel||0,allScores:allScoresCopy,naturalEvents:(naturalResult?naturalResult.events:[]),naturalOn:!!naturalResult,tnExecMode:tnExecMode,tradeStart:tradePrevM,tradeEnd:tradeSigM});
     holdings=drifted;
   }
   return records.length>=6 ? records : null;
+}
+
+function sampleStdAnnualized(arr) {
+  if (!arr || arr.length < 2) return 0;
+  var avg = arr.reduce(function(a,b){ return a + b; }, 0) / arr.length;
+  var variance = arr.reduce(function(a,b){ return a + Math.pow(b - avg, 2); }, 0) / (arr.length - 1);
+  return Math.sqrt(Math.max(variance, 0)) * Math.sqrt(getAnnualPeriods());
+}
+function periodsToYears(periodCount) {
+  var p = getAnnualPeriods ? getAnnualPeriods() : 12;
+  return p > 0 ? periodCount / p : periodCount / 12;
 }
 
 function kpi(records, init) {
@@ -1039,7 +1048,7 @@ function renderBT(records,init,mode) {
   recs.forEach(function(r){if(r.nav>pk)pk=r.nav;var dd=(r.nav-pk)/pk;if(dd<mdd)mdd=dd;});
   var rets=recs.map(function(r){return r.pRet;});
   var avg=rets.reduce(function(a,b){return a+b;},0)/rets.length;
-  var std=Math.sqrt(rets.reduce(function(a,b){return a+Math.pow(b-avg,2);},0)/(rets.length>1?rets.length-1:1))*Math.sqrt(12)||1;
+  var std=sampleStdAnnualized(rets)||1;
   var sh=(cagr-0.015)/std;
   var fmt=function(v,p,pl){return (pl&&v>=0?'+':'')+(p?(v*100).toFixed(2)+'%':v.toFixed(2));};
   var modeLabel=mode==='rank'?'Rank-Weighted':'Equal-Weighted';
@@ -1366,54 +1375,17 @@ function dlOHLCV() {
   sl('dlLog','OHLCV CSV downloaded',true);
 }
 function dlMonthly() { alert('V1.9 uses DAILY data natively. Please use OHLCV export.'); }
-function csvCell(v) {
-  if (v === null || v === undefined) return '';
-  var t = String(v);
-  if (/[",\n\r]/.test(t)) return '"' + t.replace(/"/g, '""') + '"';
-  return t;
-}
 function dlBtCsv() {
   if (!BT_RESULT) { sl('btLog','Run backtest first',false); return; }
   var recs=BT_RESULT.records, init=BT_RESULT.initial;
-  var rows=[[
-    'Date','Period','TradeStart','TradeEnd','ScoringDate','Holdings','NaturalEvents',
-    'Hurdle%','GrossReturn%','Turnover','TurnoverCost%','ImpactCost%','TotalCost%',
-    'Return%','NAV','BenchNav','Alpha%','ClosureCostDiff%','ClosureNavDiff%'
-  ]];
+  var rows=['Date,Holdings,Hurdle%,GrossReturn%,Turnover%,TurnoverCost%,ImpactCost%,TotalCost%,Return%,NAV,BenchNav,Alpha%,NaturalEvents,ClosureCostDiff%,ClosureNavDiff%'];
   recs.forEach(function(r,i){
-    var pb=i>0?recs[i-1].bNav:init;
-    var ex=r.pRet-(r.bNav/pb-1);
-    var hold=Object.keys(r.holdings||{}).map(function(k){
-      var nm=getStockName(k);
-      return k+(nm&&nm!==k?'('+nm+')':'')+' '+((r.holdings[k]||0)*100).toFixed(2)+'%';
-    }).join(' | ');
-    var ne=(r.naturalEvents||[]).map(function(e){
-      return e.date+': '+e.out+'#'+e.outRank+' -> '+e.in+' @ '+((e.weight||0)*100).toFixed(2)+'%';
-    }).join(' | ');
-    rows.push([
-      r.month,
-      r.period||'',
-      r.tradeStart||'',
-      r.tradeEnd||'',
-      r.scoringM||'',
-      hold,
-      ne,
-      ((r.hurdle||0)*100).toFixed(2),
-      ((r.grossRet||0)*100).toFixed(3),
-      (r.turnover||0).toFixed(6),
-      ((r.turnoverCost||0)*100).toFixed(3),
-      ((r.impactCost||0)*100).toFixed(3),
-      ((r.totalCost||0)*100).toFixed(3),
-      ((r.pRet||0)*100).toFixed(3),
-      Math.round(r.nav),
-      Math.round(r.bNav),
-      (ex*100).toFixed(3),
-      ((r.closureCostDiff||0)*100).toFixed(6),
-      ((r.closureNavDiff||0)*100).toFixed(6)
-    ]);
+    var pb=i>0?recs[i-1].bNav:init; var ex=r.pRet-(r.bNav/pb-1);
+    var hold=Object.keys(r.holdings).map(function(k){ var nm=getStockName(k); return k+(nm&&nm!==k?'('+nm+')':'')+(Math.abs(r.holdings[k])<0.99?' '+(r.holdings[k]*100).toFixed(0)+'%':''); }).join('+');
+    var ev=(r.naturalEvents||[]).map(function(e){return e.date+':'+e.from+'→'+e.to+' rank='+e.rank+' cap='+(e.inheritedCapital*100).toFixed(2)+'%';}).join(' | ');
+    rows.push([r.month,hold,(r.hurdle*100).toFixed(2),((r.grossRet||0)*100).toFixed(3),((r.turnover||0)*100).toFixed(3),((r.turnoverCost||0)*100).toFixed(3),((r.impactCost||0)*100).toFixed(3),((r.totalCost||0)*100).toFixed(3),(r.pRet*100).toFixed(3),Math.round(r.nav),Math.round(r.bNav),(ex*100).toFixed(3),ev,((r.closureCostDiff||0)*100).toFixed(6),((r.closureNavDiff||0)*100).toFixed(6)].map(csvCell).join(','));
   });
-  var text='\ufeff'+rows.map(function(row){ return row.map(csvCell).join(','); }).join('\n');
-  dlText(text,'V1.9_Backtest_'+new Date().toISOString().slice(0,10)+'.csv','text/csv;charset=utf-8');
+  dlText(rows.join('\n'),'V1.9_Backtest_'+new Date().toISOString().slice(0,10)+'.csv','text/csv;charset=utf-8');
 }
 async function upJson(el) {
   var file=el.files[0]; if(!file)return;
@@ -1658,9 +1630,9 @@ function runMonteCarlo() {
         for(var i=0;i<n;i++) sim.push(rets[Math.floor(Math.random()*n)]);
         var nav=init,peak=init,mdd=0;
         sim.forEach(function(r){ nav*=(1+r); if(nav>peak)peak=nav; var dd=(nav-peak)/peak; if(dd<mdd)mdd=dd; });
-        var yrs=n/12, cagr=Math.pow(nav/init,1/yrs)-1;
+        var yrs=periodsToYears(n), cagr=Math.pow(nav/init,1/yrs)-1;
         var avg=sim.reduce(function(a,b){return a+b;},0)/sim.length;
-        var std=Math.sqrt(sim.reduce(function(a,b){return a+Math.pow(b-avg,2);},0)/sim.length)*Math.sqrt(12);
+        var std=sampleStdAnnualized(sim);
         var sharpe=std>0?(cagr-0.015)/std:0;
         cagrs.push(cagr); mdds.push(mdd); sharpes.push(sharpe);
       }
@@ -1689,9 +1661,9 @@ function runBlockBootstrap() {
         }
         var nav=init,peak=init,mdd=0;
         sim.forEach(function(r){ nav*=(1+r); if(nav>peak)peak=nav; var dd=(nav-peak)/peak; if(dd<mdd)mdd=dd; });
-        var yrs=n/12, cagr=Math.pow(nav/init,1/yrs)-1;
+        var yrs=periodsToYears(n), cagr=Math.pow(nav/init,1/yrs)-1;
         var avg=sim.reduce(function(a,b){return a+b;},0)/sim.length;
-        var std=Math.sqrt(sim.reduce(function(a,b){return a+Math.pow(b-avg,2);},0)/sim.length)*Math.sqrt(12);
+        var std=sampleStdAnnualized(sim);
         var sharpe=std>0?(cagr-0.015)/std:0;
         cagrs.push(cagr); mdds.push(mdd); sharpes.push(sharpe);
       }
@@ -1714,7 +1686,7 @@ function renderStress(cagrs,mdds,sharpes,label,simN) {
   var origCagr=Math.pow(origLast.nav/origInit,1/origYrs)-1;
   var origRets=orig.map(function(r){return r.pRet;});
   var origAvg=avgArr(origRets);
-  var origStd=Math.sqrt(origRets.reduce(function(a,b){return a+Math.pow(b-origAvg,2);},0)/origRets.length)*Math.sqrt(12);
+  var origStd=sampleStdAnnualized(origRets);
   var origSharpe=origStd>0?(origCagr-0.015)/origStd:0;
   var origPeak=origInit,origMdd=0;
   orig.forEach(function(r){if(r.nav>origPeak)origPeak=r.nav;var dd=(r.nav-origPeak)/origPeak;if(dd<origMdd)origMdd=dd;});
@@ -2382,7 +2354,7 @@ async function runPoolCompare() {
       oosMonths.forEach(function(r){ sNav*=(1+r); if(sNav>sPeak)sPeak=sNav; var dd=(sNav-sPeak)/sPeak; if(dd<sMdd)sMdd=dd; });
       var sYrs=oosMonths.length/12, sCagr=sYrs>0?Math.pow(sNav/init,1/sYrs)-1:0;
       var sAvg=oosMonths.reduce(function(a,b){return a+b;},0)/oosMonths.length;
-      var sStd=Math.sqrt(oosMonths.reduce(function(a,b){return a+Math.pow(b-sAvg,2);},0)/oosMonths.length)*Math.sqrt(12);
+      var sStd=sampleStdAnnualized(oosMonths);
       var sSharpe=sStd>0?(sCagr-0.015)/sStd:0;
       return {cagr:sCagr,mdd:sMdd,sharpe:sSharpe,nav:sNav,months:oosMonths.length};
     } catch(innerE){
@@ -2582,11 +2554,10 @@ function runRandomBaseline() {
             simRets.push(grossRet);
           }
           
-          var yrs = numMonths / 12;
+          var yrs = periodsToYears(numMonths);
           var cagr = yrs > 0 ? Math.pow(nav / init, 1 / yrs) - 1 : 0;
           var avg = simRets.reduce(function(a, b) { return a + b; }, 0) / simRets.length;
-          var variance = simRets.reduce(function(a, b) { return a + Math.pow(b - avg, 2); }, 0) / simRets.length;
-          var std = Math.sqrt(variance) * Math.sqrt(12);
+          var std = sampleStdAnnualized(simRets);
           var sharpe = std > 0 ? (cagr - 0.015) / std : 0;
           
           cagrs.push(cagr); mdds.push(mdd); sharpes.push(sharpe);
@@ -2629,7 +2600,7 @@ function renderRandomBaseline(cagrs, mdds, sharpes, simN, N) {
   var origCagr = Math.pow(origLast.nav / orig.initial, 1 / origYrs) - 1;
   var origRets = orig.records.map(function(r) { return r.pRet; });
   var origAvg = origRets.reduce(function(a, b) { return a + b; }, 0) / origRets.length;
-  var origStd = Math.sqrt(origRets.reduce(function(a, b) { return a + Math.pow(b - origAvg, 2); }, 0) / origRets.length) * Math.sqrt(12);
+  var origStd = sampleStdAnnualized(origRets);
   var origSharpe = origStd > 0 ? (origCagr - 0.015) / origStd : 0;
   var origPeak = orig.initial, origMdd = 0;
   orig.records.forEach(function(r) { 
