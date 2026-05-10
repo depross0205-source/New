@@ -199,7 +199,7 @@ function simulateNaturalEliminationSlots(longSlots, originalQueue, refDaily, sta
       slot.code = rep.s.c;
       slot.entryDate = repPt.date;
       slot.entryPrice = repPt.price;
-      result.events.push({date:d, out:cur, outRank:rank, in:rep.s.c, inName:rep.s.n || '', threshold:cfg.dropRank});
+      result.events.push({date:d, out:cur, outRank:rank, in:rep.s.c, inName:rep.s.n || '', threshold:cfg.dropRank, weight:slot.weight || 0});
     });
   });
   result.slots = longSlots;
@@ -558,8 +558,11 @@ function runBTcore(mh, mode, opts) {
             events:naturalEvents.filter(function(e){ return slot.chain.some(function(seg){ return seg.triggerDate === e.date && seg.replacedFrom === e.out; }); })
           };
         });
+        // Each intramonth replacement is a full sell + buy for that slot.
+        // Existing turnover is computed from previous holdings to final month-end holdings,
+        // so this extra term adds the missing round-trip caused by each replacement.
         naturalEvents.forEach(function(e){
-          Object.keys(target).forEach(function(c){ if (c === e.in) naturalExtraTurnover += Math.abs(target[c] || 0); });
+          naturalExtraTurnover += Math.abs(e.weight || 0);
         });
       }
     }
@@ -1363,16 +1366,54 @@ function dlOHLCV() {
   sl('dlLog','OHLCV CSV downloaded',true);
 }
 function dlMonthly() { alert('V1.9 uses DAILY data natively. Please use OHLCV export.'); }
+function csvCell(v) {
+  if (v === null || v === undefined) return '';
+  var t = String(v);
+  if (/[",\n\r]/.test(t)) return '"' + t.replace(/"/g, '""') + '"';
+  return t;
+}
 function dlBtCsv() {
   if (!BT_RESULT) { sl('btLog','Run backtest first',false); return; }
   var recs=BT_RESULT.records, init=BT_RESULT.initial;
-  var rows=['Date,Holdings,Hurdle%,GrossReturn%,TurnoverCost%,ImpactCost%,TotalCost%,Return%,NAV,BenchNav,Alpha%,ClosureCostDiff%,ClosureNavDiff%'];
+  var rows=[[
+    'Date','Period','TradeStart','TradeEnd','ScoringDate','Holdings','NaturalEvents',
+    'Hurdle%','GrossReturn%','Turnover','TurnoverCost%','ImpactCost%','TotalCost%',
+    'Return%','NAV','BenchNav','Alpha%','ClosureCostDiff%','ClosureNavDiff%'
+  ]];
   recs.forEach(function(r,i){
-    var pb=i>0?recs[i-1].bNav:init; var ex=r.pRet-(r.bNav/pb-1);
-    var hold=Object.keys(r.holdings).map(function(k){ var nm=getStockName(k); return k+(nm&&nm!==k?'('+nm+')':'')+(Math.abs(r.holdings[k])<0.99?' '+(r.holdings[k]*100).toFixed(0)+'%':''); }).join('+');
-    rows.push([r.month,hold,(r.hurdle*100).toFixed(2),((r.grossRet||0)*100).toFixed(3),((r.turnoverCost||0)*100).toFixed(3),((r.impactCost||0)*100).toFixed(3),((r.totalCost||0)*100).toFixed(3),(r.pRet*100).toFixed(3),Math.round(r.nav),Math.round(r.bNav),(ex*100).toFixed(3),((r.closureCostDiff||0)*100).toFixed(6),((r.closureNavDiff||0)*100).toFixed(6)].join(','));
+    var pb=i>0?recs[i-1].bNav:init;
+    var ex=r.pRet-(r.bNav/pb-1);
+    var hold=Object.keys(r.holdings||{}).map(function(k){
+      var nm=getStockName(k);
+      return k+(nm&&nm!==k?'('+nm+')':'')+' '+((r.holdings[k]||0)*100).toFixed(2)+'%';
+    }).join(' | ');
+    var ne=(r.naturalEvents||[]).map(function(e){
+      return e.date+': '+e.out+'#'+e.outRank+' -> '+e.in+' @ '+((e.weight||0)*100).toFixed(2)+'%';
+    }).join(' | ');
+    rows.push([
+      r.month,
+      r.period||'',
+      r.tradeStart||'',
+      r.tradeEnd||'',
+      r.scoringM||'',
+      hold,
+      ne,
+      ((r.hurdle||0)*100).toFixed(2),
+      ((r.grossRet||0)*100).toFixed(3),
+      (r.turnover||0).toFixed(6),
+      ((r.turnoverCost||0)*100).toFixed(3),
+      ((r.impactCost||0)*100).toFixed(3),
+      ((r.totalCost||0)*100).toFixed(3),
+      ((r.pRet||0)*100).toFixed(3),
+      Math.round(r.nav),
+      Math.round(r.bNav),
+      (ex*100).toFixed(3),
+      ((r.closureCostDiff||0)*100).toFixed(6),
+      ((r.closureNavDiff||0)*100).toFixed(6)
+    ]);
   });
-  dlText(rows.join('\\n'),'V1.9_Backtest_'+new Date().toISOString().slice(0,10)+'.csv','text/csv;charset=utf-8');
+  var text='\ufeff'+rows.map(function(row){ return row.map(csvCell).join(','); }).join('\n');
+  dlText(text,'V1.9_Backtest_'+new Date().toISOString().slice(0,10)+'.csv','text/csv;charset=utf-8');
 }
 async function upJson(el) {
   var file=el.files[0]; if(!file)return;
