@@ -24,6 +24,78 @@ function getMarketMonthEndPrice(code, refDate) {
   return p ? p.price : null;
 }
 
+
+function getLatestMarketPoint(code) {
+  var bars = DAILY[code];
+  if (!bars || !bars.length) return null;
+  for (var i = bars.length - 1; i >= 0; i--) {
+    if (bars[i].c != null) return {date: bars[i].date, price: bars[i].c};
+  }
+  return null;
+}
+function fmtPx(v) {
+  if (v === null || v === undefined || !isFinite(v)) return '--';
+  var n = Math.abs(v) >= 1000 ? v.toFixed(0) : (Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(2));
+  return n;
+}
+function fmtRet(v) {
+  if (v === null || v === undefined || !isFinite(v)) return '--';
+  return (v >= 0 ? '+' : '') + (v * 100).toFixed(2) + '%';
+}
+function calcLivePositionReturn(entryPrice, latestPrice, weight) {
+  if (!entryPrice || !latestPrice || entryPrice <= 0) return null;
+  var raw = latestPrice / entryPrice - 1;
+  return weight < 0 ? -raw : raw;
+}
+function renderLatestHoldingsPriceBox(record) {
+  if (!record || !record.stockRets) return '';
+  var rows = [];
+  Object.keys(record.stockRets).forEach(function(k){
+    if (k === 'CASH') return;
+    var sr = record.stockRets[k] || {};
+    var w = (sr.w !== undefined ? sr.w : (record.holdings ? record.holdings[k] : 0)) || 0;
+    var entryPrice = sr.prevPrice;
+    var entryDate = sr.prevDate || record.period || record.month;
+    var latest = getLatestMarketPoint(k);
+    var latestPrice = latest ? latest.price : null;
+    var liveRet = calcLivePositionReturn(entryPrice, latestPrice, w);
+    var side = w < 0 ? 'SHORT' : 'LONG';
+    var sideColor = w < 0 ? 'var(--re)' : 'var(--gr)';
+    var retColor = liveRet === null ? 'var(--mu)' : (liveRet >= 0 ? 'var(--gr)' : 'var(--re)');
+    rows.push('<tr>'
+      + '<td class="mono" style="color:var(--wh);font-weight:700">'+k+'</td>'
+      + '<td>'+getStockName(k)+'</td>'
+      + '<td class="mono" style="color:'+sideColor+'">'+side+'</td>'
+      + '<td class="mono">'+Math.abs(w*100).toFixed(1)+'%</td>'
+      + '<td class="mono">'+(entryDate||'--')+'</td>'
+      + '<td class="mono" style="color:var(--tw)">'+fmtPx(entryPrice)+'</td>'
+      + '<td class="mono">'+(latest?latest.date:'--')+'</td>'
+      + '<td class="mono" style="color:var(--ac)">'+fmtPx(latestPrice)+'</td>'
+      + '<td class="mono" style="color:'+retColor+';font-weight:700">'+fmtRet(liveRet)+'</td>'
+      + '</tr>');
+  });
+  if (!rows.length) return '';
+  return '<div class="card" style="border-top:3px solid var(--ac);margin-top:8px">'
+    + '<div class="ct">最新一個月持股價格追蹤 <span style="font-size:10px;color:var(--mu);font-weight:400">買入價=該期月末進場價；最新市價=資料庫最後收盤價</span></div>'
+    + '<div class="tw-wrap" style="max-height:none;margin-bottom:0"><table><thead><tr>'
+    + '<th>Code</th><th>Name</th><th>Side</th><th>Weight</th><th>買入日</th><th>買入價</th><th>最新日</th><th>最新市價</th><th>即時損益%</th>'
+    + '</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>'
+    + '</div>';
+}
+function renderSignalPriceLine(code, scoreDate, weightSign) {
+  var entry = getMarketMonthEndPoint(code, scoreDate);
+  var latest = getLatestMarketPoint(code);
+  var liveRet = calcLivePositionReturn(entry ? entry.price : null, latest ? latest.price : null, weightSign || 1);
+  var retColor = liveRet === null ? 'var(--mu)' : (liveRet >= 0 ? 'var(--gr)' : 'var(--re)');
+  return '<div style="margin-top:5px;padding-top:5px;border-top:1px dashed var(--bd);font-size:10px;color:var(--mu);font-family:monospace;line-height:1.7">'
+    + '買入價: <span style="color:var(--tw)">'+fmtPx(entry ? entry.price : null)+'</span>'
+    + ' <span style="color:var(--mu)">('+(entry ? entry.date : '--')+')</span><br>'
+    + '最新市價: <span style="color:var(--ac)">'+fmtPx(latest ? latest.price : null)+'</span>'
+    + ' <span style="color:var(--mu)">('+(latest ? latest.date : '--')+')</span>'
+    + ' / 損益: <span style="color:'+retColor+';font-weight:700">'+fmtRet(liveRet)+'</span>'
+    + '</div>';
+}
+
 function runBTcore(mh, mode, opts) {
   opts = opts || {};
   CORR_WIN=parseInt($('corrW')?$('corrW').value:'24')||24;
@@ -801,7 +873,8 @@ function renderBT(records,init,mode) {
     +'<div class="mr"><span>Return</span><span class="mv '+(btr>=0?'tg':'tr')+'">'+fmt(btr,true,true)+'</span></div>'
     +'<div class="mr"><span>CAGR</span><span class="mv">'+fmt(bcagr,true)+'</span></div>'
     +'<div class="mr"><span>Alpha</span><span class="mv '+((cagr-bcagr)>=0?'tg':'tr')+'">'+fmt(cagr-bcagr,true,true)+'</span></div>'
-    +'</div></div>';
+    +'</div></div>'
+    + renderLatestHoldingsPriceBox(last);
 
   // IC Analysis Section
   var icRes = BT_RESULT && BT_RESULT.icResult;
@@ -1009,6 +1082,7 @@ function renderBT(records,init,mode) {
           +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);font-family:monospace;font-size:11px;color:'+col+';">'
           +dirLabel+k+(nm&&nm!==k?' <span style="color:var(--mu);font-size:10px;">'+nm+'</span>':'')
           +' <span style="color:var(--mu);font-size:10px;">'+absPct+'</span>'
+          +(ri===0 && k!== 'CASH' ? '<div style="font-size:9px;color:var(--mu);margin-top:2px;line-height:1.5">買 '+fmtPx(sr.prevPrice)+' / 現 '+fmtPx((getLatestMarketPoint(k)||{}).price)+' / '+fmtRet(calcLivePositionReturn(sr.prevPrice,(getLatestMarketPoint(k)||{}).price,w))+'</div>' : '')
           +'</td>'
           +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);"></td>'
           +'<td class="mono" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:11px;color:var(--mu);">'
@@ -1261,7 +1335,7 @@ function isTWSignalStock(r) {
   return !!(r && r.s && (r.s.tw === true || r.s.tw === '1' || r.s.region === 'tw' || r.s.pool === 'tw'));
 }
 
-function renderSignalGroup(title, list, type, zf, pf) {
+function renderSignalGroup(title, list, type, zf, pf, scoreDate) {
   var isShort = type === 'short';
   var color = isShort ? 'var(--re)' : 'var(--gr)';
   var border = isShort ? 'var(--re)' : 'var(--gr)';
@@ -1296,7 +1370,9 @@ function renderSignalGroup(title, list, type, zf, pf) {
 
     html += '<div style="margin-top:5px;font-size:10px;color:var(--mu);font-family:monospace">'
       + 'R240:'+pf(r.r240)+' / Pool:'+(r.s.pool||'-')+' / Region:'+(r.s.region||'-')
-      + '</div></div>';
+      + '</div>'
+      + renderSignalPriceLine(r.s.c, scoreDate, isShort ? -1 : 1)
+      + '</div>';
   });
   html += '</div>';
   return html;
@@ -1316,10 +1392,10 @@ function renderSig(sel,selS,all,date,hurdle) {
   var shortTW = selS.filter(isTWSignalStock);
   var shortUS = selS.filter(function(r){ return !isTWSignalStock(r); });
 
-  html += renderSignalGroup('LONG 多頭名單｜台股', longTW, 'long', zf, pf);
-  html += renderSignalGroup('LONG 多頭名單｜美股 / 國際', longUS, 'long', zf, pf);
-  html += renderSignalGroup('SHORT 空頭名單｜台股', shortTW, 'short', zf, pf);
-  html += renderSignalGroup('SHORT 空頭名單｜美股 / 國際', shortUS, 'short', zf, pf);
+  html += renderSignalGroup('LONG 多頭名單｜台股', longTW, 'long', zf, pf, date);
+  html += renderSignalGroup('LONG 多頭名單｜美股 / 國際', longUS, 'long', zf, pf, date);
+  html += renderSignalGroup('SHORT 空頭名單｜台股', shortTW, 'short', zf, pf, date);
+  html += renderSignalGroup('SHORT 空頭名單｜美股 / 國際', shortUS, 'short', zf, pf, date);
 
   if(!sel.length) html+='<div style="color:var(--ye);font-size:12px;margin-bottom:9px">無多頭標的通過 TS 與篩選條件；若有設定 Short N，仍可查看空頭名單。</div>';
   if(!selS.length && (parseInt($('btSN') ? $('btSN').value : '0') || 0) > 0) html+='<div style="color:var(--ye);font-size:12px;margin-bottom:9px">Short N 已開啟，但本月無空頭入選。</div>';
