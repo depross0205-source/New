@@ -523,6 +523,16 @@ tr:hover{background:var(--sf2)}
         </select>
         <div style="font-size:9px;color:var(--mu);margin-top:3px">新設定會用同基準出場：下期 T-(N-1) 收盤</div>
       </div>
+      <div class="fi"><label>自然淘汰法</label>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="btNaturalElim" style="width:14px;accent-color:var(--tw)"> 開啟月內跌出前N名汰換
+        </label>
+        <div style="display:flex;gap:6px;margin-top:5px">
+          <input type="number" id="btNaturalDropRank" value="10" min="1" max="50" title="跌出此名次外就淘汰">
+          <input type="number" id="btNaturalCheckEvery" value="1" min="1" max="10" title="每幾個交易日檢查一次，1=每日">
+        </div>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">預設：跌出前10名外淘汰；依原始順位補齊；目前套用多方持股。</div>
+      </div>
       <div class="fi"><label>回測頻率</label>
         <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="月末買賣\uff0c持倉期月末→次月末">
