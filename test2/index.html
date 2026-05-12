@@ -534,10 +534,10 @@ tr:hover{background:var(--sf2)}
         </div>
         <div style="font-size:9px;color:var(--mu);margin-top:3px">一般回測用 t-1/t-2；按「T-N公平回測」與壓力測試 WF 時，會套用左側 T-N。</div>
       </div>
-      <div class="fi"><label>大盤風控 (Regime)</label>
+      <div class="fi"><label>大盤風控 (Regime / VWMA)</label>
         <select id="btRegime">
           <option value="off">Off</option>
-          <option value="on">On (0050/SPY &lt; 60MA)</option>
+          <option value="on">On (0050/SPY &lt; 60VWMA)</option>
         </select>
       </div>
       <div class="fi"><label>曝光度 (Regime)</label>
@@ -565,6 +565,13 @@ tr:hover{background:var(--sf2)}
         <div style="font-size:9px;color:var(--mu);margin-top:3px">OFF 時完全走原始月頻回測；ON 時才啟用月內分段換股。</div>
       </div>
       <div class="fi"><label>自然淘汰門檻 Rank</label><input type="number" id="btNaturalRank" value="10" min="1" max="50" step="1"><div style="font-size:9px;color:var(--mu);margin-top:3px">預設10：跌出前10名外，賣出並由下一順位繼承剩餘資金。</div></div>
+      <div class="fi"><label>自然淘汰換股價格</label>
+        <select id="btNaturalExec">
+          <option value="CLOSE">當日收盤換股</option>
+          <option value="NEXT_CLOSE">次日收盤換股</option>
+        </select>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">判定仍以當日收盤排名；成交價可選當日收盤或下一交易日收盤。賣出與買入使用同一成交日。</div>
+      </div>
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btw" onclick="runBT()" style="flex:1">執行回測</button>
@@ -587,7 +594,7 @@ tr:hover{background:var(--sf2)}
       <button class="bo sm" onclick="dlBtCsv()">CSV</button>
     </div>
     <div class="tw-wrap"><table><thead><tr>
-      <th>Month / Stock</th><th>Holdings</th><th>Hurdle%</th><th>Return%</th><th>NAV / +$PnL</th><th>TAIEX / Contrib</th><th>Alpha%</th><th style="color:var(--re)">Stress / Exposure</th>
+      <th>Month / Stock</th><th>期末NAV比例</th><th>Hurdle%</th><th>Return%</th><th>NAV / +$PnL</th><th>TAIEX / Contrib</th><th>Alpha%</th><th style="color:var(--re)">Stress / Exposure</th>
     </tr></thead><tbody id="btBody"></tbody></table></div>
     <div id="rollingRes" class="hidden" style="margin-top:10px"></div>
   </div>

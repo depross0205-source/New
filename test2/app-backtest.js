@@ -129,7 +129,14 @@ function renderSignalPriceLine(code, scoreDate, weightSign, sigN) {
 function getNaturalElimConfig(){
   var onEl = $('btNaturalElim');
   var rankEl = $('btNaturalRank');
-  return { enabled: !!(onEl && onEl.checked), rankLimit: Math.max(1, parseInt(rankEl ? rankEl.value : '10', 10) || 10) };
+  var execEl = $('btNaturalExec');
+  var execMode = execEl ? execEl.value : 'CLOSE';
+  if (execMode !== 'NEXT_CLOSE') execMode = 'CLOSE';
+  return {
+    enabled: !!(onEl && onEl.checked),
+    rankLimit: Math.max(1, parseInt(rankEl ? rankEl.value : '10', 10) || 10),
+    execMode: execMode
+  };
 }
 function getPointOnOrBeforeNE(code, refDate){
   var bars = DAILY[code];
@@ -141,19 +148,27 @@ function getRefTradingDatesBetweenNE(refDaily, startDate, endDate){
   if (!refDaily || !refDaily.length || !startDate || !endDate) return [];
   return refDaily.filter(function(b){ return b.date > startDate && b.date < endDate; }).map(function(b){ return b.date; });
 }
+function getNextRefTradingDateNE(refDaily, dateStr){
+  if (!refDaily || !refDaily.length || !dateStr) return null;
+  for (var i=0; i<refDaily.length; i++) {
+    if (refDaily[i].date > dateStr) return refDaily[i].date;
+  }
+  return null;
+}
 function buildNaturalRankListNE(dateStr, hurdle){
   var sc = calcAllScores(dateStr).filter(function(r){ return r && r.s && r.score !== null && r.r240 !== null && r.r240 > hurdle && r.s.c !== 'SGOV' && r.s.c !== 'CASH'; });
   sc.sort(function(a,b){ return b.score-a.score; });
   return sc;
 }
-function calcNaturalLongChainsNE(target, tradeStart, tradeEnd, refDaily, hurdle, rankLimit){
+function calcNaturalLongChainsNE(target, tradeStart, tradeEnd, refDaily, hurdle, rankLimit, execMode){
+  execMode = (execMode === 'NEXT_CLOSE') ? 'NEXT_CLOSE' : 'CLOSE';
   var events = [], slots = [], blocked = {};
   Object.keys(target).forEach(function(c){ if ((target[c] || 0) < 0) blocked[c] = true; });
   Object.keys(target).forEach(function(c){
     var w = target[c];
     if (w > 0 && c !== 'CASH' && c !== 'SGOV') {
       var p0 = getPointOnOrBeforeNE(c, tradeStart);
-      slots.push({ original:c, current:c, startDate:p0 ? p0.date : tradeStart, startPrice:p0 ? p0.price : null, initialWeight:w, capital:w, chain:[c], alive:!!(p0 && p0.price>0) });
+      slots.push({ original:c, current:c, startDate:p0 ? p0.date : tradeStart, startPrice:p0 ? p0.price : null, initialWeight:w, capital:w, chain:[c], events:[], alive:!!(p0 && p0.price>0) });
       blocked[c] = true;
     }
   });
@@ -168,7 +183,9 @@ function calcNaturalLongChainsNE(target, tradeStart, tradeEnd, refDaily, hurdle,
       if (!slot.alive || slot.capital <= 0 || slot.current === 'CASH') return;
       var currentRank = rankMap[slot.current] || 999999;
       if (currentRank <= rankLimit) return;
-      var sell = getPointOnOrBeforeNE(slot.current, d);
+      var execDate = (execMode === 'NEXT_CLOSE') ? getNextRefTradingDateNE(refDaily, d) : d;
+      if (!execDate || execDate > tradeEnd) return;
+      var sell = getPointOnOrBeforeNE(slot.current, execDate);
       if (!sell || !sell.price || !slot.startPrice) return;
       slot.capital = slot.capital * (sell.price / slot.startPrice);
       if (!isFinite(slot.capital) || slot.capital < 0) slot.capital = 0;
@@ -179,7 +196,7 @@ function calcNaturalLongChainsNE(target, tradeStart, tradeEnd, refDaily, hurdle,
         var cand = rankList[i].s.c;
         if (heldNow[cand] || blocked[cand]) continue;
         if (slot.chain.indexOf(cand) !== -1) continue;
-        var bp = getPointOnOrBeforeNE(cand, d);
+        var bp = getPointOnOrBeforeNE(cand, execDate);
         if (!bp || !bp.price) continue;
         repl = {code:cand, rank:i+1, point:bp};
         break;
@@ -187,11 +204,15 @@ function calcNaturalLongChainsNE(target, tradeStart, tradeEnd, refDaily, hurdle,
       extraTurnover += Math.abs(slot.capital); // replacement uses remaining capital only
       blocked[slot.current] = false;
       if (!repl) {
-        events.push({date:d, from:slot.current, to:'CASH', rank:currentRank, inheritedCapital:slot.capital});
-        slot.current='CASH'; slot.startDate=d; slot.startPrice=null; slot.chain.push('CASH'); slot.alive=false;
+        var cashEvent = {date:execDate, signalDate:d, execDate:execDate, execMode:execMode, from:slot.current, to:'CASH', rank:currentRank, newRank:null, inheritedCapital:slot.capital, remainingPct:slot.capital, sellDate:sell.date, sellPrice:sell.price, buyDate:null, buyPrice:null};
+        events.push(cashEvent);
+        slot.events.push(cashEvent);
+        slot.current='CASH'; slot.startDate=execDate; slot.startPrice=null; slot.chain.push('CASH'); slot.alive=false;
         return;
       }
-      events.push({date:d, from:slot.current, to:repl.code, rank:currentRank, newRank:repl.rank, inheritedCapital:slot.capital});
+      var replEvent = {date:execDate, signalDate:d, execDate:execDate, execMode:execMode, from:slot.current, to:repl.code, rank:currentRank, newRank:repl.rank, inheritedCapital:slot.capital, remainingPct:slot.capital, sellDate:sell.date, sellPrice:sell.price, buyDate:repl.point.date, buyPrice:repl.point.price};
+      events.push(replEvent);
+      slot.events.push(replEvent);
       slot.current=repl.code; slot.startDate=repl.point.date; slot.startPrice=repl.point.price; slot.chain.push(repl.code); blocked[repl.code]=true;
     });
   });
@@ -204,7 +225,22 @@ function calcNaturalLongChainsNE(target, tradeStart, tradeEnd, refDaily, hurdle,
     if (!isFinite(slot.capital) || slot.capital < 0) slot.capital = 0;
     var r = slot.initialWeight > 0 ? (slot.capital / slot.initialWeight - 1) : 0;
     finalHoldings[slot.current] = (finalHoldings[slot.current] || 0) + slot.capital;
-    slotDetails[slot.original] = { ret:r, w:slot.initialWeight, wNominal:slot.initialWeight, wEff:slot.initialWeight, prevDate:tradeStart, currDate:tradeEnd, prevPrice:null, currPrice:null, note: slot.chain.length>1 ? ('自然淘汰鏈: '+slot.chain.join('→')) : '', chain:slot.chain.slice(), finalCode:slot.current, finalCapital:slot.capital };
+    slotDetails[slot.original] = {
+      ret:r,
+      w:slot.initialWeight,
+      wNominal:slot.initialWeight,
+      wEff:slot.initialWeight,
+      prevDate:slot.startDate || tradeStart,
+      currDate:tradeEnd,
+      prevPrice:slot.startPrice,
+      currPrice:end ? end.price : null,
+      note: slot.chain.length>1 ? ('自然淘汰鏈: '+slot.chain.join('→')) : '',
+      chain:slot.chain.slice(),
+      naturalEvents:slot.events.slice(),
+      finalCode:slot.current,
+      finalCapital:slot.capital,
+      endNavPct:slot.capital
+    };
   });
   return {slotDetails:slotDetails, events:events, extraTurnover:extraTurnover, finalHoldings:finalHoldings};
 }
@@ -213,6 +249,39 @@ function csvCell(v){
   var s = String(v);
   if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g,'""') + '"';
   return s;
+}
+
+
+function fmtNaturalChainHtmlNE(sr){
+  if (!sr || !sr.naturalEvents || !sr.naturalEvents.length) return '';
+  var rows = sr.naturalEvents.map(function(ev){
+    var fromName = getStockName(ev.from);
+    var toName = getStockName(ev.to);
+    var remain = (ev.remainingPct !== undefined && ev.remainingPct !== null && isFinite(ev.remainingPct)) ? (ev.remainingPct * 100).toFixed(2) + '%' : '--';
+    var rankText = ev.rank ? ('R' + ev.rank) : 'R--';
+    var newRankText = ev.newRank ? ('R' + ev.newRank) : '--';
+    var sigDate = ev.signalDate || ev.date || '--';
+    var execDate = ev.execDate || ev.date || '--';
+    var sellPx = (ev.sellPrice !== undefined && ev.sellPrice !== null && isFinite(ev.sellPrice)) ? fmtPx(ev.sellPrice) : '--';
+    var buyPx = (ev.buyPrice !== undefined && ev.buyPrice !== null && isFinite(ev.buyPrice)) ? fmtPx(ev.buyPrice) : '--';
+    return '<div style="font-size:9px;color:var(--mu);line-height:1.55;margin-top:2px;font-family:monospace">'
+      + '<span style="color:var(--ye)">判定 ' + sigDate + '</span> '
+      + '<span style="color:var(--ac)">換股 ' + execDate + '</span> '
+      + '<span style="color:var(--re)">' + ev.from + (fromName && fromName !== ev.from ? ' ' + fromName : '') + '</span>'
+      + ' 跌出門檻(' + rankText + ') 賣價 ' + sellPx + ' → '
+      + '<span style="color:var(--gr)">' + ev.to + (toName && toName !== ev.to ? ' ' + toName : '') + '</span>'
+      + (ev.to !== 'CASH' ? ' 新排序(' + newRankText + ') 買價 ' + buyPx : '')
+      + '｜剩餘比例: <span style="color:var(--ac);font-weight:700">' + remain + '</span>'
+      + '</div>';
+  });
+  var finalLine = '';
+  if (sr.finalCode) {
+    var fn = getStockName(sr.finalCode);
+    var finalPct = (sr.finalCapital !== undefined && sr.finalCapital !== null && isFinite(sr.finalCapital)) ? (sr.finalCapital * 100).toFixed(2) + '%' : '--';
+    finalLine = '<div style="font-size:9px;color:var(--mu);line-height:1.55;margin-top:2px;font-family:monospace">期末標的: <span style="color:var(--tw);font-weight:700">'
+      + sr.finalCode + (fn && fn !== sr.finalCode ? ' ' + fn : '') + '</span>｜期末NAV比例: <span style="color:var(--ac);font-weight:700">' + finalPct + '</span></div>';
+  }
+  return '<div style="margin-top:4px;padding-left:8px;border-left:2px solid var(--ye)"><div style="font-size:9px;color:var(--ye);font-weight:700">自然淘汰鏈</div>' + rows.join('') + finalLine + '</div>';
 }
 
 function runBTcore(mh, mode, opts) {
@@ -544,7 +613,7 @@ function runBTcore(mh, mode, opts) {
     var naturalResult = null;
     var naturalExtraTurnover = 0;
     if (naturalCfg.enabled) {
-      naturalResult = calcNaturalLongChainsNE(target, tradePrevM, tradeSigM, refDaily, hurdle, naturalCfg.rankLimit);
+      naturalResult = calcNaturalLongChainsNE(target, tradePrevM, tradeSigM, refDaily, hurdle, naturalCfg.rankLimit, naturalCfg.execMode);
       naturalExtraTurnover = naturalResult.extraTurnover || 0;
       turnover += naturalExtraTurnover;
       // Natural elimination ON uses linear impact on actual turnover to avoid artificial cost explosions.
@@ -1215,7 +1284,7 @@ function renderBT(records,init,mode) {
       var nm=getStockName(k);
       var pct=Math.abs(wt*100).toFixed(0)+'%';
       var lbl=(isShort?'S ':'')+k+(nm&&nm!==k?' '+nm:'');
-      return '<span style="background:'+bg+';color:'+col+';border:1px '+bst+' '+col+';padding:1px 6px;border-radius:3px;font-size:10px;font-family:monospace;margin:1px;">'+lbl+' '+pct+'</span>';
+      return '<span title="期末NAV比例" style="background:'+bg+';color:'+col+';border:1px '+bst+' '+col+';padding:1px 6px;border-radius:3px;font-size:10px;font-family:monospace;margin:1px;">'+lbl+' '+pct+'</span>';
     }).join('');
     var sl2 = (r.shield && r.shield.stressLevel !== undefined) ? r.shield.stressLevel : -1;
     var comp2 = (r.shield && r.shield.composite !== undefined) ? r.shield.composite : -1;
@@ -1251,7 +1320,7 @@ function renderBT(records,init,mode) {
     }
     var summaryRow='<tr style="border-top:2px solid var(--bd);">'
       +'<td class="mono" style="font-weight:700;vertical-align:top;">'+r.month+(r.scoringM?'<div style="font-size:9px;color:var(--mu)">\u9078\u80a1:'+r.scoringM+'</div>':'')+'</td>'
-      +'<td style="vertical-align:top;">'+holdStr+'</td>'
+      +'<td style="vertical-align:top;"><div style="font-size:9px;color:var(--mu);margin-bottom:2px">期末NAV比例</div>'+holdStr+'</td>'
       +'<td class="mono" style="font-size:10px;color:var(--bl);vertical-align:top;">'+(r.hurdle*100).toFixed(1)+'%</td>'
       +'<td class="mono" style="color:'+rc+';font-weight:700;vertical-align:top;">'+(r.pRet>=0?'+':'')+(r.pRet*100).toFixed(2)+'%</td>'
       +'<td class="mono" style="color:var(--tw);font-weight:700;vertical-align:top;">$'+Math.round(r.nav).toLocaleString()+'</td>'
@@ -1271,12 +1340,15 @@ function renderBT(records,init,mode) {
         var nm=getStockName(k);
         var dirLabel=isShortPos?'[S] ':'';
         var absPct=Math.abs(w*100).toFixed(0)+'%';
+        var finalPct = (sr.finalCapital !== undefined && sr.finalCapital !== null && isFinite(sr.finalCapital)) ? (sr.finalCapital*100).toFixed(2)+'%' : null;
+        var chainHtml = fmtNaturalChainHtmlNE(sr);
         detailRows+='<tr style="background:var(--bg);opacity:0.85;">'
           +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);"></td>'
           +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);font-family:monospace;font-size:11px;color:'+col+';">'
           +dirLabel+k+(nm&&nm!==k?' <span style="color:var(--mu);font-size:10px;">'+nm+'</span>':'')
-          +' <span style="color:var(--mu);font-size:10px;">'+absPct+'</span>'
-          +(ri===0 && k!== 'CASH' ? '<div style="font-size:9px;color:var(--mu);margin-top:2px;line-height:1.5">買 '+fmtPx(sr.prevPrice)+' / 現 '+fmtPx((getLatestMarketPoint(k)||{}).price)+' / '+fmtRet(calcLivePositionReturn(sr.prevPrice,(getLatestMarketPoint(k)||{}).price,w))+'</div>' : '')
+          +' <span style="color:var(--mu);font-size:10px;">Init '+absPct+(finalPct?'｜期末NAV '+finalPct:'')+'</span>'
+          +(ri===0 && k!== 'CASH' ? (function(){ var lp=getLatestMarketPoint(k)||{}; return '<div style="font-size:9px;color:var(--mu);margin-top:2px;line-height:1.5">買入日 '+(sr.prevDate||'--')+' / 買 '+fmtPx(sr.prevPrice)+' / 最新日 '+(lp.date||'--')+' / 現 '+fmtPx(lp.price)+' / '+fmtRet(calcLivePositionReturn(sr.prevPrice,lp.price,w))+'</div>'; })() : '')
+          +chainHtml
           +'</td>'
           +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);"></td>'
           +'<td class="mono" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:11px;color:var(--mu);">'
@@ -1802,7 +1874,7 @@ function wfSettingsTag(cfg, trainY, testY, label) {
   parts.push('Signal=T-' + cfg.signalN);
   parts.push('Exec=' + (cfg.tnExecMode === 'NEXT' ? 'T-(' + Math.max(0, cfg.signalN - 1) + ')' : 'T'));
   if (cfg.skipMo) parts.push('SkipMo');
-  if (cfg.regOn) parts.push('Regime(' + cfg.regExp + '%)');
+  if (cfg.regOn) parts.push('Regime VWMA(' + cfg.regExp + '%)');
   if (cfg.shieldOn) parts.push('Shield(' + cfg.shieldMA + 'd)');
   if (cfg.ma60 === 'on') parts.push('MA60');
   if (cfg.shortN > 0) parts.push('Short=' + cfg.shortN);

@@ -452,6 +452,26 @@ function calcSimpleMA(bars, dateStr, period) {
   return sum / period;
 }
 
+// Date-aware VWMA: used by Regime control.
+// If volume is missing/zero, it falls back to weight=1 for that bar, so old datasets still run.
+function calcVWMAOnDate(bars, dateStr, period) {
+  if (!bars || !bars.length) return null;
+  var idx = -1;
+  for (var i = bars.length - 1; i >= 0; i--) {
+    if (bars[i].date <= dateStr) { idx = i; break; }
+  }
+  if (idx < period - 1) return null;
+  var pv = 0, vv = 0;
+  for (var j = idx - period + 1; j <= idx; j++) {
+    var c = bars[j].c;
+    if (c === null || c === undefined || !isFinite(c)) continue;
+    var vol = (bars[j].v && bars[j].v > 0) ? bars[j].v : 1;
+    pv += c * vol;
+    vv += vol;
+  }
+  return vv > 0 ? pv / vv : null;
+}
+
 function getPriceOnDate(bars, dateStr) {
   if (!bars || !bars.length || dateStr < bars[0].date) return null;
   var best = bars[0].c;
@@ -474,13 +494,15 @@ function getPrevWorkDay(bars, dateStr, offset) {
   return bars[targetIdx - offset].date;
 }
 
-// FIX2: all calcMA calls updated to calcSimpleMA
+// Regime control: price below VWMA and VWMA sloping down.
+// This replaces the old MA-based broad-market risk gate.
 function isBearishRegime(bars, dateStr, period) {
   period = period || 60;
-  var ma = calcSimpleMA(bars, dateStr, period), price = getPriceOnDate(bars, dateStr);
-  if (!ma || !price) return false;
-  var prevDate = getPrevWorkDay(bars, dateStr, 5), prevMA = calcSimpleMA(bars, prevDate, period);
-  return price < ma && (prevMA ? ma < prevMA : true);
+  var vwma = calcVWMAOnDate(bars, dateStr, period), price = getPriceOnDate(bars, dateStr);
+  if (!vwma || !price) return false;
+  var prevDate = getPrevWorkDay(bars, dateStr, 5);
+  var prevVWMA = calcVWMAOnDate(bars, prevDate, period);
+  return price < vwma && (prevVWMA ? vwma < prevVWMA : true);
 }
 
 function getFreq(){
