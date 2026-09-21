@@ -1,0 +1,63 @@
+{
+  "output": "momentum-system-all-daily",
+  "generated_at": "2026-05-21T00:00:00+08:00",
+  "changes": [
+    "Backtest display now respects the selected time range.",
+    "The last backtest row is marked to latest price only when that row belongs to the database latest month.",
+    "Historical ending ranges such as 2010-2020 remain on tradeStart to tradeEnd basis and are no longer extended to the current live price date.",
+    "The latest holdings live price box is hidden unless the final row is genuinely live-adjusted.",
+    "CSV Basis column now stays TRADE_END for historical final rows and becomes LATEST_PRICE only for true current/latest-month runs.",
+    "Audit fix: T-N signal date now honors Skip Month by using scoreBaseM instead of prevM.",
+    "Audit fix: CAGR years now use actual period count divided by annual periods, avoiding date-span understatement for monthly/half-month tests.",
+    "Audit fix: Backtest/CSV Holdings now represent end-of-period NAV weights; initial weights remain in targetWeights and stockRets.wNominal.",
+    "Audit check: latest-price display remains limited to cases where the selected backtest ending month matches the database latest month.",
+    "Corrected T-N / Skip Month separation: T-N only selects the fixed signal date inside the scoring month.",
+    "Skip Month is no longer forcibly disabled in T-N Backtest or T-N Sweep; checked = skip one rebalance period, unchecked = no skip.",
+    "T-N Sweep labels updated to state that Skip Month follows the current checkbox state.",
+    "FIX: Natural elimination extraTurnover now counts both sell and buy legs (x2), previously only counted sell side, understating NE friction cost by 50%.",
+    "FIX: SGOV wEff now accumulates across CASH+SGOV target keys instead of being overwritten by the last key; fixes display/CSV decomposition.",
+    "FIX: closureCostDiff now independently recomputes grossRet from stockRets and compares to running grossRet variable; previously was algebraically always zero.",
+    "FIX: Audit engine exposure formula check updated from stale min()/old-string logic to the actual multiplicative chain: vwmaExposureUsed * factorExposureMultiplier * marketPhaseExposure.",
+    "FIX: Sharpe is standardized as arithmetic annualized excess mean return divided by annualized sample volatility.",
+    "FIX: CAGR / annual return remain geometric compounding metrics and are not used as the Sharpe numerator.",
+    "FIX: Stress tests / rolling windows / Monte Carlo / random baseline Sharpe now use the same standard Sharpe helper.",
+    "DEFAULT: Pool page CORR WINDOW(MO) is set to 24 in both HTML and canonical settings.",
+    "Momentum formula remains 0.5*z12 + 0.3*z6 + 0.2*z3.",
+    "All stocks use daily momentum base N=60 by default.",
+    "z3=N, z6=2N, z12=4N in the selected underlying frequency.",
+    "Added adjustable Momentum Frequency/Base controls and Momentum Window Plateau Scan.",
+    "Plateau Scan fixes all other backtest settings and changes only the momentum z3 base N."
+  ],
+  "audit_notes": {
+    "renderBT": "uses getDisplayBTRecords() so the latest row is marked to latest price before UI metrics/table/chart are rendered",
+    "dlBtCsv": "exports the same display basis and adds Basis=LATEST_PRICE/TRADE_END",
+    "renderLatestHoldingsPriceBox": "already uses latest price and is now consistent with the latest monthly row",
+    "renderSignalPriceLine": "signal page remains live/latest by design",
+    "WF_rolling_stress_factor_health": "kept historical pRet/tradeEnd basis by design; no live price adjustment applied",
+    "natural_elimination": "latest row extends the final leg from tradeEnd to latest price when finalCode/finalCapital are available",
+    "time_range_fix": "getDisplayBTRecords() now gates adjustLatestRecordToLatestPrice() through shouldUseLatestPriceForDisplay(); selected historical ranges are not live-marked.",
+    "logic_audit_2026_05_20": "Fixed calculation-correct-but-context-wrong issues: T-N skip-month bypass, CAGR date-span years, holdings label/data mismatch.",
+    "tn_skip_month": "T-N and Skip Month are independent. runBTcore uses scoreBaseM = skip ? allM[idx-2] : prevM; getFixedTNDate is applied inside that selected scoring month.",
+    "ne_turnover_fix": "extraTurnover was counting only one leg of each replacement trade. Now correctly counts sell + buy = 2x inherited capital.",
+    "sgov_weff_fix": "SGOV wEff previously set to nominalW (last iteration only); now accumulates: (existing || 0) + nominalW.",
+    "closure_check_fix": "closureCostDiff changed from netRet-(grossRet-totalCost) [always 0] to grossRet-closureGross where closureGross is independently recomputed from stockRets.wNominal * stockRets.ret.",
+    "audit_exposure_fix": "Removed stale min(market,shield,adaptive) and 'VWMA * factorMultiplier' string checks. Now verifies vwmaExposureUsed * factorExposureMultiplier * marketPhaseExposure == finalExposure.",
+    "sharpe_definition": "Sharpe = (mean(period_returns) * annualPeriods - rfAnnual) / (sampleStd(period_returns) * sqrt(annualPeriods)); rfAnnual defaults to 1.5%.",
+    "annual_return_definition": "CAGR and reported annual return are geometric compound returns based on NAV, not linear mean*periods."
+  },
+  "files": [
+    "index.html",
+    "app-backtest.js",
+    "app-core.js",
+    "pool-data.js",
+    "audit-engine.js",
+    "AUDIT_BUILD_MANIFEST.json"
+  ],
+  "changes_market_phase_gate": {
+    "ui": "Backtest page now has Market Phase Gate: OFF / Diagnostic Only / Exposure Control plus Phase 1-6 exposure inputs.",
+    "no_lookahead": "Backtest period t uses only trailing completed factor-health rows before current period.",
+    "diagnostic": "Records marketPhase fields and CSV columns without changing returns.",
+    "control": "Multiplies final exposure by phase exposure; residual capital flows to SGOV through existing exposure-fill path.",
+    "csv": "Backtest CSV adds MarketPhase, MarketPhaseMode, MarketPhaseExposure%, FinalExposure%."
+  }
+}

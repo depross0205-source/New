@@ -100,13 +100,15 @@ tr:hover{background:var(--sf2)}
   <div id="loadTxt" style="font-family:monospace;font-size:13px;color:var(--mu)">...</div>
 </div>
 <div class="wrap">
-<h1>TW 台股動能選股 <span class="tag">V2.1-NATURAL-ISOLATED</span></h1>
-<div class="sub">Global ex-CN預設 + CN獨立可選 | 國際版372檔基準 | 半導體細分 + 同產業限額 | T-N公平回測</div>
+<h1>TW 台股動能選股 <span class="tag">V3.9-CANONICAL-DEFAULTS</span></h1>
+<div class="sub">Global ex-CN預設 + CN獨立可選 | 國際版372檔基準 | 半導體細分 + 同產業限額 | T-N公平回測 | 3D Signal Light</div>
 <div class="tabs">
   <button class="tab active" onclick="switchTab(&#39;pool&#39;,this)">股池</button>
   <button class="tab" onclick="switchTab(&#39;fetch&#39;,this)">抓取</button>
   <button class="tab" onclick="switchTab(&#39;signal&#39;,this)">信號</button>
   <button class="tab" onclick="switchTab(&#39;backtest&#39;,this)">回測</button>
+  <button class="tab" onclick="switchTab(&#39;factor&#39;,this)">因子貢獻</button>
+  <button class="tab" onclick="switchTab(&#39;audit&#39;,this)">Audit</button>
   <button class="tab" onclick="switchTab(&#39;stress&#39;,this)">壓力測試</button>
 </div>
 
@@ -166,16 +168,20 @@ tr:hover{background:var(--sf2)}
   <div class="card">
     <div class="ct">評分權重 <span style="font-size:10px;color:var(--gr)">改完權重直接重計</span></div>
     <div class="g3">
-      <div class="fi"><label>動能z(%)</label><input type="number" id="wMom" value="40" min="0" max="100"></div>
+      <div class="fi"><label>動能z(%)</label><input type="number" id="wMom" value="30" min="0" max="100"></div>
       <div class="fi"><label>Bias(%)</label><input type="number" id="wBias" value="10" min="0" max="100"></div>
       <div class="fi"><label>Slope(%)</label><input type="number" id="wSlope" value="10" min="0" max="100"></div>
-      <div class="fi"><label>量能(%)</label><input type="number" id="wVol" value="20" min="0" max="100"></div>
-      <div class="fi"><label>K棒(%)</label><input type="number" id="wKbar" value="20" min="0" max="100"></div>
-      <div class="fi"><label>Corr Thresh</label><input type="number" id="corrT" value="0.8" step="0.05" min="0.3" max="1"></div>
+      <div class="fi"><label>量能(%)</label><input type="number" id="wVol" value="25" min="0" max="100"></div>
+      <div class="fi"><label>K棒(%)</label><input type="number" id="wKbar" value="25" min="0" max="100"></div>
+      <div class="fi"><label>Corr Thresh</label><input type="number" id="corrT" value="0.75" step="0.05" min="0.3" max="1"></div>
       <div class="fi"><label>Corr Window (mo)</label><input type="number" id="corrW" value="24" min="6" max="60" step="6"></div>
-      <div class="fi"><label>&gt;60MA 絕對門溻</label><select id="ma60Filter">
-  <option value="on">On (破線淘汰)</option>
+      <div class="fi"><label>&gt;60MA 絕對門檻</label><select id="ma60Filter">
+  <option value="on">On (啟用MA60濾網)</option>
   <option value="off" selected="">Off (僅依評分)</option>
+</select></div>
+      <div class="fi"><label>MA60 濾網模式</label><select id="ma60FilterMode">
+  <option value="all" selected="">持倉+新進候選</option>
+  <option value="held">只賣出既有持倉</option>
 </select></div>
     </div>
     <div class="ib2">
@@ -344,20 +350,68 @@ tr:hover{background:var(--sf2)}
     </div>
 
 
-    <div class="ib2" style="margin-top:10px;border:1px solid var(--ac)">
-      <div style="font-size:10px;font-weight:700;color:var(--ac);margin-bottom:8px">Stress 權重掃描 / 手動權重</div>
+    <div class="ib2" style="margin-top:10px;border:1px solid var(--ye)">
+      <div style="font-size:10px;font-weight:700;color:var(--ye);margin-bottom:8px">Stress Gate 權數設定（保留給 Stress Score Gate 使用）</div>
+      <div style="font-size:10px;color:var(--mu);line-height:1.8;margin-bottom:8px">
+        這組設定只在回測頁的 <b style="color:var(--ye)">Stress Score Gate = On (4-Factor Stress Score)</b> 時生效；Regime / VWMA 曝光度壓力測試仍會強制關閉 Stress Gate，避免兩套風控混在一起。
+      </div>
       <div class="g3" style="grid-template-columns:repeat(4,1fr);gap:6px">
-        <div class="fi"><label>VIX 權重%</label><input type="number" id="swVix" value="35" min="0" max="100" step="5"></div>
-        <div class="fi"><label>HY 權重%</label><input type="number" id="swHy" value="35" min="0" max="100" step="5"></div>
-        <div class="fi"><label>Trend 權重%</label><input type="number" id="swTrend" value="20" min="0" max="100" step="5"></div>
-        <div class="fi"><label>Breadth 權重%</label><input type="number" id="swBreadth" value="10" min="0" max="100" step="5"></div>
+        <div class="fi"><label>VIX 權重%</label><input type="number" id="swVix" value="0" min="0" max="100" step="5"></div>
+        <div class="fi"><label>HY 權重%</label><input type="number" id="swHy" value="0" min="0" max="100" step="5"></div>
+        <div class="fi"><label>Trend 權重%</label><input type="number" id="swTrend" value="100" min="0" max="100" step="5"></div>
+        <div class="fi"><label>Breadth 權重%</label><input type="number" id="swBreadth" value="0" min="0" max="100" step="5"></div>
       </div>
       <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
         <button class="bo sm" onclick="normalizeStressWeightInputs();renderStressDash()" style="color:var(--gr);border-color:var(--gr)">套用/正規化權重</button>
-        <button class="bo sm" onclick="resetStressWeights();renderStressDash()">恢復 35/35/20/10</button>
-        <button class="bo sm" onclick="runStressWeightSweepPanel()" style="color:var(--ye);border-color:var(--ye)">權重掃描 10%格點</button>
+        <button class="bo sm" onclick="resetStressWeights();renderStressDash()">恢復 0/0/100/0</button>
       </div>
-      <div id="stressWeightSweepPanel" style="margin-top:8px;font-size:10px;color:var(--mu)">尚未執行權重掃描。掃描會暫時使用 Stress Gate 跑目前回測設定。</div>
+    </div>
+
+    <div class="ib2" style="margin-top:10px;border:1px solid var(--ye)">
+      <div style="font-size:10px;font-weight:700;color:var(--ye);margin-bottom:8px">Stress Gate 分數 → 曝險比例（保留）</div>
+      <div class="g3" style="grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px">
+        <div class="fi"><label>Level2 起點分數</label><input type="number" id="stressL2" value="45" min="0" max="100" step="1"></div>
+        <div class="fi"><label>Level3 起點分數</label><input type="number" id="stressL3" value="70" min="0" max="100" step="1"></div>
+        <div class="fi"><label>Level4 起點分數</label><input type="number" id="stressL4" value="90" min="0" max="100" step="1"></div>
+      </div>
+      <div class="g3" style="grid-template-columns:repeat(4,1fr);gap:6px">
+        <div class="fi"><label>L1 曝險%</label><input type="number" id="stressExp1" value="100" min="0" max="100" step="5"></div>
+        <div class="fi"><label>L2 曝險%</label><input type="number" id="stressExp2" value="66.6" min="0" max="100" step="5"></div>
+        <div class="fi"><label>L3 曝險%</label><input type="number" id="stressExp3" value="50" min="0" max="100" step="5"></div>
+        <div class="fi"><label>L4 曝險%</label><input type="number" id="stressExp4" value="33.3" min="0" max="100" step="5"></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <button class="bo sm" onclick="normalizeStressExposureInputs();renderStressDash()" style="color:var(--gr);border-color:var(--gr)">套用分數/曝險</button>
+        <button class="bo sm" onclick="resetStressExposureMap();renderStressDash()">恢復 45/70/90 + 100/66.6/50/33.3</button>
+      </div>
+      <div style="font-size:10px;color:var(--mu);margin-top:7px">規則：Score &lt; L2 使用 L1 曝險；L2~L3 使用 L2；L3~L4 使用 L3；Score ≥ L4 使用 L4。回測、WF、Stress Gate 都會讀這組設定。</div>
+    </div>
+
+
+    <div class="ib2" style="margin-top:10px;border:1px solid var(--ac)">
+      <div style="font-size:10px;font-weight:700;color:var(--ac);margin-bottom:8px">大盤風控 Regime / VWMA 曝光度穩健性</div>
+      <div style="font-size:10px;color:var(--mu);line-height:1.8;margin-bottom:8px">
+        這一區檢查 <b style="color:var(--ac)">大盤風控曝光度</b> 的穩健性。Stress Gate 的權數與分數→曝險設定已保留在上方；但 Regime/VWMA 壓力測試會強制 <b>Regime=ON</b>、<b>Stress Score Gate=OFF</b>，避免測試結果被另一套 Gate 混入。
+      </div>
+      <div class="g3" style="grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px">
+        <div class="fi"><label>目前 Regime 曝光%</label><input type="number" id="regimeTestBaseExp" value="50" min="0" max="100" step="5" oninput="if(document.getElementById('btRegimeExp'))document.getElementById('btRegimeExp').value=this.value"></div>
+        <div class="fi"><label>VWMA長度</label><select id="regimeStressLen" onchange="var e=document.getElementById('btRegimeLen'); if(e) e.value=this.value"><option value="60">60</option><option value="120">120</option><option value="180">180</option><option value="200">200</option><option value="240">240</option><option value="300">300</option></select></div>
+        <div class="fi"><label>掃描最小曝光%</label><input type="number" id="regimeSweepMin" value="0" min="0" max="100" step="5"></div>
+        <div class="fi"><label>掃描最大曝光%</label><input type="number" id="regimeSweepMax" value="100" min="0" max="100" step="5"></div>
+      </div>
+      <div class="g3" style="grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px">
+        <div class="fi"><label>掃描步階%</label><input type="number" id="regimeSweepStep" value="10" min="5" max="50" step="5"></div>
+        <div class="fi"><label>VWMA長度組</label><input type="text" id="regimeTestLens" value="60,120,150,180,200,240,300"></div>
+        <div class="fi"><label>Matrix曝光組</label><input type="text" id="regimeMatrixExps" value="30,50,70"></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <button class="bo sm" onclick="runStressRobustnessSuite()" style="color:var(--ac);border-color:var(--ac)">Regime 曝光健檢</button>
+        <button class="bo sm" onclick="runStressHeatmapTest()" style="color:var(--tw);border-color:var(--tw)">曝光度掃描</button>
+        <button class="bo sm" onclick="runStressPerturbationTest()" style="color:var(--ye);border-color:var(--ye)">±10% 曝光擾動</button>
+        <button class="bo sm" onclick="runRegimeLengthRobustnessTest()" style="color:var(--bl);border-color:var(--bl)">VWMA長度掃描</button>
+        <button class="bo sm" onclick="runRegimeStabilityMatrix()" style="color:var(--gr);border-color:var(--gr)">Stability Matrix</button>
+      </div>
+      <div id="stressRobustPanel" style="margin-top:8px;font-size:10px;color:var(--mu)">尚未執行 Regime 曝光健檢。檢查項目：Regime ON/OFF、觸發月比例、平均曝光度、分段績效、曝光度掃描、±10%擾動、VWMA長度掃描、Stability Matrix。</div>
     </div>
 
     <div id="stressNote" style="margin-top:10px;font-size:10px;color:var(--mu);font-family:monospace;line-height:1.7"></div>
@@ -384,9 +438,17 @@ tr:hover{background:var(--sf2)}
         <input type="text" id="sigYM" placeholder="YYYY-MM，留空=最新可用月份">
       </div>
       <div class="fi">
+        <label>半月頻 Signal 期別</label>
+        <select id="sigSlot">
+          <option value="AUTO" selected>自動：最新可用期別</option>
+          <option value="MID">半月：月中再平衡日</option>
+          <option value="END">月底：月末再平衡日</option>
+        </select>
+      </div>
+      <div class="fi">
         <label>說明</label>
         <div class="ib2" style="margin-top:0;padding:6px 8px">
-          信號頁只顯示觀察用 T-N 排名；成交價可選 T日收盤或 T-(N-1)收盤。正式回測會套用同一個 T-N 成交價基準。
+          信號頁會跟隨回測頻率：月頻使用月底 T；半月頻使用月中或月底再平衡日作為 T。成交價可選 T日收盤或 T-(N-1)收盤。
         </div>
       </div>
     </div>
@@ -403,7 +465,13 @@ tr:hover{background:var(--sf2)}
   </div>
 </div>
 
+
+<div class="panel" id="panel-audit">
+  <div id="auditPanel"><div class="ib2">Audit Dashboard 載入中；若空白請按壓力測試頁的 Show Audit Report 或重新整理。</div></div>
+</div>
+
 <div class="panel" id="panel-stress">
+  <div id="stressAuditPanel" style="margin-bottom:8px"></div>
   <div class="card">
     <div class="ct">壓力測試</div>
     <div class="g3">
@@ -414,7 +482,9 @@ tr:hover{background:var(--sf2)}
       <div class="fi"><label>Pool Compare ETF配額</label><input type="number" id="wfETFQuota" value="1" min="0" max="5"></div>
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="bo" onclick="runMonteCarlo()" style="flex:1">Monte Carlo</button>
+      <button class="bo" data-audit-toggle="1" onclick="enableAudit();auditStaticSystem();auditReport()" style="width:100%;margin-bottom:6px;color:var(--te);border-color:var(--te)">Audit Mode: OFF</button>
+    <button class="bo" onclick="auditReport();switchTab('audit', document.querySelector('.tab[onclick*=audit]'))" style="width:100%;margin-bottom:8px;color:var(--ac);border-color:var(--ac)">Show Audit Report</button>
+    <button class="bo" onclick="runMonteCarlo()" style="flex:1">Monte Carlo</button>
       <button class="bo" onclick="runBlockBootstrap()" style="flex:1">Block Bootstrap</button>
       <button class="bo sm" onclick="document.getElementById(&#39;stressMetrics&#39;).innerHTML=&#39;&#39;" style="color:var(--re);border-color:var(--re)">清除</button>
     </div>
@@ -426,11 +496,27 @@ tr:hover{background:var(--sf2)}
     
     <button class="bo" onclick="runRandomBaseline()" style="width:100%;margin-top:6px;color:var(--gr);border-color:var(--gr)">Random Baseline (N個隨機股)</button>
     <button class="bo" onclick="runCostSensitivity()" style="width:100%;margin-top:6px;color:var(--ye);border-color:var(--ye)">Cost Sensitivity</button>
+    <button class="bo" onclick="runFactorMonotonicity()" style="width:100%;margin-top:6px;color:var(--bl);border-color:var(--bl)">Factor Monotonicity Check</button>
+    <button class="bo" onclick="runFactorWeightOptimizer()" style="width:100%;margin-top:6px;color:var(--tw);border-color:var(--tw)">WF Factor Weight Optimizer (3Y/1Y)</button>
     <div class="log" id="stressLog"></div>
   </div>
   <div id="stressRes" class="hidden">
     <div id="stressMetrics"></div>
   </div>
+</div>
+
+
+<div class="panel" id="panel-factor">
+  <div class="card">
+    <div class="ct">Factor Contribution Health <span style="font-size:10px;color:var(--mu);font-weight:400">短期 vs 長期 + N-t 趨勢曲線；IC 使用實際 T-N tradeStart → tradeEnd</span></div>
+    <div class="g3">
+      <div class="fi"><label>短期窗口</label><input type="number" id="fhShortWin" value="6" min="3" max="24"></div>
+      <div class="fi"><label>長期窗口</label><input type="number" id="fhLongWin" value="36" min="12" max="120"></div>
+      <div class="fi"><label>執行</label><button class="btw" onclick="runFactorHealth()">計算因子健康度</button></div>
+    </div>
+    <div class="ib2">此頁不自動調權重，只做診斷。Total Score 與五個子因子會計算短/長期 IC、N-t 趨勢曲線、Spread、平均貢獻與最近12期 heatmap。</div>
+  </div>
+  <div id="factorHealthRes"></div>
 </div>
 
 <div class="panel" id="panel-backtest">
@@ -442,12 +528,12 @@ tr:hover{background:var(--sf2)}
       <div class="fi">
         <label>選股模式</label>
         <select id="poolMode" onchange="togglePoolUI()">
-          <option value="large" selected="">大池模式 (全局排名)</option>
+          <option value="large" selected>大池模式 (全局排名)</option>
           <option value="small">小池模式 (分區配額)</option>
         </select>
       </div>
-      <div class="fi"><label>Max Hold (總名額)</label><input type="number" id="btH" value="6" style="background: var(--bg);"></div>
-      <div class="fi"><label>IC尾部模式</label><select id="tailMode"><option value="pct">百分比</option><option value="count">固定數量</option></select></div>
+      <div class="fi"><label>Max Hold (總名額)</label><input type="number" id="btH" value="5" style="background: var(--bg);"></div>
+      <div class="fi"><label>IC尾部模式</label><select id="tailMode"><option value="pct" selected>百分比</option><option value="count">固定數量</option></select></div>
       <div class="fi"><label>IC尾部百分比%</label><input type="number" id="tailPct" value="5" min="1" max="50"></div>
       <div class="fi"><label>IC尾部固定檔數</label><input type="number" id="tailCount" value="10" min="1"></div>
       <div class="fi"><label>同產業限額</label><input type="number" id="btIndLimit" value="0" min="0" max="10" step="1"><div style="font-size:9px;color:var(--mu);margin-top:3px">0=不限制；ETF/SGOV不受限；半導體依細分類計算，跨國同類共用名額</div></div>
@@ -460,7 +546,7 @@ tr:hover{background:var(--sf2)}
       <div class="fi"><label>Weight Mode</label>
         <div style="display:flex;gap:10px;margin-top:6px;font-size:12px">
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="radio" name="wtMode" id="wtEq" value="eq" checked="" style="width:14px;accent-color:var(--tw)"> 等權
+            <input type="radio" name="wtMode" id="wtEq" value="eq" style="width:14px;accent-color:var(--tw)" checked> 等權
           </label>
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
             <input type="radio" name="wtMode" id="wtRank" value="rank" style="width:14px;accent-color:var(--tw)"> 排名加權
@@ -474,13 +560,13 @@ tr:hover{background:var(--sf2)}
       <div class="fi"><label>Capital Mode</label>
         <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="radio" name="capMode" id="cap1000" value="1000" style="width:14px;accent-color:var(--bl)"> 100/0 純多
+            <input type="radio" name="capMode" id="cap1000" value="1000" style="width:14px;accent-color:var(--bl)" checked> 100/0 純多
           </label>
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
             <input type="radio" name="capMode" id="cap5050" value="5050" style="width:14px;accent-color:var(--bl)"> 50/50 多空對沖
           </label>
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="radio" name="capMode" id="cap1330" value="1330" checked="" style="width:14px;accent-color:var(--bl)"> 130/30
+            <input type="radio" name="capMode" id="cap1330" value="1330" style="width:14px;accent-color:var(--bl)"> 130/30
           </label>
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
             <input type="radio" name="capMode" id="capShortOnly" value="short_only" style="width:14px;accent-color:var(--bl)"> 100% Short Only
@@ -508,28 +594,28 @@ tr:hover{background:var(--sf2)}
       </div>
       <div class="fi"><label>Signal Lag</label>
         <div style="display:flex;gap:10px;margin-top:6px;font-size:12px">
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="lagMode" id="lagT1" value="1" checked="" style="width:14px;accent-color:var(--tw)"> t-1</label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="lagMode" id="lagT1" value="1" style="width:14px;accent-color:var(--tw)" checked> t-1</label>
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="lagMode" id="lagT2" value="2" style="width:14px;accent-color:var(--tw)"> t-2</label>
         </div>
       </div>
       <div class="fi"><label>T-N 公平回測</label>
-        <input type="number" id="btSignalTN" value="10" min="0" max="22" step="1">
+        <input type="number" id="btSignalTN" value="4" min="0" max="22" step="1">
         <div style="font-size:9px;color:var(--mu);margin-top:3px">T-N只決定名單；成交日由下方基準決定</div>
       </div>
       <div class="fi"><label>T-N 成交價基準</label>
         <select id="btTNExecMode">
-          <option value="T" selected>原始：T-N訊號，T日收盤買入</option>
-          <option value="NEXT">新增：T-N訊號，T-(N-1)收盤買入</option>
+          <option value="T">原始：T-N訊號，T日收盤買入</option>
+          <option value="NEXT" selected>新增：T-N訊號，T-(N-1)收盤買入</option>
         </select>
         <div style="font-size:9px;color:var(--mu);margin-top:3px">新設定會用同基準出場：下期 T-(N-1) 收盤</div>
       </div>
       <div class="fi"><label>回測頻率</label>
         <div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="月末買賣\uff0c持倉期月末→次月末">
-            <input type="radio" name="btFreq" value="1" checked="" style="width:13px;accent-color:var(--tw)"> 月頻
+            <input type="radio" name="btFreq" value="1" style="width:13px;accent-color:var(--tw)"> 月頻
           </label>
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer" title="每月1號&amp;15號交易">
-            <input type="radio" name="btFreq" value="2" style="width:13px;accent-color:var(--tw)"> 半月頻
+            <input type="radio" name="btFreq" value="2" style="width:13px;accent-color:var(--tw)" checked> 半月頻
           </label>
         </div>
         <div style="font-size:9px;color:var(--mu);margin-top:3px">一般回測用 t-1/t-2；按「T-N公平回測」與壓力測試 WF 時，會套用左側 T-N。</div>
@@ -537,38 +623,130 @@ tr:hover{background:var(--sf2)}
       <div class="fi"><label>大盤風控 (Regime / VWMA)</label>
         <select id="btRegime">
           <option value="off">Off</option>
-          <option value="on">On (0050/SPY &lt; 60VWMA)</option>
+          <option value="on" selected>On (0050/SPY &lt; VWMA)</option>
+        </select>
+      </div>
+      <div class="fi"><label>VWMA天數 (Regime)</label>
+        <select id="btRegimeLen" onchange="var e=document.getElementById('regimeStressLen'); if(e) e.value=this.value">
+          <option value="60">60</option>
+          <option value="120">120</option>
+          <option value="180">180</option>
+          <option value="200">200</option>
+          <option value="240" selected>240</option>
+          <option value="300">300</option>
         </select>
       </div>
       <div class="fi"><label>曝光度 (Regime)</label>
-        <input type="number" id="btRegimeExp" value="50" min="0" max="100">
+        <input type="number" id="btRegimeExp" value="57" min="0" max="100">
       </div>
       <div class="fi"><label>Stress Score Gate</label>
         <select id="btShieldGate">
-          <option value="off" selected="">Off</option>
+          <option value="off" selected>Off</option>
           <option value="stress">On (4-Factor Stress Score)</option>
+          <option value="riskregime">On (3D Signal Light &#x71C8;&#x865F;)</option>
           <option value="on">On Legacy (SPY/TWII vs MA)</option>
         </select>
-        <div style="font-size:9px;color:var(--mu);margin-top:3px">Stress: VIX_ROC + HY_Spread + Trend + Breadth | Level0-1=100% Level2=70% Level3=40% Level4=20%</div>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">VWMA為主風控；VWMA正常時曝險=100%，VWMA轉弱才啟用VWMA熊市曝險；4F只作燈號倍率微調。</div>
       </div>
+      <div class="fi" style="grid-column:1/-1">
+        <label style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <input type="checkbox" id="btAdaptiveOverlay" style="width:14px;accent-color:var(--tw)">
+          VWMA主控 + 4F曝險倍率 + Adaptive N倍數（Green=100%，Yellow/Orange/Red逐步降曝險）
+        </label>
+        <div class="tw-wrap" style="max-height:none;margin:0;background:transparent;border-color:var(--bhi)">
+          <table style="font-size:11px">
+            <thead><tr><th>燈號</th><th>4F曝險倍率%</th><th>N倍數</th><th>Freeze新進股</th></tr></thead>
+            <tbody>
+              <tr>
+                <td style="color:var(--gr);font-weight:700">🟢 Green</td>
+                <td><input type="number" id="riskRegimeExpGreen" value="100" min="0" max="100" step="1"></td>
+                <td><input type="number" id="riskRegimeNMultGreen" value="1.00" min="0.1" max="5" step="0.05"></td>
+                <td><input type="checkbox" id="riskRegimeFreezeGreen" style="width:14px;accent-color:var(--gr)"></td>
+              </tr>
+              <tr>
+                <td style="color:var(--ye);font-weight:700">🟡 Yellow</td>
+                <td><input type="number" id="riskRegimeExpYellow" value="90" min="0" max="100" step="1"></td>
+                <td><input type="number" id="riskRegimeNMultYellow" value="1.15" min="0.1" max="5" step="0.05"></td>
+                <td><input type="checkbox" id="riskRegimeFreezeYellow" style="width:14px;accent-color:var(--ye)"></td>
+              </tr>
+              <tr>
+                <td style="color:#ff8c00;font-weight:700">🟠 Orange</td>
+                <td><input type="number" id="riskRegimeExpOrange" value="75" min="0" max="100" step="1"></td>
+                <td><input type="number" id="riskRegimeNMultOrange" value="1.35" min="0.1" max="5" step="0.05"></td>
+                <td><input type="checkbox" id="riskRegimeFreezeOrange" style="width:14px;accent-color:var(--ye)"></td>
+              </tr>
+              <tr>
+                <td style="color:var(--re);font-weight:700">🔴 Red</td>
+                <td><input type="number" id="riskRegimeExpRed" value="50" min="0" max="100" step="1"></td>
+                <td><input type="number" id="riskRegimeNMultRed" value="1.80" min="0.1" max="5" step="0.05"></td>
+                <td><input type="checkbox" id="riskRegimeFreezeRed" style="width:14px;accent-color:var(--re)" checked></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">使用方式：大盤風控(VWMA)保持ON；VWMA正常時 marketExposure=100%，只有VWMA轉弱時才使用「VWMA熊市曝險%」。4F燈號只作倍率微調；預設 Green=100%、Yellow=90%、Orange=75%、Red=50%。實際N = ceil(基準N × 燈號N倍數)，危險燈號建議用較大N倍數提高分散度。</div>
+      </div>
+      <div class="fi" style="grid-column:1/-1">
+        <label>Market Phase Gate 市場位階接入回測</label>
+        <select id="btMarketPhaseGate">
+          <option value="off">Off</option>
+          <option value="diagnostic" selected>Diagnostic Only：只記錄位階，不影響報酬</option>
+          <option value="control">Exposure Control：依市場位階調整曝險，餘額進SGOV</option>
+        </select>
+        <div class="tw-wrap" style="max-height:none;margin:6px 0 0;background:transparent;border-color:var(--bhi)">
+          <table style="font-size:11px">
+            <thead><tr><th>Phase</th><th>市場位階</th><th>回測曝險%</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">P1</td><td>底部混亂 / 修復未定</td><td><input type="number" id="btPhaseExp1" value="50" min="0" max="150" step="1"></td></tr>
+              <tr><td class="mono">P2</td><td>初升 / 修復段</td><td><input type="number" id="btPhaseExp2" value="80" min="0" max="150" step="1"></td></tr>
+              <tr><td class="mono">P3</td><td>主升段</td><td><input type="number" id="btPhaseExp3" value="100" min="0" max="150" step="1"></td></tr>
+              <tr><td class="mono">P4</td><td>過熱延伸段</td><td><input type="number" id="btPhaseExp4" value="80" min="0" max="150" step="1"></td></tr>
+              <tr><td class="mono">P5</td><td>結構分裂段</td><td><input type="number" id="btPhaseExp5" value="65" min="0" max="150" step="1"></td></tr>
+              <tr><td class="mono">P6</td><td>崩跌 / 去槓桿段</td><td><input type="number" id="btPhaseExp6" value="25" min="0" max="150" step="1"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">安全規則：回測第 t 期的市場位階只使用 t-1 以前已完成的 Factor Health / IC 資料，不使用本期報酬，避免偷看未來。</div>
+      </div>
+      
+      <div class="fi"><label>動能底層頻率</label>
+        <select id="momFreqMode" onchange="setMomentumConfigFromUI()">
+          <option value="D" selected>日頻｜z12/z6/z3 = 4N/2N/N 日</option>
+          <option value="W">週頻｜z12/z6/z3 = 4N/2N/N 週</option>
+        </select>
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">動能權重固定為 0.5*z12 + 0.3*z6 + 0.2*z3；此處只改底層頻率。</div>
+      </div>
+      <div class="fi"><label>動能 z3 基準 N</label>
+        <input type="number" id="momBaseWindow" value="60" min="2" max="300" step="1" onchange="setMomentumConfigFromUI()">
+        <div style="font-size:9px;color:var(--mu);margin-top:3px">z3=N；z6=2N；z12=4N。日頻建議60，週頻建議13。</div>
+      </div>
+      <div class="fi"><label>Momentum Plateau 掃描</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+          <input type="number" id="momScanStart" value="20" min="2" step="1">
+          <input type="number" id="momScanEnd" value="120" min="2" step="1">
+          <input type="number" id="momScanStep" value="10" min="1" step="1">
+        </div>
+        <button class="bo sm" style="margin-top:6px;width:100%" onclick="runMomentumPlateauScan()">掃描目前頻率 Plateau</button>
+      </div>
+
       <div class="fi"><label>Shield MA(days) [Legacy]</label><input type="number" id="btShieldMA" value="240" min="60" max="300" step="20"></div>
       <div class="fi"><label>個股強勢濾網</label>
         <select id="btIndExit">
-          <option value="off">Off</option>
+          <option value="off" selected>Off</option>
           <option value="on">On (硆60MA且均線向下)</option>
         </select>
       </div>
       <div class="fi"><label>自然淘汰法</label>
         <label style="display:flex;align-items:center;gap:6px;margin-top:7px;font-size:12px;cursor:pointer">
-          <input type="checkbox" id="btNaturalElim" style="width:14px;accent-color:var(--tw)"> 開啟：跌出前N名外換股
+          <input type="checkbox" id="btNaturalElim" style="width:14px;accent-color:var(--tw)" checked> 開啟：跌出前N名外換股
         </label>
         <div style="font-size:9px;color:var(--mu);margin-top:3px">OFF 時完全走原始月頻回測；ON 時才啟用月內分段換股。</div>
       </div>
-      <div class="fi"><label>自然淘汰門檻 Rank</label><input type="number" id="btNaturalRank" value="10" min="1" max="50" step="1"><div style="font-size:9px;color:var(--mu);margin-top:3px">預設10：跌出前10名外，賣出並由下一順位繼承剩餘資金。</div></div>
+      <div class="fi"><label>自然淘汰門檻 Rank</label><input type="number" id="btNaturalRank" value="33" min="1" max="50" step="1"><div style="font-size:9px;color:var(--mu);margin-top:3px">預設33：跌出前33名外，賣出並由下一順位繼承剩餘資金。</div></div>
       <div class="fi"><label>自然淘汰換股價格</label>
         <select id="btNaturalExec">
           <option value="CLOSE">當日收盤換股</option>
-          <option value="NEXT_CLOSE">次日收盤換股</option>
+          <option value="NEXT_CLOSE" selected>次日收盤換股</option>
         </select>
         <div style="font-size:9px;color:var(--mu);margin-top:3px">判定仍以當日收盤排名；成交價可選當日收盤或下一交易日收盤。賣出與買入使用同一成交日。</div>
       </div>
@@ -594,12 +772,13 @@ tr:hover{background:var(--sf2)}
       <button class="bo sm" onclick="dlBtCsv()">CSV</button>
     </div>
     <div class="tw-wrap"><table><thead><tr>
-      <th>Month / Stock</th><th>期末NAV比例</th><th>Hurdle%</th><th>Return%</th><th>NAV / +$PnL</th><th>TAIEX / Contrib</th><th>Alpha%</th><th style="color:var(--re)">Stress / Exposure</th>
+      <th>Month / Stock</th><th>期末NAV比例</th><th>Hurdle%</th><th>Gross Return%</th><th>Net Return% / +$PnL</th><th>TAIEX / Contrib</th><th>Alpha%</th><th style="color:var(--tw)">Market Phase</th><th style="color:var(--re)">Stress / Exposure</th>
     </tr></thead><tbody id="btBody"></tbody></table></div>
     <div id="rollingRes" class="hidden" style="margin-top:10px"></div>
   </div>
 </div>
 </div>
+<script src="audit-engine.js"></script>
 <script src="pool-data.js"></script>
 <script src="app-core.js"></script>
 <script src="app-backtest.js"></script>

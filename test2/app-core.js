@@ -5,6 +5,150 @@ function updTotalH() {
   }
 }
 
+// === CANONICAL SETTINGS v2.2 ===
+// Frozen 2025-05-14.
+// Do NOT modify without logging the reason.
+var CANONICAL = {
+  version: '3.9.0',
+  frozenDate: '2026-05-17',
+  wMom: 30, wBias: 10, wSlope: 10, wVol: 25, wKbar: 25,
+  corrT: 0.75, corrW: 24, tailMode: 'pct', tailPct: 5, tailCount: 10, indLimit: 0, btSpread: 25,
+  regimeOn: true, regimeLen: 240, regimeExp: 57,
+  swVix: 0, swHy: 0, swTrend: 100, swBreadth: 0,
+  stressL2: 45, stressL3: 70, stressL4: 90,
+  stressExp1: 100, stressExp2: 66.6, stressExp3: 50, stressExp4: 33.3,
+  adaptiveOverlay:false,
+  riskRegimeExpGreen:100, riskRegimeNMultGreen:1.00, riskRegimeFreezeGreen:false,
+  riskRegimeExpYellow:90, riskRegimeNMultYellow:1.15, riskRegimeFreezeYellow:false,
+  riskRegimeExpOrange:75, riskRegimeNMultOrange:1.35, riskRegimeFreezeOrange:false,
+  riskRegimeExpRed:50, riskRegimeNMultRed:1.80, riskRegimeFreezeRed:true,
+  btCost: 0.3, lagMode: '1', freq: '2', skipMo: false,
+  naturalElim: true, naturalRank: 33, naturalExec: 'NEXT_CLOSE',
+  signalTN: 4, tnExecMode: 'NEXT',
+  shieldGate: 'off', shieldMA: 240, indExit: 'off',
+  capMode: '1000', wtMode: 'eq', shortN: 0,
+  poolMode: 'large', btH: 5, btCap: 100000,
+  marketPhaseGate: 'diagnostic', phaseExp1: 50, phaseExp2: 80, phaseExp3: 100, phaseExp4: 80, phaseExp5: 65, phaseExp6: 25,
+  ma60Filter: 'off', ma60FilterMode: 'all', nTrend: 60, momConsistencyMult: 1.2, momFreqMode: 'D', momBaseWindow: 60
+};
+
+var SETTING_CHANGE_LOG = [];
+
+function loadCanonical() {
+  var C = CANONICAL;
+  function sv(id, v) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = !!v;
+    else el.value = v;
+  }
+  function sr(name, v) {
+    var r = document.querySelector('input[name="' + name + '"][value="' + v + '"]');
+    if (r) r.checked = true;
+  }
+  sv('wMom', C.wMom); sv('wBias', C.wBias); sv('wSlope', C.wSlope);
+  sv('wVol', C.wVol); sv('wKbar', C.wKbar);
+  sv('corrT', C.corrT); sv('corrW', C.corrW);
+  sv('tailMode', C.tailMode); sv('tailPct', C.tailPct); sv('tailCount', C.tailCount);
+  sv('btIndLimit', C.indLimit); sv('btSpread', C.btSpread);
+  sv('btRegime', C.regimeOn ? 'on' : 'off');
+  sv('btRegimeLen', String(C.regimeLen)); sv('btRegimeExp', C.regimeExp);
+  sv('swVix', C.swVix); sv('swHy', C.swHy);
+  sv('swTrend', C.swTrend); sv('swBreadth', C.swBreadth);
+  sv('stressL2', C.stressL2); sv('stressL3', C.stressL3); sv('stressL4', C.stressL4);
+  sv('stressExp1', C.stressExp1); sv('stressExp2', C.stressExp2);
+  sv('stressExp3', C.stressExp3); sv('stressExp4', C.stressExp4);
+  sv('btAdaptiveOverlay', C.adaptiveOverlay);
+  sv('riskRegimeExpGreen', C.riskRegimeExpGreen); sv('riskRegimeNMultGreen', C.riskRegimeNMultGreen); sv('riskRegimeFreezeGreen', C.riskRegimeFreezeGreen);
+  sv('riskRegimeExpYellow', C.riskRegimeExpYellow); sv('riskRegimeNMultYellow', C.riskRegimeNMultYellow); sv('riskRegimeFreezeYellow', C.riskRegimeFreezeYellow);
+  sv('riskRegimeExpOrange', C.riskRegimeExpOrange); sv('riskRegimeNMultOrange', C.riskRegimeNMultOrange); sv('riskRegimeFreezeOrange', C.riskRegimeFreezeOrange);
+  sv('riskRegimeExpRed', C.riskRegimeExpRed); sv('riskRegimeNMultRed', C.riskRegimeNMultRed); sv('riskRegimeFreezeRed', C.riskRegimeFreezeRed);
+  sv('btC', C.btCost); sr('lagMode', C.lagMode); sr('btFreq', C.freq);
+  sv('btSkipMo', C.skipMo);
+  sv('btNaturalElim', C.naturalElim); sv('btNaturalRank', C.naturalRank);
+  sv('btNaturalExec', C.naturalExec);
+  sv('btSignalTN', C.signalTN); sv('btTNExecMode', C.tnExecMode);
+  sv('btShieldGate', C.shieldGate); sv('btShieldMA', C.shieldMA);
+  sv('btIndExit', C.indExit);
+  sr('capMode', C.capMode); sr('wtMode', C.wtMode);
+  sv('btSN', C.shortN); sv('poolMode', C.poolMode);
+  sv('btH', C.btH); sv('btCap', C.btCap);
+  sv('btMarketPhaseGate', C.marketPhaseGate);
+  sv('btPhaseExp1', C.phaseExp1); sv('btPhaseExp2', C.phaseExp2); sv('btPhaseExp3', C.phaseExp3);
+  sv('btPhaseExp4', C.phaseExp4); sv('btPhaseExp5', C.phaseExp5); sv('btPhaseExp6', C.phaseExp6);
+  sv('ma60Filter', C.ma60Filter);
+  sv('ma60FilterMode', C.ma60FilterMode);
+  N_TREND = C.nTrend;
+  MOM_CONSISTENCY_MULT = C.momConsistencyMult;
+  MOM_FREQ_MODE = C.momFreqMode || MOM_FREQ_MODE;
+  MOM_BASE_WINDOW = parseInt(C.momBaseWindow || MOM_BASE_WINDOW, 10) || MOM_BASE_WINDOW;
+  var mf = document.getElementById('momFreqMode'); if (mf) mf.value = MOM_FREQ_MODE;
+  var mb = document.getElementById('momBaseWindow'); if (mb) mb.value = MOM_BASE_WINDOW;
+  invalidateScoreCache();
+  if (typeof togglePoolUI === 'function') togglePoolUI();
+  console.log('[CANONICAL] Loaded v' + C.version + ' frozen ' + C.frozenDate);
+  if (typeof sl === 'function') sl('btLog', 'Canonical v' + C.version + ' loaded', true);
+}
+
+function logSettingChange(paramName, oldVal, newVal, reason) {
+  SETTING_CHANGE_LOG.push({
+    ts: new Date().toISOString(), param: paramName,
+    from: oldVal, to: newVal, reason: reason || 'unspecified'
+  });
+  console.warn('[SETTING CHANGE]', paramName, oldVal, '->', newVal, reason);
+}
+
+function diffFromCanonical() {
+  var diffs = [];
+  var C = CANONICAL;
+  function chk(id, canonical, label) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var cur;
+    if (el.type === 'checkbox') cur = el.checked;
+    else if (typeof canonical === 'number') cur = parseFloat(el.value);
+    else cur = el.value;
+    var can = (el.type === 'checkbox') ? !!canonical : canonical;
+    if (String(cur) !== String(can)) diffs.push(label + ': canonical=' + can + ' current=' + cur);
+  }
+  function chkRadio(name, canonical, label) {
+    var r = document.querySelector('input[name="' + name + '"]:checked');
+    var cur = r ? r.value : '';
+    if (cur !== String(canonical)) diffs.push(label + ': canonical=' + canonical + ' current=' + cur);
+  }
+  chk('wMom', C.wMom, 'wMom'); chk('wBias', C.wBias, 'wBias');
+  chk('wSlope', C.wSlope, 'wSlope'); chk('wVol', C.wVol, 'wVol');
+  chk('wKbar', C.wKbar, 'wKbar'); chk('corrT', C.corrT, 'corrT');
+  chk('corrW', C.corrW, 'corrW');
+  chk('tailMode', C.tailMode, 'tailMode'); chk('tailPct', C.tailPct, 'tailPct'); chk('tailCount', C.tailCount, 'tailCount');
+  chk('btIndLimit', C.indLimit, 'indLimit'); chk('btSpread', C.btSpread, 'btSpread');
+  chk('btRegimeExp', C.regimeExp, 'regimeExp');
+  chk('btRegimeLen', String(C.regimeLen), 'regimeLen');
+  chk('btC', C.btCost, 'cost');
+  chk('btSN', C.shortN, 'shortN'); chk('btH', C.btH, 'btH');
+  chk('btSignalTN', C.signalTN, 'signalTN');
+  chk('btAdaptiveOverlay', C.adaptiveOverlay, 'adaptiveOverlay');
+  chk('riskRegimeExpGreen', C.riskRegimeExpGreen, 'riskRegimeExpGreen'); chk('riskRegimeNMultGreen', C.riskRegimeNMultGreen, 'riskRegimeNMultGreen'); chk('riskRegimeFreezeGreen', C.riskRegimeFreezeGreen, 'riskRegimeFreezeGreen');
+  chk('riskRegimeExpYellow', C.riskRegimeExpYellow, 'riskRegimeExpYellow'); chk('riskRegimeNMultYellow', C.riskRegimeNMultYellow, 'riskRegimeNMultYellow'); chk('riskRegimeFreezeYellow', C.riskRegimeFreezeYellow, 'riskRegimeFreezeYellow');
+  chk('riskRegimeExpOrange', C.riskRegimeExpOrange, 'riskRegimeExpOrange'); chk('riskRegimeNMultOrange', C.riskRegimeNMultOrange, 'riskRegimeNMultOrange'); chk('riskRegimeFreezeOrange', C.riskRegimeFreezeOrange, 'riskRegimeFreezeOrange');
+  chk('riskRegimeExpRed', C.riskRegimeExpRed, 'riskRegimeExpRed'); chk('riskRegimeNMultRed', C.riskRegimeNMultRed, 'riskRegimeNMultRed'); chk('riskRegimeFreezeRed', C.riskRegimeFreezeRed, 'riskRegimeFreezeRed');
+  chk('btNaturalRank', C.naturalRank, 'naturalRank');
+  chk('btNaturalElim', C.naturalElim, 'naturalElim');
+  chk('btMarketPhaseGate', C.marketPhaseGate, 'marketPhaseGate');
+  chk('btPhaseExp1', C.phaseExp1, 'phaseExp1'); chk('btPhaseExp2', C.phaseExp2, 'phaseExp2'); chk('btPhaseExp3', C.phaseExp3, 'phaseExp3');
+  chk('btPhaseExp4', C.phaseExp4, 'phaseExp4'); chk('btPhaseExp5', C.phaseExp5, 'phaseExp5'); chk('btPhaseExp6', C.phaseExp6, 'phaseExp6');
+  chk('ma60FilterMode', C.ma60FilterMode, 'ma60FilterMode');
+  chkRadio('lagMode', C.lagMode, 'lagMode');
+  chkRadio('btFreq', C.freq, 'freq');
+  chkRadio('capMode', C.capMode, 'capMode');
+  chkRadio('wtMode', C.wtMode, 'wtMode');
+  if (N_TREND !== C.nTrend) diffs.push('N_TREND: canonical=' + C.nTrend + ' current=' + N_TREND);
+  if (MOM_FREQ_MODE !== (C.momFreqMode || MOM_FREQ_MODE)) diffs.push('MOM_FREQ_MODE: canonical=' + C.momFreqMode + ' current=' + MOM_FREQ_MODE);
+  if (MOM_BASE_WINDOW !== (C.momBaseWindow || MOM_BASE_WINDOW)) diffs.push('MOM_BASE_WINDOW: canonical=' + C.momBaseWindow + ' current=' + MOM_BASE_WINDOW);
+  if (MOM_CONSISTENCY_MULT !== C.momConsistencyMult) diffs.push('MOM_CONSISTENCY_MULT: canonical=' + C.momConsistencyMult + ' current=' + MOM_CONSISTENCY_MULT);
+  return diffs;
+}
+
 function togglePoolUI() {
   var isLarge = document.getElementById('poolMode').value === 'large';
   ['btQuotaTW', 'btQuotaUS', 'btQuotaETF'].forEach(function(id) {
@@ -18,6 +162,12 @@ function togglePoolUI() {
 
 var DAILY={}, RAW_SCORES={}, BT_RESULT=null, CHART={}, CACHE_BUILT=false, CACHE_TS=null, SKIP_MO=false, CACHE_SKIP_MO=false, CORR_WIN=24;
 var N_TREND=60; var MOM_CONSISTENCY_MULT=1.2; var REBAL_FREQ="1";
+// Momentum frequency system:
+// D = all stocks use daily bars; W = all stocks use weekly bars.
+// Monthly composite is preserved: 0.5*z12 + 0.3*z6 + 0.2*z3.
+// z3 = MOM_BASE_WINDOW, z6 = 2x, z12 = 4x in the selected frequency.
+var MOM_FREQ_MODE="D";
+var MOM_BASE_WINDOW=60;
 
 function renderPool() {
   var container = document.getElementById('poolContainer');
@@ -106,7 +256,7 @@ function getCacheSignature(){
       return c+':' + b.length + ':' + (last?last.date:'') + ':' + (last&&last.c!=null?last.c:'');
     });
     var freq = (typeof getFreq==='function') ? getFreq() : '1';
-    return [freq,N_TREND,MOM_CONSISTENCY_MULT,parts.join('|')].join('::');
+    return [freq,N_TREND,MOM_CONSISTENCY_MULT,MOM_FREQ_MODE,MOM_BASE_WINDOW,parts.join('|')].join('::');
   }catch(e){ return null; }
 }
 async function saveScoreCacheToDB(sig){
@@ -526,15 +676,32 @@ function getMonthBarsMap(bars) {
   return map;
 }
 
-function getFixedTNDate(bars, monthEndDate, n) {
+function getFixedTNDate(bars, anchorDate, n) {
   n = Math.max(0, parseInt(n || 0));
-  if (!bars || !bars.length || !monthEndDate) return monthEndDate;
-  var ym = monthEndDate.slice(0, 7);
-  var mBars = bars.filter(function(b){ return b.date.slice(0,7) === ym && b.date <= monthEndDate; });
-  if (!mBars.length) return monthEndDate;
-  var idx = mBars.length - 1 - n;
+  if (!bars || !bars.length || !anchorDate) return anchorDate;
+
+  // 月頻維持原本「同月內 T-N」定義；半月頻使用 anchor 往前數交易日，
+  // 避免月初半月點因同月交易日不足而出現 scoreDate == tradeStart。
+  var freq = (typeof getFreq === 'function') ? getFreq() : '1';
+  if (freq !== '2') {
+    var ym = anchorDate.slice(0, 7);
+    var mBars = bars.filter(function(b){ return b.date.slice(0,7) === ym && b.date <= anchorDate; });
+    if (!mBars.length) return anchorDate;
+    var midx = mBars.length - 1 - n;
+    if (midx < 0) midx = 0;
+    return mBars[midx].date;
+  }
+
+  var best = -1, lo = 0, hi = bars.length - 1;
+  while (lo <= hi) {
+    var mid = (lo + hi) >>> 1;
+    if (bars[mid].date <= anchorDate) { best = mid; lo = mid + 1; }
+    else { hi = mid - 1; }
+  }
+  if (best < 0) return anchorDate;
+  var idx = best - n;
   if (idx < 0) idx = 0;
-  return mBars[idx].date;
+  return bars[idx].date;
 }
 
 function getCurrentYM() {
@@ -585,6 +752,52 @@ function getActualOrPrevTradingDay(bars, dateStr){
   }
   return ans || dateStr;
 }
+function getSignalSlotPreference(){
+  var e = $('sigSlot');
+  return e ? (e.value || 'AUTO') : 'AUTO';
+}
+function getMonthRebalanceDatesForSignal(bars, ym, freq){
+  if(!bars || !bars.length || !ym) return [];
+  var all = getPreciseRebalanceDates(bars, freq || getFreq());
+  return all.filter(function(d){ return d && d.slice(0,7) === ym; });
+}
+function estimateMidMonthTradingDate(ym){
+  var weekdays = getWeekdayDatesInMonth(ym);
+  if(!weekdays.length) return null;
+  for(var i=0;i<weekdays.length;i++){
+    if(parseInt(weekdays[i].slice(8,10),10) >= 15) return weekdays[i];
+  }
+  return weekdays[Math.floor(weekdays.length/2)] || weekdays[0];
+}
+function estimateSignalAnchorDate(ym, freq, slot){
+  var weekdays = getWeekdayDatesInMonth(ym);
+  if(!weekdays.length) return null;
+  if(freq === '2' && slot === 'MID') return estimateMidMonthTradingDate(ym);
+  return weekdays[weekdays.length-1];
+}
+function resolveSignalAnchorDate(bars, ym, freq, lastDate){
+  var slot = getSignalSlotPreference();
+  var dates = getMonthRebalanceDatesForSignal(bars, ym, freq);
+  var actualEnd = getActualMonthEndDate(bars, ym);
+  var isComplete = hasLaterMonth(bars, ym);
+  var source = 'actual';
+  var T = null;
+  if(freq === '2'){
+    if(slot === 'MID') T = dates[0] || estimateSignalAnchorDate(ym, freq, 'MID');
+    else if(slot === 'END') T = (dates.length ? dates[dates.length-1] : null) || actualEnd || estimateSignalAnchorDate(ym, freq, 'END');
+    else {
+      var readyDates = dates.filter(function(d){ return d <= lastDate; });
+      if(readyDates.length) T = readyDates[readyDates.length-1];
+      else T = dates[0] || estimateSignalAnchorDate(ym, freq, 'MID');
+    }
+    if(!dates.length || (T && T > lastDate && !isComplete)) source = 'estimated';
+  } else {
+    if(isComplete){ T = actualEnd; source = 'actual'; }
+    else { T = estimateSignalAnchorDate(ym, freq, 'END'); source = 'estimated'; }
+  }
+  var label = (freq === '2') ? ((T && parseInt(T.slice(8,10),10) < 25) ? '半月' : '月底') : '月底';
+  return {T:T, source:source, label:label, slot:slot};
+}
 function getSignalTNInfo(bars){
   if(!bars || !bars.length) return null;
   var inputYM = $('sigYM') ? ($('sigYM').value || '').trim().slice(0,7) : '';
@@ -592,25 +805,14 @@ function getSignalTNInfo(bars){
   var ym = inputYM || lastDate.slice(0,7);
   if(!/^\d{4}-\d{2}$/.test(ym)) return null;
   var n = Math.max(0, Math.min(22, parseInt($('sigTN') ? $('sigTN').value : '10') || 0));
-  var actualMonthEnd = getActualMonthEndDate(bars, ym);
-  var isComplete = hasLaterMonth(bars, ym);
-  var T, tN, source;
-  if(isComplete){
-    T = actualMonthEnd;
-    tN = getFixedTNDate(bars, T, n);
-    source = 'actual';
-  } else {
-    var weekdays = getWeekdayDatesInMonth(ym);
-    if(!weekdays.length) return null;
-    T = weekdays[weekdays.length-1];
-    var idx = weekdays.length - 1 - n;
-    if(idx < 0) idx = 0;
-    tN = weekdays[idx];
-    source = 'estimated';
-  }
+  var freq = getFreq();
+  var anchor = resolveSignalAnchorDate(bars, ym, freq, lastDate);
+  if(!anchor || !anchor.T) return null;
+  var T = anchor.T;
+  var tN = getFixedTNDate(bars, T, n);
   var ready = lastDate >= tN;
   var scoreDate = ready ? getActualOrPrevTradingDay(bars, tN) : null;
-  return {ym:ym, N:n, T:T, tN:tN, scoreDate:scoreDate, ready:ready, lastDate:lastDate, source:source};
+  return {ym:ym, N:n, T:T, tN:tN, scoreDate:scoreDate, ready:ready, lastDate:lastDate, source:anchor.source, freq:freq, label:anchor.label, slot:anchor.slot};
 }
 function getSignalMonthEnd(bars) {
   var info = getSignalTNInfo(bars);
@@ -630,15 +832,18 @@ function buildScoreCacheForDate(dateStr){
       if(bars[i].date <= dateStr) bIdx=i;
       else break;
     }
-    if(bIdx >= 240){
+    var mom = calcMomentumScoreAt(s.c, dateStr);
+    if(bIdx >= N_TREND && mom && mom.ready){
       var cut=bars.slice(0,bIdx+1);
       RAW_SCORES[s.c][dateStr]={
-        rm: rawMom(bars,bIdx),
+        rm: mom.score,
         rb: calcBias(cut,N_TREND),
         rs: calcSlope(cut,N_TREND),
         rv: calcVol(cut,N_TREND),
         rk: calcKbar(cut,N_TREND),
-        r240: bars[bIdx].c/(bars[bIdx-240]?bars[bIdx-240].c:1)-1
+        r240: mom.trendRet,
+        momFreq: getMomentumFreqMode(),
+        momBase: getMomentumBaseWindow()
       };
     }
   });
@@ -681,6 +886,85 @@ function mergeArr(oldBars, newBars) {
   return Object.values(seen).sort(function(a, b){ return a.date.localeCompare(b.date); });
 }
 
+
+function getMomentumFreqMode(){
+  var el=document.getElementById('momFreqMode');
+  var v=el ? el.value : MOM_FREQ_MODE;
+  return (v==='W') ? 'W' : 'D';
+}
+function getMomentumBaseWindow(){
+  var el=document.getElementById('momBaseWindow');
+  var v=parseInt(el ? el.value : MOM_BASE_WINDOW, 10);
+  if(!v || v<2) v=MOM_BASE_WINDOW||60;
+  return v;
+}
+function setMomentumConfig(mode, baseWin, quiet){
+  MOM_FREQ_MODE = (mode==='W') ? 'W' : 'D';
+  MOM_BASE_WINDOW = Math.max(2, parseInt(baseWin,10)||((MOM_FREQ_MODE==='W')?13:60));
+  var mf=document.getElementById('momFreqMode'); if(mf) mf.value=MOM_FREQ_MODE;
+  var mb=document.getElementById('momBaseWindow'); if(mb) mb.value=MOM_BASE_WINDOW;
+  invalidateScoreCache();
+  if(!quiet && typeof sl==='function') sl('btLog','Momentum 設定已更新：'+describeMomentumConfig(),true);
+}
+function setMomentumConfigFromUI(){
+  setMomentumConfig(getMomentumFreqMode(), getMomentumBaseWindow(), false);
+}
+function describeMomentumConfig(){
+  var mode=getMomentumFreqMode(), n=getMomentumBaseWindow();
+  var unit=(mode==='W')?'週':'日';
+  return (mode==='W'?'週頻':'日頻')+' z12/z6/z3 = '+(4*n)+unit+' / '+(2*n)+unit+' / '+n+unit+'；權重=0.5/0.3/0.2';
+}
+function dailyToWeeklyBars(bars){
+  if(!bars || !bars.length) return [];
+  var out=[], cur=null, curKey='';
+  function weekKey(dateStr){
+    var d=new Date(dateStr+'T00:00:00Z');
+    var day=d.getUTCDay()||7;
+    d.setUTCDate(d.getUTCDate()+4-day);
+    var yStart=new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    var wk=Math.ceil((((d-yStart)/86400000)+1)/7);
+    return d.getUTCFullYear()+'-W'+('0'+wk).slice(-2);
+  }
+  bars.forEach(function(b){
+    var k=weekKey(b.date);
+    if(k!==curKey){
+      if(cur) out.push(cur);
+      curKey=k;
+      cur={date:b.date,o:b.o,h:b.h,l:b.l,c:b.c,v:b.v||0};
+    }else{
+      cur.date=b.date;
+      cur.h=Math.max(cur.h,b.h);
+      cur.l=Math.min(cur.l,b.l);
+      cur.c=b.c;
+      cur.v+=(b.v||0);
+    }
+  });
+  if(cur) out.push(cur);
+  return out;
+}
+function getMomentumSourceBars(code){
+  var bars=DAILY[code]||[];
+  return getMomentumFreqMode()==='W' ? dailyToWeeklyBars(bars) : bars;
+}
+function getMomentumIndexOnOrBefore(mBars, dateStr){
+  var idx=-1;
+  for(var i=0;i<mBars.length;i++){ if(mBars[i].date<=dateStr) idx=i; else break; }
+  return idx;
+}
+function calcMomentumScoreAt(code, dateStr){
+  var mBars=getMomentumSourceBars(code);
+  var idx=getMomentumIndexOnOrBefore(mBars,dateStr);
+  var n=getMomentumBaseWindow();
+  var p12=4*n, p6=2*n, p3=n;
+  if(idx < p12) return {score:null, trendRet:null, ready:false};
+  var z12=momZ(mBars,idx,p12), z6=momZ(mBars,idx,p6), z3=momZ(mBars,idx,p3);
+  if(z12===null || z6===null || z3===null) return {score:null, trendRet:null, ready:false};
+  var sc=0.5*z12+0.3*z6+0.2*z3;
+  if(z12>0 && z6>0 && z3>0) sc*=MOM_CONSISTENCY_MULT;
+  var trendRet=mBars[idx].c/(mBars[idx-p12]?mBars[idx-p12].c:1)-1;
+  return {score:sc, trendRet:trendRet, ready:true, z12:z12, z6:z6, z3:z3, idx:idx, bars:mBars.length};
+}
+
 function calcVWMA(bars,n){if(bars.length<n)return null;var sl=bars.slice(-n),sp=0,sv=0;sl.forEach(function(b){var vol=b.v>0?b.v:1;sp+=b.c*vol;sv+=vol;});return sv>0?sp/sv:null;}
 function calcBias(bars,N){var v=calcVWMA(bars,N);return v?(bars[bars.length-1].c-v)/v:null;}
 function calcSlope(bars,N){if(bars.length<N+3)return null;var va=[];for(var i=bars.length-N;i<bars.length;i++){var sl=bars.slice(Math.max(0,i-N+1),i+1);var sp=0,sv=0;sl.forEach(function(b){var vol=b.v>0?b.v:1;sp+=b.c*vol;sv+=vol;});if(sv>0)va.push(sp/sv);}if(va.length<Math.floor(N/2))return null;var n=va.length,sx=0,sy=0,sxy=0,sx2=0;for(var j=0;j<n;j++){sx+=j;sy+=va[j];sxy+=j*va[j];sx2+=j*j;}var den=n*sx2-sx*sx;if(!den)return 0;return (n*sxy-sx*sy)/den/(va[0]||1);}
@@ -698,11 +982,14 @@ function momZ(bars, idx, period) {
 }
 
 function rawMom(daily, idx) {
-  if (idx < 240) return null;
-  var z240 = momZ(daily, idx, 240), z120 = momZ(daily, idx, 120), z60 = momZ(daily, idx, 60);
-  if (z240 === null || z120 === null || z60 === null) return null;
-  var score = 0.5 * z240 + 0.3 * z120 + 0.2 * z60;
-  if (z240 > 0 && z120 > 0 && z60 > 0) score *= MOM_CONSISTENCY_MULT;
+  // Backward-compatible daily momentum. Main cache path uses calcMomentumScoreAt()
+  // so it can support weekly bars and adjustable z3 base windows.
+  var n=getMomentumBaseWindow(), p12=4*n, p6=2*n, p3=n;
+  if (idx < p12) return null;
+  var z12 = momZ(daily, idx, p12), z6 = momZ(daily, idx, p6), z3 = momZ(daily, idx, p3);
+  if (z12 === null || z6 === null || z3 === null) return null;
+  var score = 0.5 * z12 + 0.3 * z6 + 0.2 * z3;
+  if (z12 > 0 && z6 > 0 && z3 > 0) score *= MOM_CONSISTENCY_MULT;
   return score;
 }
 
@@ -824,14 +1111,17 @@ async function buildCache(force) {
     var bIdx=0;
     cacheDates.forEach(function(d){
       while(bIdx < bars.length - 1 && bars[bIdx + 1].date <= d) { bIdx++; }
-      if(bars[bIdx].date <= d && bIdx >= 240){
+      var mom = calcMomentumScoreAt(s.c, d);
+      if(bars[bIdx].date <= d && bIdx >= N_TREND && mom && mom.ready){
         RAW_SCORES[s.c][d]={
-          rm: ind.raw[bIdx],
+          rm: mom.score,
           rb: ind.bias[bIdx],
           rs: ind.slope[bIdx],
           rv: ind.vol[bIdx],
           rk: ind.kbar[bIdx],
-          r240: ind.r240[bIdx]
+          r240: mom.trendRet,
+          momFreq: getMomentumFreqMode(),
+          momBase: getMomentumBaseWindow()
         };
       }
     });
@@ -924,7 +1214,7 @@ function calcAllScores(dateStr) {
       rMs.push(r.rm); rBs.push(r.rb); rSs.push(r.rs); rVs.push(r.rv); rKs.push(r.rk);
       return {s:s, raw:r};
     });
-    var zMs=crossZ(rMs,99),zBs=crossZ(rBs,2),zSs=crossZ(rSs,99),zVs=crossZ(rVs,2),zKs=crossZ(rKs,99);
+    var zCap=3; var zMs=crossZ(rMs,zCap),zBs=crossZ(rBs,zCap),zSs=crossZ(rSs,zCap),zVs=crossZ(rVs,zCap),zKs=crossZ(rKs,zCap);
     return infos.map(function(d,i){ return {s:d.s, score:(w.m*zMs[i]+w.b*zBs[i]+w.s*zSs[i]+w.v*zVs[i]+w.k*zKs[i]), zm:zMs[i],zb:zBs[i],zs:zSs[i],zv:zVs[i],zk:zKs[i],r240:d.raw.r240}; });
   } else {
     var poolGroups={'tw':[],'us':[],'etf':[],'other':[]};
@@ -938,7 +1228,7 @@ function calcAllScores(dateStr) {
         rMs.push(r.rm);rBs.push(r.rb);rSs.push(r.rs);rVs.push(r.rv);rKs.push(r.rk);
         return {s:s,raw:r};
       });
-      var zMs=crossZ(rMs,99),zBs=crossZ(rBs,2),zSs=crossZ(rSs,99),zVs=crossZ(rVs,2),zKs=crossZ(rKs,99);
+      var zCap=3; var zMs=crossZ(rMs,zCap),zBs=crossZ(rBs,zCap),zSs=crossZ(rSs,zCap),zVs=crossZ(rVs,zCap),zKs=crossZ(rKs,zCap);
       pinfos.forEach(function(d,i){
         finalScores.push({s:d.s, score:(w.m*zMs[i]+w.b*zBs[i]+w.s*zSs[i]+w.v*zVs[i]+w.k*zKs[i]), zm:zMs[i],zb:zBs[i],zs:zSs[i],zv:zVs[i],zk:zKs[i],r240:d.raw.r240});
       });
@@ -1059,14 +1349,14 @@ function getStressWeights(){
     raw = {vix:STRESS_WEIGHT_OVERRIDE.vix, hy:STRESS_WEIGHT_OVERRIDE.hy, trend:STRESS_WEIGHT_OVERRIDE.trend, breadth:STRESS_WEIGHT_OVERRIDE.breadth};
   } else {
     raw = {
-      vix: Number(document.getElementById('swVix')?.value || 35),
-      hy: Number(document.getElementById('swHy')?.value || 35),
-      trend: Number(document.getElementById('swTrend')?.value || 20),
-      breadth: Number(document.getElementById('swBreadth')?.value || 10)
+      vix: Number(document.getElementById('swVix')?.value || 0),
+      hy: Number(document.getElementById('swHy')?.value || 0),
+      trend: Number(document.getElementById('swTrend')?.value || 100),
+      breadth: Number(document.getElementById('swBreadth')?.value || 0)
     };
   }
   var sum = raw.vix + raw.hy + raw.trend + raw.breadth;
-  if (!isFinite(sum) || sum <= 0) raw = {vix:35,hy:35,trend:20,breadth:10}, sum=100;
+  if (!isFinite(sum) || sum <= 0) raw = {vix:0,hy:0,trend:100,breadth:0}, sum=100;
   return {vix:raw.vix/sum, hy:raw.hy/sum, trend:raw.trend/sum, breadth:raw.breadth/sum, raw:raw, sum:sum};
 }
 
@@ -1080,10 +1370,77 @@ function normalizeStressWeightInputs(){
 
 function resetStressWeights(){
   STRESS_WEIGHT_OVERRIDE = null;
-  if (document.getElementById('swVix')) document.getElementById('swVix').value = 35;
-  if (document.getElementById('swHy')) document.getElementById('swHy').value = 35;
-  if (document.getElementById('swTrend')) document.getElementById('swTrend').value = 20;
-  if (document.getElementById('swBreadth')) document.getElementById('swBreadth').value = 10;
+  if (document.getElementById('swVix')) document.getElementById('swVix').value = 0;
+  if (document.getElementById('swHy')) document.getElementById('swHy').value = 0;
+  if (document.getElementById('swTrend')) document.getElementById('swTrend').value = 100;
+  if (document.getElementById('swBreadth')) document.getElementById('swBreadth').value = 0;
+}
+
+
+// ===============================
+// Adjustable Stress Score -> Exposure map
+// Default: score <60 => 100%, 60~70 => 80%, 70~80 => 50%, >=80 => 20%.
+// These inputs are intentionally read at runtime so backtest / WF / sweep all use the same UI settings.
+// ===============================
+function getStressExposureMap(){
+  function readNum(id, fallback){
+    var el = document.getElementById(id);
+    var v = el ? parseFloat(el.value) : NaN;
+    return isFinite(v) ? v : fallback;
+  }
+  var l2 = readNum('stressL2', 45);
+  var l3 = readNum('stressL3', 70);
+  var l4 = readNum('stressL4', 80);
+  l2 = Math.max(0, Math.min(100, l2));
+  l3 = Math.max(l2, Math.min(100, l3));
+  l4 = Math.max(l3, Math.min(100, l4));
+  var e1 = Math.max(0, Math.min(100, readNum('stressExp1', 100)));
+  var e2 = Math.max(0, Math.min(100, readNum('stressExp2', 66.6)));
+  var e3 = Math.max(0, Math.min(100, readNum('stressExp3', 50)));
+  var e4 = Math.max(0, Math.min(100, readNum('stressExp4', 33.3)));
+  return {l2:l2, l3:l3, l4:l4, e1:e1, e2:e2, e3:e3, e4:e4};
+}
+
+function getStressExposureByScore(score){
+  var m = getStressExposureMap();
+  var s = isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
+  var expPct = s >= m.l4 ? m.e4 : (s >= m.l3 ? m.e3 : (s >= m.l2 ? m.e2 : m.e1));
+  return expPct / 100;
+}
+
+function getStressLevelByScore(score){
+  var m = getStressExposureMap();
+  var s = isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
+  if (s >= m.l4) return 4;
+  if (s >= m.l3) return 3;
+  if (s >= m.l2) return 2;
+  return 1;
+}
+
+function describeStressExposureMap(){
+  var m = getStressExposureMap();
+  return '<' + m.l2 + '=' + m.e1 + '% | ' + m.l2 + '~' + m.l3 + '=' + m.e2 + '% | ' + m.l3 + '~' + m.l4 + '=' + m.e3 + '% | >=' + m.l4 + '=' + m.e4 + '%';
+}
+
+function normalizeStressExposureInputs(){
+  var m = getStressExposureMap();
+  if (document.getElementById('stressL2')) document.getElementById('stressL2').value = m.l2;
+  if (document.getElementById('stressL3')) document.getElementById('stressL3').value = m.l3;
+  if (document.getElementById('stressL4')) document.getElementById('stressL4').value = m.l4;
+  if (document.getElementById('stressExp1')) document.getElementById('stressExp1').value = m.e1;
+  if (document.getElementById('stressExp2')) document.getElementById('stressExp2').value = m.e2;
+  if (document.getElementById('stressExp3')) document.getElementById('stressExp3').value = m.e3;
+  if (document.getElementById('stressExp4')) document.getElementById('stressExp4').value = m.e4;
+}
+
+function resetStressExposureMap(){
+  if (document.getElementById('stressL2')) document.getElementById('stressL2').value = 45;
+  if (document.getElementById('stressL3')) document.getElementById('stressL3').value = 70;
+  if (document.getElementById('stressL4')) document.getElementById('stressL4').value = 90;
+  if (document.getElementById('stressExp1')) document.getElementById('stressExp1').value = 100;
+  if (document.getElementById('stressExp2')) document.getElementById('stressExp2').value = 66.6;
+  if (document.getElementById('stressExp3')) document.getElementById('stressExp3').value = 50;
+  if (document.getElementById('stressExp4')) document.getElementById('stressExp4').value = 33.3;
 }
 
 function renderStressDash() {
@@ -1305,7 +1662,8 @@ function renderStressDash() {
     '  Breadth=' + (wBr>0?brPct:'--') + '/' + (rspBars?rspBars.length:0) + 'd' +
     '  W=' + (wVix*100).toFixed(0) + '/' + (wHy*100).toFixed(0) + '/' + (wTr*100).toFixed(0) + '/' + (wBr*100).toFixed(0) + '%' +
     '  -> Composite=' + composite + resNote + missingNote +
-    '  | Exposure: ' + (composite >= 75 ? '20%' : composite >= 55 ? '40%' : composite >= 30 ? '70%' : '100%');
+    '  | Map: ' + describeStressExposureMap() +
+    '  | Now Exposure: ' + Math.round(getStressExposureByScore(composite) * 100) + '%';
 }
 
 async function fetchFredIndicators() {
@@ -1321,22 +1679,36 @@ async function fetchFredIndicators() {
     } else { errors.push('^VIX: no data'); }
   } catch(e) { errors.push('^VIX: ' + e.message); }
   await new Promise(function(r){ setTimeout(r, 1200); });
-  // HY Spread proxy: HYG/IEF spread -> stored as BAMLH0A0HYM2
-  // We use HYG yield proxy: fetch HYG and IEF, compute spread as (1/price)*coupon approximation
-  // Simpler: fetch HYG directly as proxy for credit conditions
+  // HY Spread: prefer FRED BAMLH0A0HYM2 direct, fallback to HYG proxy
   try {
-    $('loadTxt').textContent = 'Yahoo: HYG (HY proxy)...';
-    var hygRaw = await fetchOHLCV({c:'HYG', tw:false}, '1d', 'max');
-    if (hygRaw.length) {
-      // Convert HYG price to spread proxy: invert and scale so ~100 price = ~3.5% spread
-      // HYG price range: 70-90, spread range 3-10%. Formula: spread = (90/price - 1) * 35
-      var hygAsSpread = hygRaw.map(function(b) {
-        var spread = Math.max(0.5, Math.min(20, (90 / b.c - 1) * 35));
-        return { date: b.date, o: spread, h: spread, l: spread, c: +spread.toFixed(3), v: 0 };
-      });
-      DAILY['BAMLH0A0HYM2'] = mergeArr(DAILY['BAMLH0A0HYM2'], hygAsSpread);
-    } else { errors.push('HYG: no data'); }
-  } catch(e) { errors.push('HYG: ' + e.message); }
+    var hyFetched = false;
+    var fredKey = $('fredKey') ? $('fredKey').value.trim() : '';
+    if (fredKey) {
+      try {
+        $('loadTxt').textContent = 'FRED: BAMLH0A0HYM2 (direct)...';
+        var hyFred = await fetchFRED('BAMLH0A0HYM2', fredKey, false);
+        if (hyFred && hyFred.length > 60) {
+          DAILY['BAMLH0A0HYM2'] = mergeArr(DAILY['BAMLH0A0HYM2'], hyFred);
+          hyFetched = true;
+          console.log('[HY] Used FRED direct: ' + hyFred.length + ' obs');
+        }
+      } catch (fredErr) {
+        console.warn('[HY] FRED failed, will try HYG proxy:', fredErr.message);
+      }
+    }
+    if (!hyFetched) {
+      $('loadTxt').textContent = 'Yahoo: HYG (HY proxy fallback)...';
+      var hygRaw = await fetchOHLCV({c:'HYG', tw:false}, '1d', 'max');
+      if (hygRaw.length) {
+        var hygAsSpread = hygRaw.map(function(b) {
+          var spread = Math.max(0.5, Math.min(20, (90 / b.c - 1) * 35));
+          return { date: b.date, o: spread, h: spread, l: spread, c: +spread.toFixed(3), v: 0 };
+        });
+        DAILY['BAMLH0A0HYM2'] = mergeArr(DAILY['BAMLH0A0HYM2'], hygAsSpread);
+        console.warn('[HY] Using HYG proxy (less accurate). Enter FRED API key for direct data.');
+      } else { errors.push('HYG: no data'); }
+    }
+  } catch(e) { errors.push('HY: ' + e.message); }
   await new Promise(function(r){ setTimeout(r, 1200); });
   // RSP (equal weight S&P breadth)
   try {
@@ -1458,21 +1830,196 @@ function computeStressScore(dateStr) {
   var composite = Math.round(vixPctS * swC.vix + hyPctS * swC.hy + trPctS * swC.trend + brPctS * swC.breadth);
   composite = Math.max(0, Math.min(100, composite));
 
-  // New exposure rules: <60=100%, 60-70=70%, 70-80=50%, >=80=30%
-  var exposure;
-  if (composite < 60)      exposure = 1.0;
-  else if (composite < 70) exposure = 0.7;
-  else if (composite < 80) exposure = 0.5;
-  else                     exposure = 0.3;
+  // Adjustable exposure rules from UI: score thresholds and exposure percentages are user-defined.
+  var exposure = getStressExposureByScore(composite);
+  var mappedLevel = getStressLevelByScore(composite);
 
   return {
-    stressLevel: stressLevel,
+    stressLevel: mappedLevel,
+    rawStressLevel: stressLevel,
     composite: composite,
     exposure: exposure,
     factors: factors,
     baseLevel: baseLevel,
     highCount: highCount
   };
+}
+
+
+// ===============================
+// Risk Appetite Regime Signal -> Exposure map
+// This is a trailing, no-lookahead signal for backtest use.
+// It uses completed records only; current period future return is never used.
+// ===============================
+function getRiskRegimeControlMap(){
+  function readPct(id, fallback){
+    var el = document.getElementById(id);
+    var v = el ? parseFloat(el.value) : NaN;
+    return isFinite(v) ? Math.max(0, Math.min(100, v)) / 100 : fallback;
+  }
+  function readMult(id, fallback){
+    var el = document.getElementById(id);
+    var v = el ? parseFloat(el.value) : NaN;
+    return isFinite(v) ? Math.max(0.1, Math.min(5, v)) : fallback;
+  }
+  function readBool(id, fallback){
+    var el = document.getElementById(id);
+    return el ? !!el.checked : !!fallback;
+  }
+  return {
+    GREEN:  {exposure: readPct('riskRegimeExpGreen', 1.00), nMult: readMult('riskRegimeNMultGreen', 1.00),  freeze: readBool('riskRegimeFreezeGreen', false)},
+    YELLOW: {exposure: readPct('riskRegimeExpYellow',0.90), nMult: readMult('riskRegimeNMultYellow', 1.15), freeze: readBool('riskRegimeFreezeYellow', false)},
+    ORANGE: {exposure: readPct('riskRegimeExpOrange',0.75), nMult: readMult('riskRegimeNMultOrange', 1.35), freeze: readBool('riskRegimeFreezeOrange', false)},
+    RED:    {exposure: readPct('riskRegimeExpRed',  0.50), nMult: readMult('riskRegimeNMultRed', 1.80),  freeze: readBool('riskRegimeFreezeRed', true)}
+  };
+}
+function getRiskRegimeExposureMap(){
+  var c = getRiskRegimeControlMap();
+  return {GREEN:c.GREEN.exposure, YELLOW:c.YELLOW.exposure, ORANGE:c.ORANGE.exposure, RED:c.RED.exposure};
+}
+function getRiskRegimeExposureByLevel(level){
+  var m = getRiskRegimeExposureMap();
+  return m[level] !== undefined ? m[level] : 1.0;
+}
+function isAdaptiveRegimeOverlayEnabled(){
+  var el = document.getElementById('btAdaptiveOverlay');
+  return !!(el && el.checked);
+}
+function getRiskRegimeAdaptiveControl(level, baseN){
+  var c = getRiskRegimeControlMap();
+  var key = c[level] ? level : 'YELLOW';
+  var cfg = c[key];
+  var b = Math.max(1, parseInt(baseN || (document.getElementById('btH') ? document.getElementById('btH').value : 5), 10) || 5);
+  var mult = (cfg.nMult !== undefined && isFinite(cfg.nMult)) ? cfg.nMult : 1;
+  var n = Math.max(1, Math.min(30, Math.ceil(b * mult)));
+  return {
+    level: key,
+    exposure: cfg.exposure,
+    nMult: mult,
+    baseN: b,
+    n: n,
+    freeze: !!cfg.freeze
+  };
+}
+function getRegimeAdaptiveBacktestDecision(dateStr, completedRecords, fhCache, baseN){
+  if (!isAdaptiveRegimeOverlayEnabled()) {
+    return {enabled:false, level:'OFF', exposure:1.0, adaptiveN:baseN || 5, n:baseN || 5, freeze:false, label:'OVERLAY_OFF', reasons:['Adaptive Overlay OFF']};
+  }
+  var rr = getRiskRegimeDecisionFromRecords(completedRecords || [], dateStr, fhCache);
+  var ctl = getRiskRegimeAdaptiveControl(rr.level, baseN || 5);
+  rr.exposure = ctl.exposure;
+  rr.adaptiveN = ctl.n;
+  rr.baseN = ctl.baseN;
+  rr.nMult = ctl.nMult;
+  rr.freeze = ctl.freeze;
+  rr.enabled = true;
+  return rr;
+}
+function riskRegimeLevelFromHealthSummary(fh, shortN, longN){
+  shortN = shortN || 6;
+  longN = longN || 36;
+  if (!fh || !fh.months || fh.months.length < Math.max(8, shortN + 2)) {
+    return {level:'GREEN', score:0, exposure:1.0, label:'DATA_INSUFFICIENT', reasons:['Insufficient history -- default 100% exposure'],
+      momIC:null, volIC:null, totalIC:null, totalSpread:null, details:null};
+  }
+
+  // Use 3D signal light if available
+  if (typeof calc3DSignalLight === 'function') {
+    var sig = calc3DSignalLight(fh.months, shortN, longN);
+    var ctl = getRiskRegimeAdaptiveControl(sig.regime, null);
+    return {
+      level: sig.regime,
+      label: sig.label,
+      score: sig.score,
+      exposure: ctl.exposure,
+      adaptiveN: ctl.n,
+      baseN: ctl.baseN,
+      nMult: ctl.nMult,
+      freeze: ctl.freeze,
+      reasons: sig.reasons,
+      momIC: sig.details ? sig.details.momIC : null,
+      volIC: sig.details ? sig.details.volIC : null,
+      totalIC: sig.details ? sig.details.totalIC : null,
+      totalSpread: sig.details ? sig.details.spreadShort : null,
+      details: sig.details
+    };
+  }
+
+  // Fallback: legacy scoring (should not reach here after upgrade)
+  function getSumm(key){
+    if (typeof fhSummarizeFactor === 'function') return fhSummarizeFactor(fh, key, shortN, longN);
+    return null;
+  }
+  var mom = getSumm('mom');
+  var vol = getSumm('vol');
+  var kbar = getSumm('kbar');
+  var total = getSumm('total');
+
+  var score = 0, reasons = [];
+  function val(o, path, fallback){
+    try {
+      var cur = o;
+      path.split('.').forEach(function(k){ cur = cur[k]; });
+      return (cur !== null && cur !== undefined && isFinite(cur)) ? cur : fallback;
+    } catch(e){ return fallback; }
+  }
+
+  var momS = val(mom, 'short.ic', null), momL = val(mom, 'long.ic', null);
+  var volS = val(vol, 'short.ic', null), volL = val(vol, 'long.ic', null);
+  var kbS = val(kbar, 'short.ic', null), kbL = val(kbar, 'long.ic', null);
+  var totS = val(total, 'short.ic', null), totL = val(total, 'long.ic', null);
+  var sprS = val(total, 'short.spread', null), sprL = val(total, 'long.spread', null);
+
+  if (momS !== null && momL !== null) {
+    if (momS > momL) { score += 2; reasons.push('Momentum > long-term'); }
+    else { score -= 2; reasons.push('Momentum < long-term'); }
+  }
+  if (sprS !== null && sprL !== null) {
+    if (sprS > sprL) { score += 2; reasons.push('Total Spread expanding'); }
+    else { score -= 2; reasons.push('Total Spread contracting'); }
+  }
+  if (volS !== null && volL !== null && volS > Math.max(0.03, volL * 1.5)) {
+    score -= 1; reasons.push('Volatility factor strengthening (risk-off)');
+  }
+  if (kbS !== null && kbL !== null) {
+    if (kbS > kbL) { score += 1; reasons.push('K-Bar strong'); }
+    else { score -= 1; reasons.push('K-Bar weakening'); }
+  }
+  if (totS !== null && totS < 0.02) { score -= 3; reasons.push('Total IC critically low'); }
+  if (sprS !== null && sprS < 0.01) { score -= 3; reasons.push('Total Spread near zero'); }
+
+  var level = 'YELLOW', label = 'NORMAL';
+  if (score >= 4) { level = 'GREEN'; label = 'TREND'; }
+  else if (score >= 0) { level = 'YELLOW'; label = 'NORMAL'; }
+  else if (score >= -4) { level = 'ORANGE'; label = 'CAUTION'; }
+  else { level = 'RED'; label = 'STOP'; }
+
+  var ctl2 = getRiskRegimeAdaptiveControl(level, null);
+  return {
+    level: level,
+    label: label,
+    score: score,
+    exposure: ctl2.exposure,
+    adaptiveN: ctl2.n,
+    freeze: ctl2.freeze,
+    reasons: reasons,
+    momIC: momS,
+    volIC: volS,
+    totalIC: totS,
+    totalSpread: sprS,
+    details: null
+  };
+}
+function getRiskRegimeDecisionFromRecords(records, dateStr, fhCache){
+  var shortN = parseInt(document.getElementById('fhShortWin') ? document.getElementById('fhShortWin').value : '6', 10) || 6;
+  var longN = parseInt(document.getElementById('fhLongWin') ? document.getElementById('fhLongWin').value : '36', 10) || 36;
+  // Use pre-built fhCache (incremental) when available for O(1) lookup
+  var fh = fhCache || ((typeof calcFactorHealthFromRecords === 'function') ? calcFactorHealthFromRecords(records || []) : null);
+  var r = riskRegimeLevelFromHealthSummary(fh, shortN, longN);
+  r.date = dateStr;
+  r.shortN = shortN;
+  r.longN = longN;
+  return r;
 }
 
 function getShieldRefBars(){
@@ -1493,13 +2040,34 @@ function getShieldMA(bars, dateStr, len){
   return vals.reduce(function(a,b){return a+b;},0) / vals.length;
 }
 
-function getShieldDecision(dateStr){
+function getShieldDecision(dateStr, completedRecords, fhCache){
   var mode = $('btShieldGate') ? $('btShieldGate').value : 'off';
   if (mode === 'off') return {enabled:false, ok:true, exposure:1.0, reason:'OFF'};
 
+  if (mode === 'riskregime') {
+    var rr = getRiskRegimeDecisionFromRecords(completedRecords || [], dateStr, fhCache);
+    var ctl = getRiskRegimeAdaptiveControl(rr.level, null);
+    rr.exposure = ctl.exposure;
+    rr.adaptiveN = ctl.n;
+    rr.baseN = ctl.baseN;
+    rr.nMult = ctl.nMult;
+    rr.freeze = ctl.freeze;
+    return {
+      enabled: true,
+      ok: rr.exposure >= 0.999,
+      exposure: rr.exposure,
+      stressLevel: rr.level === 'GREEN' ? 1 : (rr.level === 'YELLOW' ? 2 : (rr.level === 'ORANGE' ? 3 : 4)),
+      composite: rr.score,
+      adaptiveN: rr.adaptiveN,
+      freeze: rr.freeze,
+      riskRegime: rr,
+      reason: 'Risk Regime ' + rr.label + ' Exp=' + Math.round(rr.exposure * 100) + '% N=' + rr.adaptiveN + ' (base ' + (rr.baseN || '-') + ' × ' + ((rr.nMult !== undefined && isFinite(rr.nMult)) ? rr.nMult.toFixed(2) : '-') + ')' + (rr.freeze ? ' Freeze=ON' : ' Freeze=OFF') + (rr.reasons && rr.reasons.length ? ' | ' + rr.reasons.join(', ') : '')
+    };
+  }
+
   if (mode === 'stress') {
     var ss = computeStressScore(dateStr);
-    var ok = ss.composite < 60;
+    var ok = ss.exposure >= 0.999;
     return {
       enabled: true,
       ok: ok,

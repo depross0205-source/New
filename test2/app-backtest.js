@@ -2,23 +2,35 @@
 // === FINAL RETURN BASIS HELPERS ===
 // Use each ticker's own available trading date within the target month.
 // For monthly rebalance dates this becomes market-specific month-end pricing.
+var MARKET_POINT_CACHE = {};
 function getMarketMonthEndPoint(code, refDate) {
   var bars = DAILY[code];
   if (!bars || !bars.length || !refDate) return null;
+  var lastDate = bars[bars.length - 1] ? bars[bars.length - 1].date : '';
+  var ck = code + '|' + refDate + '|' + bars.length + '|' + lastDate;
+  if (MARKET_POINT_CACHE.hasOwnProperty(ck)) return MARKET_POINT_CACHE[ck];
   var ym = refDate.slice(0, 7);
-  for (var i = bars.length - 1; i >= 0; i--) {
-    if (bars[i].date <= refDate && bars[i].date.slice(0, 7) === ym && bars[i].c != null) {
-      return {date: bars[i].date, price: bars[i].c};
-    }
+  // Binary search: find rightmost bar with date <= refDate
+  var lo = 0, hi = bars.length - 1, best = -1;
+  while (lo <= hi) {
+    var mid = (lo + hi) >>> 1;
+    if (bars[mid].date <= refDate) { best = mid; lo = mid + 1; }
+    else { hi = mid - 1; }
   }
-  // Fallback: if the ticker had no trade in that calendar month, use last available <= refDate.
-  for (var j = bars.length - 1; j >= 0; j--) {
-    if (bars[j].date <= refDate && bars[j].c != null) {
-      return {date: bars[j].date, price: bars[j].c, fallback: true};
-    }
+  if (best < 0) return (MARKET_POINT_CACHE[ck] = null);
+  // Scan backward from best to find same-month bar with valid close
+  for (var i = best; i >= 0; i--) {
+    if (bars[i].date.slice(0, 7) !== ym) break;
+    if (bars[i].c != null) return (MARKET_POINT_CACHE[ck] = {date: bars[i].date, price: bars[i].c});
   }
-  return null;
+  // Fallback: last available <= refDate (different month)
+  for (var j = best; j >= 0; j--) {
+    if (bars[j].c != null) return (MARKET_POINT_CACHE[ck] = {date: bars[j].date, price: bars[j].c, fallback: true});
+  }
+  return (MARKET_POINT_CACHE[ck] = null);
 }
+function clearMarketPointCache(){ MARKET_POINT_CACHE = {}; }
+
 function getMarketMonthEndPrice(code, refDate) {
   var p = getMarketMonthEndPoint(code, refDate);
   return p ? p.price : null;
@@ -72,8 +84,213 @@ function calcLivePositionReturn(entryPrice, latestPrice, weight) {
   var raw = latestPrice / entryPrice - 1;
   return weight < 0 ? -raw : raw;
 }
+
+function calcPriceReturnFromPair(entryPrice, exitPrice, weightSign) {
+  if (!entryPrice || !exitPrice || entryPrice <= 0) return null;
+  var raw = exitPrice / entryPrice - 1;
+  return weightSign < 0 ? -raw : raw;
+}
+function calcStockPriceReturnForDisplay(sr, weightSign) {
+  if (!sr) return null;
+  var w = (weightSign !== undefined && weightSign !== null) ? weightSign : (sr.wEff !== undefined ? sr.wEff : sr.w);
+  var pr = calcPriceReturnFromPair(sr.prevPrice, sr.currPrice, w);
+  if (pr !== null) return pr;
+  // SGOV synthetic / missing price fallback only. Do not use end NAV drift as stock return.
+  if ((sr.note === 'SyntheticSGOV_TNX' || sr.note === 'PositiveMissingToSGOV') && sr.ret !== undefined && sr.ret !== null && isFinite(sr.ret)) return sr.ret;
+  return null;
+}
+function getDisplayPricePairForStock(code, sr, record, isLatestRow) {
+  sr = sr || {};
+  var w = getEffectiveWeightForDisplay(sr);
+  var entryDate = sr.prevDate || record.tradeStart || record.period || record.month;
+  var entryPrice = sr.prevPrice;
+  var exitDate = sr.currDate || record.tradeEnd || record.month;
+  var exitPrice = sr.currPrice;
+
+  // 只有真正 live-adjusted 的最後一期才允許用最新價；
+  // 歷史區間最後列不可因為 isLatestRow 而被延伸到資料庫最新日。
+  if (isLatestRow && record && record.liveAdjusted && code !== 'CASH') {
+    var lp = getLatestMarketPoint(code);
+    if (lp && lp.price !== null && lp.price !== undefined) {
+      exitDate = lp.date;
+      exitPrice = lp.price;
+    }
+  }
+
+  var priceRet = calcPriceReturnFromPair(entryPrice, exitPrice, w);
+  if (priceRet === null && (code === 'SGOV' || sr.note === 'SyntheticSGOV_TNX' || sr.note === 'PositiveMissingToSGOV')) {
+    priceRet = (sr.ret !== undefined && sr.ret !== null && isFinite(sr.ret)) ? sr.ret : null;
+  }
+  return {entryDate:entryDate, entryPrice:entryPrice, exitDate:exitDate, exitPrice:exitPrice, priceRet:priceRet};
+}
+function getInitialWeightForDisplay(sr) {
+  if (!sr) return 0;
+  if (sr.wNominal !== undefined && sr.wNominal !== null && isFinite(sr.wNominal)) return sr.wNominal;
+  if (sr.initialWeight !== undefined && sr.initialWeight !== null && isFinite(sr.initialWeight)) return sr.initialWeight;
+  if (sr.wEff !== undefined && sr.wEff !== null && isFinite(sr.wEff)) return sr.wEff;
+  if (sr.w !== undefined && sr.w !== null && isFinite(sr.w)) return sr.w;
+  return 0;
+}
+function getEffectiveWeightForDisplay(sr) {
+  if (!sr) return 0;
+  if (sr.wEff !== undefined && sr.wEff !== null && isFinite(sr.wEff)) return sr.wEff;
+  if (sr.w !== undefined && sr.w !== null && isFinite(sr.w)) return sr.w;
+  return 0;
+}
+function fmtMaybePct(v, d) {
+  if (v === null || v === undefined || !isFinite(v)) return '--';
+  d = d === undefined ? 2 : d;
+  return (v >= 0 ? '+' : '') + (v * 100).toFixed(d) + '%';
+}
+
+
+// === DISPLAY RETURN BASIS: latest row uses latest available price ===
+// Backtest engine remains historical and auditable. The displayed latest month is
+// marked-to-latest so Gross / Net / NAV / detail rows all share one basis.
+function cloneBTRecordsForDisplay(records) {
+  try { return JSON.parse(JSON.stringify(records || [])); }
+  catch(e) { return (records || []).map(function(r){ return Object.assign({}, r); }); }
+}
+function getBTBenchmarkCodeForDisplay() {
+  if (typeof DAILY === 'undefined') return null;
+  if (DAILY['^TWII']) return '^TWII';
+  if (DAILY['0050']) return '0050';
+  if (DAILY['SPY']) return 'SPY';
+  var keys = Object.keys(DAILY || {});
+  return keys.length ? keys[0] : null;
+}
+function getLatestDisplayReturnPoint(code, fallbackDate) {
+  var lp = getLatestMarketPoint(code);
+  if (lp && lp.price !== null && lp.price !== undefined && isFinite(lp.price)) return lp;
+  return getMarketMonthEndPoint(code, fallbackDate);
+}
+function recomputeDisplayHoldingsFromStockRets(stockRets, grossRet) {
+  var out = {};
+  var denom = 1 + (isFinite(grossRet) ? grossRet : 0);
+  if (!isFinite(denom) || denom <= 0) denom = 1;
+  Object.keys(stockRets || {}).forEach(function(k){
+    var sr = stockRets[k] || {};
+    var w = getInitialWeightForDisplay(sr);
+    var r = (sr.ret !== undefined && sr.ret !== null && isFinite(sr.ret)) ? sr.ret : 0;
+    var displayCode = sr.finalCode || k;
+    out[displayCode] = (out[displayCode] || 0) + (w * (1 + r) / denom);
+  });
+  return out;
+}
+function adjustLatestRecordToLatestPrice(record, prevNav, prevBNav) {
+  if (!record || !record.stockRets) return record;
+  var latestAny = false;
+  var gross = 0;
+  Object.keys(record.stockRets).forEach(function(k){
+    var sr = record.stockRets[k] || {};
+    var initW = getInitialWeightForDisplay(sr);
+    if (!initW || !isFinite(initW)) { sr.wEff = 0; return; }
+
+    // Natural-elimination long chain: sr.finalCapital is the capital after chain at tradeEnd.
+    // Mark only the finalCode leg from tradeEnd to latest price, then convert back to slot return.
+    if (sr.finalCode && sr.finalCapital !== undefined && sr.finalCapital !== null && isFinite(sr.finalCapital)) {
+      var fCode = sr.finalCode;
+      var lpFinal = getLatestDisplayReturnPoint(fCode, record.tradeEnd || sr.currDate);
+      if (lpFinal && lpFinal.price !== null && lpFinal.price !== undefined && isFinite(lpFinal.price)) {
+        if (sr.currPrice && isFinite(sr.currPrice) && sr.currPrice > 0 && initW > 0) {
+          var liveCapital = sr.finalCapital * (lpFinal.price / sr.currPrice);
+          sr.ret = liveCapital / initW - 1;
+          sr.finalCapital = liveCapital;
+          sr.currDate = lpFinal.date;
+          sr.currPrice = lpFinal.price;
+          sr.note = (sr.note ? sr.note + '|' : '') + 'LiveLatest';
+          latestAny = true;
+        }
+      }
+    } else if (k !== 'CASH') {
+      var lp = getLatestDisplayReturnPoint(k, record.tradeEnd || sr.currDate);
+      if (lp && lp.price !== null && lp.price !== undefined && isFinite(lp.price) && sr.prevPrice && isFinite(sr.prevPrice) && sr.prevPrice > 0) {
+        // sr.ret intentionally remains raw price return. Short P/L is produced by negative weight.
+        sr.ret = lp.price / sr.prevPrice - 1;
+        sr.currDate = lp.date;
+        sr.currPrice = lp.price;
+        sr.note = (sr.note ? sr.note + '|' : '') + 'LiveLatest';
+        latestAny = true;
+      }
+    }
+
+    sr.w = initW;
+    sr.wEff = initW;
+    sr.wNominal = initW;
+    if (sr.ret !== undefined && sr.ret !== null && isFinite(sr.ret)) gross += initW * sr.ret;
+  });
+
+  if (!latestAny) return record;
+  if (!isFinite(gross) || gross <= -0.9999) gross = -0.9999;
+  var cost = (record.totalCost !== undefined && record.totalCost !== null && isFinite(record.totalCost)) ? record.totalCost : ((record.turnoverCost || 0) + (record.impactCost || 0));
+  var net = gross - cost;
+  if (!isFinite(net) || net <= -0.9999) net = -0.9999;
+
+  record.grossRet = gross;
+  record.pRet = net;
+  record.nav = prevNav * (1 + net);
+  record.holdings = recomputeDisplayHoldingsFromStockRets(record.stockRets, gross);
+  record.liveAdjusted = true;
+  record.liveBasis = 'LATEST_PRICE';
+  record.liveAsOf = Object.keys(record.stockRets).reduce(function(mx,k){
+    var d = record.stockRets[k] && record.stockRets[k].currDate;
+    return (!mx || (d && d > mx)) ? d : mx;
+  }, null);
+  record.closureCostDiff = net - (gross - cost);
+  record.closureNavDiff = (record.nav / prevNav - 1) - net;
+
+  var bCode = getBTBenchmarkCodeForDisplay();
+  if (bCode) {
+    var b0 = getMarketMonthEndPoint(bCode, record.tradeStart || record.period || record.month);
+    var b1 = getLatestDisplayReturnPoint(bCode, record.tradeEnd || record.month);
+    if (b0 && b1 && b0.price > 0) record.bNav = prevBNav * (1 + (b1.price / b0.price - 1));
+  }
+  return record;
+}
+function getGlobalLatestMarketDateForDisplay() {
+  if (typeof DAILY === 'undefined' || !DAILY) return null;
+  var latest = null;
+  Object.keys(DAILY).forEach(function(code){
+    var bars = DAILY[code];
+    if (!bars || !bars.length) return;
+    for (var i = bars.length - 1; i >= 0; i--) {
+      var b = bars[i];
+      if (b && b.date && b.c !== null && b.c !== undefined && isFinite(b.c)) {
+        if (!latest || b.date > latest) latest = b.date;
+        break;
+      }
+    }
+  });
+  return latest;
+}
+function getRecordEndMonthForDisplay(record) {
+  if (!record) return '';
+  var d = record.tradeEnd || record.month || record.period || '';
+  return String(d).slice(0, 7);
+}
+function shouldUseLatestPriceForDisplay(record) {
+  // 只有「回測最後一期本身就是資料庫最新月份」時，才把最後一列標成即時價格。
+  // 若使用者選 2010-2020，最後一列必須停在 2020 的 tradeEnd，不可延伸到 2026 最新價。
+  var latestDate = getGlobalLatestMarketDateForDisplay();
+  if (!record || !latestDate) return false;
+  return getRecordEndMonthForDisplay(record) === latestDate.slice(0, 7);
+}
+function getDisplayBTRecords(records, init) {
+  var recs = cloneBTRecordsForDisplay(records || []);
+  if (!recs.length) return recs;
+  var lastIdx = recs.length - 1;
+  if (!shouldUseLatestPriceForDisplay(recs[lastIdx])) {
+    recs[lastIdx].liveAdjusted = false;
+    recs[lastIdx].liveBasis = 'TRADE_END';
+    return recs;
+  }
+  var prevNav = lastIdx > 0 ? recs[lastIdx - 1].nav : init;
+  var prevBNav = lastIdx > 0 ? recs[lastIdx - 1].bNav : init;
+  recs[lastIdx] = adjustLatestRecordToLatestPrice(recs[lastIdx], prevNav, prevBNav);
+  return recs;
+}
 function renderLatestHoldingsPriceBox(record) {
-  if (!record || !record.stockRets) return '';
+  if (!record || !record.stockRets || !record.liveAdjusted) return '';
   var rows = [];
   Object.keys(record.stockRets).forEach(function(k){
     if (k === 'CASH') return;
@@ -107,9 +324,9 @@ function renderLatestHoldingsPriceBox(record) {
     + '</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>'
     + '</div>';
 }
-function renderSignalPriceLine(code, scoreDate, weightSign, sigN) {
+function renderSignalPriceLine(code, scoreDate, weightSign, sigN, anchorDate) {
   var refDaily = DAILY['^TWII'] || DAILY['0050'] || DAILY['SPY'] || DAILY[code];
-  var monthEnd = getRefMonthEndDate(refDaily, scoreDate);
+  var monthEnd = anchorDate || getRefMonthEndDate(refDaily, scoreDate);
   var execMode = getTNExecMode();
   var entryDate = getTNExecutionDate(refDaily, monthEnd, sigN, execMode);
   var entry = getMarketMonthEndPoint(code, entryDate);
@@ -201,13 +418,13 @@ function calcNaturalLongChainsNE(target, tradeStart, tradeEnd, refDaily, hurdle,
         repl = {code:cand, rank:i+1, point:bp};
         break;
       }
-      extraTurnover += Math.abs(slot.capital); // replacement uses remaining capital only
+      extraTurnover += Math.abs(slot.capital) * 2; // sell + buy legs (one-way x2)
       blocked[slot.current] = false;
       if (!repl) {
-        var cashEvent = {date:execDate, signalDate:d, execDate:execDate, execMode:execMode, from:slot.current, to:'CASH', rank:currentRank, newRank:null, inheritedCapital:slot.capital, remainingPct:slot.capital, sellDate:sell.date, sellPrice:sell.price, buyDate:null, buyPrice:null};
-        events.push(cashEvent);
-        slot.events.push(cashEvent);
-        slot.current='CASH'; slot.startDate=execDate; slot.startPrice=null; slot.chain.push('CASH'); slot.alive=false;
+        var sgovEvent = {date:execDate, signalDate:d, execDate:execDate, execMode:execMode, from:slot.current, to:'SGOV', rank:currentRank, newRank:null, inheritedCapital:slot.capital, remainingPct:slot.capital, sellDate:sell.date, sellPrice:sell.price, buyDate:null, buyPrice:null};
+        events.push(sgovEvent);
+        slot.events.push(sgovEvent);
+        slot.current='SGOV'; slot.startDate=execDate; slot.startPrice=null; slot.chain.push('SGOV'); slot.alive=false;
         return;
       }
       var replEvent = {date:execDate, signalDate:d, execDate:execDate, execMode:execMode, from:slot.current, to:repl.code, rank:currentRank, newRank:repl.rank, inheritedCapital:slot.capital, remainingPct:slot.capital, sellDate:sell.date, sellPrice:sell.price, buyDate:repl.point.date, buyPrice:repl.point.price};
@@ -218,7 +435,7 @@ function calcNaturalLongChainsNE(target, tradeStart, tradeEnd, refDaily, hurdle,
   });
   var slotDetails = {}, finalHoldings = {};
   slots.forEach(function(slot){
-    if (slot.alive && slot.current !== 'CASH') {
+    if (slot.alive && slot.current !== 'CASH' && slot.current !== 'SGOV') {
       var end = getPointOnOrBeforeNE(slot.current, tradeEnd);
       if (end && end.price && slot.startPrice) slot.capital = slot.capital * (end.price / slot.startPrice);
     }
@@ -270,7 +487,7 @@ function fmtNaturalChainHtmlNE(sr){
       + '<span style="color:var(--re)">' + ev.from + (fromName && fromName !== ev.from ? ' ' + fromName : '') + '</span>'
       + ' 跌出門檻(' + rankText + ') 賣價 ' + sellPx + ' → '
       + '<span style="color:var(--gr)">' + ev.to + (toName && toName !== ev.to ? ' ' + toName : '') + '</span>'
-      + (ev.to !== 'CASH' ? ' 新排序(' + newRankText + ') 買價 ' + buyPx : '')
+      + (ev.to !== 'CASH' && ev.to !== 'SGOV' ? ' 新排序(' + newRankText + ') 買價 ' + buyPx : '')
       + '｜剩餘比例: <span style="color:var(--ac);font-weight:700">' + remain + '</span>'
       + '</div>';
   });
@@ -282,6 +499,57 @@ function fmtNaturalChainHtmlNE(sr){
       + sr.finalCode + (fn && fn !== sr.finalCode ? ' ' + fn : '') + '</span>｜期末NAV比例: <span style="color:var(--ac);font-weight:700">' + finalPct + '</span></div>';
   }
   return '<div style="margin-top:4px;padding-left:8px;border-left:2px solid var(--ye)"><div style="font-size:9px;color:var(--ye);font-weight:700">自然淘汰鏈</div>' + rows.join('') + finalLine + '</div>';
+}
+
+
+
+// === MARKET PHASE GATE BACKTEST INTEGRATION ===
+// Diagnostic-only by default. Exposure Control uses ONLY trailing completed
+// factor-health rows (_fhCache before current period) to avoid look-ahead.
+function getMarketPhaseGateMode(){
+  var el = $('btMarketPhaseGate');
+  return el ? (el.value || 'diagnostic') : 'diagnostic';
+}
+function getMarketPhaseExposureByPhase(phase){
+  phase = parseInt(phase,10) || 0;
+  var defaults = {1:50,2:80,3:100,4:80,5:65,6:25};
+  var el = $('btPhaseExp' + phase);
+  var pct = el ? parseFloat(el.value) : defaults[phase];
+  if (pct === null || pct === undefined || !isFinite(pct)) pct = defaults[phase] || 100;
+  return Math.max(0, Math.min(150, pct)) / 100;
+}
+function getMarketPhaseDecisionForBacktest(fhCache, shortN, longN){
+  var mode = getMarketPhaseGateMode();
+  var off = {enabled:false, control:false, mode:mode, phase:0, title:'OFF', state:'OFF', exposure:1.0, confidence:0, risk:'--', reasons:['Market Phase Gate OFF']};
+  if (mode === 'off') return off;
+  if (!fhCache || !fhCache.months || fhCache.months.length < Math.max(6, shortN || 6) || typeof calcMarketPhaseFromFH !== 'function') {
+    return {enabled:true, control:false, mode:mode, phase:0, title:'資料不足', state:'Insufficient trailing data', exposure:1.0, confidence:0, risk:'--', reasons:['前期Factor Health樣本不足，僅診斷不降曝險']};
+  }
+  var mp = calcMarketPhaseFromFH(fhCache, shortN || 6, longN || 36);
+  var exp = getMarketPhaseExposureByPhase(mp.phase);
+  var control = (mode === 'control');
+  return {
+    enabled:true,
+    control:control,
+    mode:mode,
+    phase:mp.phase || 0,
+    title:mp.title || 'Phase --',
+    state:mp.state || '--',
+    exposure: control ? exp : 1.0,
+    suggestedExposure: exp,
+    exposureBand: mp.exposureBand || '--',
+    confidence: mp.confidence || 0,
+    risk: mp.risk || '--',
+    reasons: mp.bullets || [],
+    metrics: mp.metrics || {},
+    heat: mp.heat || {},
+    curve: mp.curve || {}
+  };
+}
+function formatMarketPhaseMini(decision){
+  if (!decision || !decision.enabled) return 'Phase OFF';
+  if (!decision.phase) return 'Phase --';
+  return 'P' + decision.phase + ' ' + (decision.state || '') + ' Exp=' + Math.round((decision.suggestedExposure || decision.exposure || 1)*100) + '%';
 }
 
 function runBTcore(mh, mode, opts) {
@@ -314,14 +582,16 @@ function runBTcore(mh, mode, opts) {
   var shortTSF=!!($('btSTSF')&&$('btSTSF').checked);
   var regimeOn=$('btRegime')&&$('btRegime').value==='on';
   var regimeExp=gv('btRegimeExp')||100;
+  var regimeLen = opts.regimeLen || (parseInt(($('btRegimeLen') ? $('btRegimeLen').value : '60'), 10) || 60);
   var useMA60=$('ma60Filter')?$('ma60Filter').value==='on':true;
   var tnExecMode = opts.tnExecMode || getTNExecMode();
   var naturalCfg = getNaturalElimConfig();
 
-  var nav=INIT, bNav=INIT, records=[], holdings={CASH:1.0};
+  var nav=INIT, bNav=INIT, records=[], holdings={SGOV:1.0};
       var DEFENSIVE=['SGOV'];
 
-
+  // Incremental factor health cache for regime light performance
+  var _fhCache = {months: [], factors: [['mom','Momentum'],['bias','Bias'],['slope','Slope'],['vol','Volatility'],['kbar','K-Bar'],['score','Total Score']]};
 
   for (var idx=cS; idx<=cE; idx++) {
     var sigM = allM[idx];
@@ -335,13 +605,16 @@ function runBTcore(mh, mode, opts) {
     if (!scoreBaseM) {
       var b0skip=getPriceOnDate(refDaily,prevM), b1skip=getPriceOnDate(refDaily,sigM);
       if(b0skip&&b1skip&&b0skip>0) bNav*=(1+(b1skip/b0skip-1));
-      records.push({month:sigM,period:prevM+" ~ "+sigM,nav:nav,bNav:bNav,holdings:{CASH:1.0},pRet:0,hurdle:0,stockRets:{},scoringM:null,note:'No scoring base'});
-      holdings={CASH:1.0};
+      records.push({month:sigM,period:prevM+" ~ "+sigM,nav:nav,bNav:bNav,holdings:{SGOV:1.0},targetWeights:{SGOV:1.0},pRet:0,hurdle:0,stockRets:{},scoringM:null,note:'No scoring base'});
+      holdings={SGOV:1.0};
       continue;
     }
     var scoreM;
     if (opts.signalN !== undefined && opts.signalN !== null) {
-      scoreM = getFixedTNDate(refDaily, prevM, opts.signalN);
+      // T-N signal date must follow the same scoring base as normal lag mode.
+      // When Skip Month is ON, use scoreBaseM (one full rebalance period earlier),
+      // not prevM; otherwise T-N silently bypasses the skip-month leakage guard.
+      scoreM = getFixedTNDate(refDaily, scoreBaseM, opts.signalN);
     } else {
       scoreM = (LAG === 1)
         ? getPrevWorkDay(refDaily, scoreBaseM, 1)
@@ -353,6 +626,8 @@ function runBTcore(mh, mode, opts) {
       tradePrevM = getTNExecutionDate(refDaily, prevM, opts.signalN, tnExecMode);
       tradeSigM = getTNExecutionDate(refDaily, sigM, opts.signalN, tnExecMode);
     }
+    // AUDIT: T-N timing check
+    auditTN(scoreM, tradePrevM, tradeSigM, opts.signalN || 0, tnExecMode);
     var tradePeriod = tradePrevM + " ~ " + tradeSigM;
     var scoringM = scoreM;
     var hurdle = getHurdle(scoringM);
@@ -363,23 +638,45 @@ function runBTcore(mh, mode, opts) {
     if (valid.length < 5) {
       var b0x=getPriceOnDate(refDaily,tradePrevM), b1x=getPriceOnDate(refDaily,tradeSigM);
       if(b0x&&b1x&&b0x>0) bNav*=(1+(b1x/b0x-1));
-      records.push({month:sigM,period:tradePeriod,nav:nav,bNav:bNav,holdings:{CASH:1.0},pRet:0,hurdle:hurdle,stockRets:{},scoringM:scoreM,tnExecMode:tnExecMode,tradeStart:tradePrevM,tradeEnd:tradeSigM});
-      holdings={CASH:1.0}; continue;
+      records.push({month:sigM,period:tradePeriod,nav:nav,bNav:bNav,holdings:{SGOV:1.0},targetWeights:{SGOV:1.0},pRet:0,hurdle:hurdle,stockRets:{},scoringM:scoreM,tnExecMode:tnExecMode,tradeStart:tradePrevM,tradeEnd:tradeSigM});
+      holdings={SGOV:1.0}; continue;
     }
+
+    // Regime Adaptive Control: use trailing completed factor-health cache only.
+    // It can adjust exposure, N and Freeze-new-entry without look-ahead.
+    var adaptiveDecision = (typeof getRegimeAdaptiveBacktestDecision === 'function')
+      ? getRegimeAdaptiveBacktestDecision(scoreM, records, _fhCache, mh)
+      : {enabled:false, level:'OFF', exposure:1.0, adaptiveN:mh, freeze:false, label:'OFF', reasons:[]};
+    var adaptiveN = (adaptiveDecision && adaptiveDecision.enabled && adaptiveDecision.adaptiveN)
+      ? adaptiveDecision.adaptiveN : mh;
+    var adaptiveFreeze = !!(adaptiveDecision && adaptiveDecision.enabled && adaptiveDecision.freeze);
+    var adaptiveHeldMap = {};
+    Object.keys(holdings || {}).forEach(function(c){
+      if (c !== 'SGOV' && c !== 'CASH' && Math.abs(holdings[c] || 0) > 0.0001) adaptiveHeldMap[c] = true;
+    });
 
     // FIX3: poolModeSetting declared first, exitMap uses calcSimpleMA
     var poolModeSetting = document.getElementById('poolMode').value;
 
+    var ma60ModeEl = $('ma60FilterMode');
+    var ma60Mode = ma60ModeEl ? ma60ModeEl.value : 'all'; // all = existing holdings + new candidates, held = existing holdings only
+    var ma60Cache = {};
+    function isMA60Blocked(c) {
+      if (!useMA60 || !c || c === 'CASH' || c === 'SGOV') return false;
+      if (ma60Cache.hasOwnProperty(c)) return ma60Cache[c];
+      var bars = DAILY[c];
+      if (!bars) return (ma60Cache[c] = false);
+      var ma = calcSimpleMA(bars, scoreM, 60);
+      var price = getPriceOnDate(bars, scoreM);
+      var prevDate = getPrevWorkDay(refDaily, scoreM, 5);
+      var prevMa = calcSimpleMA(bars, prevDate, 60);
+      return (ma60Cache[c] = !!((ma && price && price < ma) || (ma && prevMa && ma < prevMa)));
+    }
+
     var exitMap = {};
     if (useMA60) {
       Object.keys(holdings).forEach(function(c) {
-        if (c === 'CASH') return;
-        var bars = DAILY[c]; if (!bars) return;
-        var ma = calcSimpleMA(bars, scoreM, 60);
-        var price = getPriceOnDate(bars, scoreM);
-        var prevDate = getPrevWorkDay(refDaily, scoreM, 5);
-        var prevMa = calcSimpleMA(bars, prevDate, 60);
-        if ((ma && price && price < ma) || (ma && prevMa && ma < prevMa)) exitMap[c] = true;
+        if (isMA60Blocked(c)) exitMap[c] = true;
       });
     }
 
@@ -387,15 +684,19 @@ function runBTcore(mh, mode, opts) {
     var mainCands = valid.filter(function(r) {
       if (r.r240 === null || r.r240 <= hurdle) return false;
       if (DEFENSIVE.indexOf(r.s.c) !== -1) return false;
+      if (adaptiveFreeze && !adaptiveHeldMap[r.s.c]) return false;
       if (exitMap[r.s.c]) return false;
+      if (useMA60 && ma60Mode === 'all' && isMA60Blocked(r.s.c)) return false;
       return true;
     });
 
     var sel = [];
 
     if (poolModeSetting === 'large') {
-      var totalMax = parseInt(document.getElementById('btH').value) || 5;
+      var totalMax = adaptiveDecision.enabled ? adaptiveN : (parseInt(document.getElementById('btH').value) || 5);
       mainCands.sort(function(a,b){ return b.score-a.score; });
+    // AUDIT: rank sort order
+    auditRankMonotonicity(mainCands, sigM);
       for (var ci=0; ci<mainCands.length; ci++) {
         if (sel.length >= totalMax) break;
         var cand = mainCands[ci];
@@ -420,13 +721,13 @@ function runBTcore(mh, mode, opts) {
     }
 
     var totalQuota = poolModeSetting === 'large'
-      ? (parseInt(document.getElementById('btH').value) || 5)
+      ? (adaptiveDecision.enabled ? adaptiveN : (parseInt(document.getElementById('btH').value) || 5))
       : (parseInt($('btQuotaTW') ? $('btQuotaTW').value : '2') || 0)
         + (parseInt($('btQuotaUS') ? $('btQuotaUS').value : '2') || 0)
         + (parseInt($('btQuotaETF') ? $('btQuotaETF').value : '1') || 0);
 
-    // 多方缺額只記錄為 longFillSlots，後面補到 target 的 SGOV/CASH。
-    // 不再 push 到 sel，避免 SGOV/CASH 被當成多方候選，甚至再流入空方候選。
+    // 多方缺額只記錄為 longFillSlots，後面補到 target 的 SGOV。
+    // 不再 push 到 sel，避免 SGOV 被當成多方候選，甚至再流入空方候選。
     var longFillSlots = Math.max(0, totalQuota - sel.length);
 
     var selS=[];
@@ -441,6 +742,7 @@ function runBTcore(mh, mode, opts) {
         if (r.s.c === 'SGOV' || r.s.c === 'CASH') return false;
         if (r.s.pool === 'etf') return false;
         if (r.s.region === 'etf') return false;
+        if (adaptiveFreeze && !adaptiveHeldMap[r.s.c]) return false;
 
         return true;
       });
@@ -453,8 +755,61 @@ function runBTcore(mh, mode, opts) {
     }
 
 
-    var exposure=1.0;
-    if (regimeOn&&isBearishRegime(refDaily,scoreM,60)) exposure=regimeExp/100;
+    var marketRegimeExposure = 1.0;
+    var _regimeBearish = regimeOn && isBearishRegime(refDaily, scoreM, regimeLen);
+    if (_regimeBearish) marketRegimeExposure = regimeExp / 100;
+    // AUDIT: Regime signal sanity
+    if (regimeOn && DEBUG_AUDIT) {
+      var _vwmaRef = (function(){
+        try { return typeof calcVWMAOnDate === 'function' ? calcVWMAOnDate(refDaily, scoreM, regimeLen) : null; } catch(e){return null;}
+      })();
+      var _priceRef = (function(){
+        try { return typeof getPriceOnDate === 'function' ? getPriceOnDate(refDaily, scoreM) : null; } catch(e){return null;}
+      })();
+      auditRegime(scoreM, _regimeBearish, _vwmaRef, _priceRef, regimeLen, sigM);
+    }
+
+    // Exposure model v3.6:
+    // VWMA is the primary market switch. If VWMA is risk-on, VWMA exposure is 100% and does not reduce capital.
+    // The VWMA bear exposure input is used only when VWMA is bearish.
+    // 4F/3D signal is a user-adjustable multiplier; defaults keep Green at 100% and progressively reduce Yellow/Orange/Red.
+    var shield = getShieldDecision(scoreM, records, _fhCache);
+    var shieldExposure = (shield && shield.enabled && typeof shield.exposure === 'number') ? shield.exposure : 1.0;
+    var adaptiveExposure = (adaptiveDecision && adaptiveDecision.enabled && typeof adaptiveDecision.exposure === 'number') ? adaptiveDecision.exposure : 1.0;
+    var factorExposureMultiplier = (adaptiveDecision && adaptiveDecision.enabled) ? adaptiveExposure : shieldExposure;
+    if (!isFinite(factorExposureMultiplier)) factorExposureMultiplier = 1.0;
+    factorExposureMultiplier = Math.max(0, Math.min(1.5, factorExposureMultiplier));
+
+    // Market Phase Gate: based on completed prior IC / factor-health rows only.
+    // Diagnostic mode records the phase but leaves exposure unchanged.
+    // Exposure Control mode multiplies the final risk exposure and parks residual capital in SGOV.
+    var marketPhaseDecision = getMarketPhaseDecisionForBacktest(_fhCache, 6, 36);
+    var marketPhaseExposure = (marketPhaseDecision && marketPhaseDecision.control && typeof marketPhaseDecision.exposure === 'number') ? marketPhaseDecision.exposure : 1.0;
+    if (!isFinite(marketPhaseExposure)) marketPhaseExposure = 1.0;
+    marketPhaseExposure = Math.max(0, Math.min(1.5, marketPhaseExposure));
+
+    var vwmaActive = !!_regimeBearish;
+    var vwmaExposureUsed = vwmaActive ? marketRegimeExposure : 1.0;
+    var exposure = vwmaExposureUsed * factorExposureMultiplier * marketPhaseExposure;
+    if (!isFinite(exposure)) exposure = 1.0;
+    exposure = Math.max(0, Math.min(1, exposure));
+    var exposureLayers = {
+      marketRegimeExposure: marketRegimeExposure,
+      vwmaExposureUsed: vwmaExposureUsed,
+      vwmaActive: vwmaActive,
+      shieldExposure: shieldExposure,
+      adaptiveExposure: adaptiveExposure,
+      factorExposureMultiplier: factorExposureMultiplier,
+      marketPhaseExposure: marketPhaseExposure,
+      marketPhaseMode: marketPhaseDecision ? marketPhaseDecision.mode : 'off',
+      marketPhaseControl: !!(marketPhaseDecision && marketPhaseDecision.control),
+      marketPhase: marketPhaseDecision ? marketPhaseDecision.phase : 0,
+      exposureFormula: '(VWMA bearish ? VWMA bear exposure : 100%) * 4F multiplier * MarketPhase multiplier',
+      finalExposure: exposure,
+      regimeBearish: !!_regimeBearish,
+      shieldMode: ($('btShieldGate') ? $('btShieldGate').value : 'off'),
+      adaptiveOverlay: !!(adaptiveDecision && adaptiveDecision.enabled)
+    };
 
     var target={};
     var is1330 = capMode === '1330';
@@ -466,7 +821,7 @@ function runBTcore(mh, mode, opts) {
 
     // Capital Mode:
     // - 100/0: 100% long only.
-    // - 50/50: 50% long / 50% short；空方不足不補 SGOV/CASH。
+    // - 50/50: 50% long / 50% short；空方不足不補 SGOV。
     // - 130/30: 有空方時 130% long / 30% short；空方不足降為 100/0。
     // - Short Only: 100% short；不得因多方 sel 為空而轉成 CASH/SGOV。
     var lScale = 0.0, sScale = 0.0;
@@ -488,7 +843,7 @@ function runBTcore(mh, mode, opts) {
     }
 
     // 多方因市場弱化、MA、hurdle、相關係數或產業限額而不足時，
-    // 股票部分只分配已入選名額對應權重，剩餘 long side 後面補 SGOV/CASH。
+    // 股票部分只分配已入選名額對應權重，剩餘 long side 後面補 SGOV。
     var selectedLongSlots = hasLong ? sel.length : 0;
     var longSlotBase = totalQuota > 0 ? totalQuota : selectedLongSlots;
     var effectiveLongScale = lScale;
@@ -526,13 +881,9 @@ function runBTcore(mh, mode, opts) {
     }
 
     // 多方缺額補防禦資產：只補 long side 的缺額，不補 short side。
-    // short_only 永遠不補 SGOV/CASH，否則純空模式會被稀釋成低報酬。
+    // short_only 永遠不補 SGOV，否則純空模式會被稀釋成低報酬。
     if (!isShortOnly && longFillSlots > 0 && longSlotBase > 0 && lScale > 0) {
-      var defensiveCode = (
-        DAILY['SGOV'] &&
-        DAILY['SGOV'].length > 0 &&
-        getPriceOnDate(DAILY['SGOV'], scoreM) !== null
-      ) ? 'SGOV' : 'CASH';
+      var defensiveCode = 'SGOV';
 
       var fillWeight = lScale * (longFillSlots / longSlotBase) * exposure;
       if (fillWeight > 0.001) {
@@ -540,9 +891,12 @@ function runBTcore(mh, mode, opts) {
       }
     }
 
-    // 非 short_only 若完全沒有可執行部位，才維持 CASH；short_only 不用多方 sel 判斷。
+    // 非 short_only 若完全沒有可執行部位，才維持 100% SGOV。
+    // 注意：這是「初始配置」的 100%，後面不得再因 regimeFill 重複補 SGOV。
+    var allDefensiveTarget = false;
     if (!Object.keys(target).length && !isShortOnly) {
-      target['CASH']=1.0;
+      target['SGOV']=1.0;
+      allDefensiveTarget = true;
     }
 
     // 只在 100/0 純多模式補足到 100%。
@@ -553,37 +907,45 @@ function runBTcore(mh, mode, opts) {
       Object.keys(target).forEach(function(c){ totalW+=target[c]; });
       var cashW=1.0-totalW;
       if (cashW>0.001) {
-        var residualCode = (DAILY['SGOV'] && DAILY['SGOV'].length>0 && getPriceOnDate(DAILY['SGOV'], scoreM)!==null) ? 'SGOV' : 'CASH';
+        var residualCode = 'SGOV';
         target[residualCode]=(target[residualCode]||0)+cashW;
       }
     }
 
-    var shield = getShieldDecision(scoreM);
-    if (shield.enabled) {
-      var shieldExposure = (typeof shield.exposure === 'number') ? shield.exposure : (shield.ok ? 1.0 : 0.0);
-      if (shieldExposure < 1.0) {
-        var shieldCode = (DAILY['SGOV'] && DAILY['SGOV'].length && getPriceOnDate(DAILY['SGOV'], prevM)!==null && getPriceOnDate(DAILY['SGOV'], sigM)!==null) ? 'SGOV' : 'CASH';
-        if (shieldExposure <= 0.0) {
-          // Full defensive - 100% SGOV
-          target = {};
-          target[shieldCode] = 1.0;
-        } else {
-          // Partial exposure: scale every existing target by shieldExposure,
-          // then add the reduced portion to SGOV/CASH. This preserves any
-          // pre-existing SGOV/CASH fill instead of dropping it when shieldCode is SGOV.
-          var newTarget = {};
-          Object.keys(target).forEach(function(c) {
-            newTarget[c] = (newTarget[c] || 0) + (target[c] || 0) * shieldExposure;
-          });
-          var absBase = 0;
-          Object.keys(target).forEach(function(c) { absBase += Math.abs(target[c] || 0); });
-          if (!absBase || absBase <= 0) absBase = 1.0;
-          var defensiveFill = absBase * (1.0 - shieldExposure);
-          newTarget[shieldCode] = (newTarget[shieldCode] || 0) + defensiveFill;
-          target = newTarget;
-        }
+    // Regime 減碼保留指定動能曝險，削減掉的資金一律進 SGOV。
+    // 100/0 已由上方 residual 補滿；多空模式需明確補 SGOV，否則 CSV 會出現權重未滿 100%。
+    if (!isShortOnly && !allDefensiveTarget && exposure < 0.999 && capMode !== '1000') {
+      var regimeFill = 1.0 - exposure;
+      if (regimeFill > 0.001) target['SGOV'] = (target['SGOV'] || 0) + regimeFill;
+    }
+
+    // 初始配置守恆：只修 targetWeights 的下單權重，不修期末 drift / natural finalHoldings。
+    // 期末因獲利造成 holdings / endNavPct 加總超過 100% 是正常 NAV 漂移，不可在這裡裁掉。
+    if (!isShortOnly) {
+      var initNet = 0;
+      Object.keys(target).forEach(function(c){
+        var w = target[c] || 0;
+        if (c === 'SGOV' || c === 'CASH') initNet += w;
+        else initNet += w;
+      });
+      if (initNet > 1.000001) {
+        var excess = initNet - 1.0;
+        ['SGOV','CASH'].forEach(function(dc){
+          if (excess <= 0) return;
+          var cut = Math.min(target[dc] || 0, excess);
+          if (cut > 0) { target[dc] -= cut; excess -= cut; }
+          if (Math.abs(target[dc] || 0) < 1e-10) delete target[dc];
+        });
       }
     }
+
+    // Shield/4-Factor exposure is already applied through the final min() cap above.
+    // Do not multiply or rescale target again here; otherwise VWMA x 4-Factor x Adaptive becomes over-defensive.
+
+    // AUDIT: Exposure accounting check
+    auditExposure(target, exposure,
+      (shield && shield.enabled ? (shield.exposure !== undefined ? shield.exposure : 1.0) : 1.0),
+      capMode, sigM);
 
     var turnover=0;
     var allT=Object.keys(holdings).concat(Object.keys(target));
@@ -595,8 +957,11 @@ function runBTcore(mh, mode, opts) {
     });
     turnover/=2;
 
+    // AUDIT: Turnover sanity check (before natural elimination add-on)
+    var _naturalExtraForAudit = 0;
+
     var baseSlippage=0.001;
-    var impactMultiplier=Math.max(1,Math.pow(turnover/0.2,1.5));
+    var impactMultiplier=turnover>0?Math.max(1,Math.pow(turnover/0.2,1.5)):0;
     var impactCost=baseSlippage*impactMultiplier;
     var friction=(turnover*COST)+impactCost;
 
@@ -615,17 +980,21 @@ function runBTcore(mh, mode, opts) {
     if (naturalCfg.enabled) {
       naturalResult = calcNaturalLongChainsNE(target, tradePrevM, tradeSigM, refDaily, hurdle, naturalCfg.rankLimit, naturalCfg.execMode);
       naturalExtraTurnover = naturalResult.extraTurnover || 0;
+      _naturalExtraForAudit = naturalExtraTurnover;
       turnover += naturalExtraTurnover;
       // Natural elimination ON uses linear impact on actual turnover to avoid artificial cost explosions.
       impactCost = turnover * baseSlippage;
       friction = (turnover * COST) + impactCost;
     }
+    auditTurnover(turnover - _naturalExtraForAudit, _naturalExtraForAudit, sigM);
 
     var stockRets={};
     Object.keys(target).forEach(function(c){
       var nominalW = target[c];
-      if (c==='CASH') {
-        stockRets[c]={ret:cashRet,w:nominalW,wNominal:nominalW,wEff:nominalW,prevDate:tradePrevM,currDate:tradeSigM,prevPrice:null,currPrice:null};
+      if (c==='CASH' || c==='SGOV') {
+        var sg0=getMarketMonthEndPoint('SGOV', tradePrevM), sg1=getMarketMonthEndPoint('SGOV', tradeSigM);
+        var sgRet = (sg0 && sg1 && sg0.price>0) ? (sg1.price/sg0.price-1) : cashRet;
+        stockRets['SGOV']={ret:sgRet,w:(stockRets['SGOV']?stockRets['SGOV'].w:0)+nominalW,wNominal:(stockRets['SGOV']?stockRets['SGOV'].wNominal:0)+nominalW,wEff:(stockRets['SGOV']?stockRets['SGOV'].wEff:0)+nominalW,prevDate:sg0?sg0.date:tradePrevM,currDate:sg1?sg1.date:tradeSigM,prevPrice:sg0?sg0.price:null,currPrice:sg1?sg1.price:null,note:(sg0&&sg1?'SGOV':'SyntheticSGOV_TNX')};
       } else {
         if (naturalResult && naturalResult.slotDetails && naturalResult.slotDetails[c] && nominalW > 0) {
           stockRets[c] = naturalResult.slotDetails[c];
@@ -633,6 +1002,10 @@ function runBTcore(mh, mode, opts) {
         }
         var p0pt=getMarketMonthEndPoint(c, tradePrevM), p1pt=getMarketMonthEndPoint(c, tradeSigM);
         var retVal=(p0pt&&p1pt&&p0pt.price>0)?(p1pt.price/p0pt.price-1):null;
+        // AUDIT: return basis check
+        auditReturn(c, p0pt?p0pt.date:null, p0pt?p0pt.price:null,
+          p1pt?p1pt.date:null, p1pt?p1pt.price:null, nominalW, sigM);
+        if (nominalW < 0) auditShort(c, p0pt?p0pt.price:null, p1pt?p1pt.price:null, nominalW, sigM);
         stockRets[c]={
           ret:retVal,
           w:nominalW,
@@ -647,21 +1020,21 @@ function runBTcore(mh, mode, opts) {
       }
     });
 
-    // Missing handling:
-    // - Original/OFF path keeps the existing redistribution behavior.
-    // - Natural elimination slots are capital-tracked chains; their return contribution must be
-    //   initialWeight * chainReturn exactly. Do NOT apply posFactor to them, otherwise missing
-    //   non-natural holdings can incorrectly leverage natural-chain returns.
+    // Return basis, final rule:
+    // Gross Return = sum(position raw return * INITIAL signed weight).
+    // Net Return   = Gross Return - explicit costs.
+    // Do NOT re-leverage/redistribute survivors because that makes monthly Return%
+    // diverge from the visible weighted-stock contribution table.
     var validTarget={}, grossRet=0;
     var naturalOriginals = {};
     if (naturalResult && naturalResult.slotDetails) {
       Object.keys(naturalResult.slotDetails).forEach(function(c){ naturalOriginals[c] = true; });
     }
 
-    // First, book natural-chain contributions independently.
+    // Natural-chain contribution is already a full strategy return for the original slot.
     Object.keys(naturalOriginals).forEach(function(c){
       var rd = stockRets[c];
-      if (!rd || rd.ret === null) return;
+      if (!rd || rd.ret === null || !isFinite(rd.ret)) return;
       var iw = (rd.wNominal !== undefined ? rd.wNominal : (rd.w !== undefined ? rd.w : (target[c] || 0))) || 0;
       rd.wEff = iw;
       rd.w = iw;
@@ -669,41 +1042,37 @@ function runBTcore(mh, mode, opts) {
       grossRet += iw * rd.ret;
     });
 
-    // Then redistribute only the remaining non-natural positions.
-    var nominalPos=0, validPos=0, nominalNeg=0, validNeg=0;
+    var missingPositiveToSGOV = 0;
     Object.keys(target).forEach(function(c){
       if (naturalOriginals[c]) return;
-      var w=target[c], rd=stockRets[c];
-      if (w>=0) {
-        nominalPos += w;
-        if (rd && rd.ret!==null) validPos += w;
-      } else {
-        nominalNeg += w;
-        if (rd && rd.ret!==null) validNeg += w;
-      }
-    });
-    var posFactor = (validPos>0) ? (nominalPos/validPos) : 0;
-    var negFactor = (validNeg<0) ? (nominalNeg/validNeg) : 0;
-
-    Object.keys(target).forEach(function(c){
-      if (naturalOriginals[c]) return;
-      var w=target[c], rd=stockRets[c];
-      if (!rd || rd.ret===null) {
-        if (rd) { rd.wEff=0; rd.note='Missing'; }
+      var w = target[c], rd = stockRets[c];
+      if (!rd || rd.ret === null || !isFinite(rd.ret)) {
+        if (rd) { rd.wEff = 0; rd.note = (rd.note ? rd.note + '|' : '') + 'MissingNoReturn'; }
+        // Positive missing exposure is parked in SGOV rather than redistributed to winners/losers.
+        // Missing short exposure is left flat because a missing borrow/price cannot be valued safely.
+        if (w > 0 && c !== 'SGOV' && c !== 'CASH') missingPositiveToSGOV += w;
         return;
       }
-      var ew = w>=0 ? w*posFactor : w*negFactor;
-      // If there are no valid positive holdings, keep positive exposure as CASH.
-      if (w>=0 && validPos<=0 && c!=='CASH') ew=0;
-      rd.wEff=ew;
-      rd.w=ew;
-      validTarget[c]=ew;
-      grossRet += ew*rd.ret;
+      rd.wEff = w;
+      rd.w = w;
+      if (rd.wNominal === undefined || rd.wNominal === null || !isFinite(rd.wNominal)) rd.wNominal = w;
+      validTarget[c] = (validTarget[c] || 0) + w;
+      grossRet += w * rd.ret;
     });
-    if (nominalPos>0 && validPos<=0) {
-      validTarget['CASH']=(validTarget['CASH']||0)+nominalPos;
-      stockRets['CASH']={ret:cashRet,w:validTarget['CASH'],wNominal:nominalPos,wEff:validTarget['CASH'],prevDate:tradePrevM,currDate:tradeSigM,prevPrice:null,currPrice:null,note:'PositiveMissingToCash'};
-      grossRet += nominalPos*cashRet;
+
+    if (missingPositiveToSGOV > 0) {
+      validTarget['SGOV'] = (validTarget['SGOV'] || 0) + missingPositiveToSGOV;
+      var sg0m = getMarketMonthEndPoint('SGOV', tradePrevM), sg1m = getMarketMonthEndPoint('SGOV', tradeSigM);
+      var sgRetM = (sg0m && sg1m && sg0m.price > 0) ? (sg1m.price / sg0m.price - 1) : cashRet;
+      if (stockRets['SGOV'] && stockRets['SGOV'].ret !== null && isFinite(stockRets['SGOV'].ret)) {
+        stockRets['SGOV'].w = (stockRets['SGOV'].w || 0) + missingPositiveToSGOV;
+        stockRets['SGOV'].wEff = (stockRets['SGOV'].wEff || 0) + missingPositiveToSGOV;
+        stockRets['SGOV'].wNominal = (stockRets['SGOV'].wNominal || 0) + missingPositiveToSGOV;
+        stockRets['SGOV'].note = (stockRets['SGOV'].note || 'SGOV') + '|MissingPositiveToSGOV';
+      } else {
+        stockRets['SGOV'] = {ret:sgRetM,w:missingPositiveToSGOV,wNominal:missingPositiveToSGOV,wEff:missingPositiveToSGOV,prevDate:sg0m?sg0m.date:tradePrevM,currDate:sg1m?sg1m.date:tradeSigM,prevPrice:sg0m?sg0m.price:null,currPrice:sg1m?sg1m.price:null,note:'MissingPositiveToSGOV'};
+      }
+      grossRet += missingPositiveToSGOV * sgRetM;
     }
     if (!isFinite(grossRet)||grossRet<=-0.9999) grossRet=-0.9999;
 
@@ -713,8 +1082,20 @@ function runBTcore(mh, mode, opts) {
     if (!isFinite(netRet)||netRet<=-0.9999) netRet=-0.9999;
     var navPrev=nav;
     nav*=(1+netRet);
-    var closureCostDiff = netRet - (grossRet-totalCost);
-    var closureNavDiff = (nav/navPrev-1) - netRet;
+    // AUDIT: NAV chain integrity
+    auditNAV(navPrev, grossRet, totalCost, nav, sigM);
+    // CLOSURE CHECK: independently recompute gross from stockRets to catch any
+    // accumulation drift vs the running grossRet variable.
+    var closureGross = 0;
+    Object.keys(stockRets).forEach(function(ck){
+      var sr2 = stockRets[ck];
+      if (!sr2 || sr2.ret === null || !isFinite(sr2.ret)) return;
+      var iw2 = (sr2.wNominal !== undefined && isFinite(sr2.wNominal)) ? sr2.wNominal : ((sr2.w !== undefined && isFinite(sr2.w)) ? sr2.w : 0);
+      closureGross += iw2 * sr2.ret;
+    });
+    if (!isFinite(closureGross) || closureGross <= -0.9999) closureGross = -0.9999;
+    var closureCostDiff = grossRet - closureGross;
+    var closureNavDiff = (nav / navPrev - 1) - netRet;
 
     var drifted={};
     var driftDenom=(1+grossRet);
@@ -735,21 +1116,24 @@ function runBTcore(mh, mode, opts) {
     var b0=getMarketMonthEndPrice(masterTicker,tradePrevM), b1=getMarketMonthEndPrice(masterTicker,tradeSigM);
     if (b0&&b1&&b0>0) bNav*=(1+(b1/b0-1));
 
+    // Display / CSV holdings should mean end-of-period NAV weights.
+    // Initial target weights are already preserved in targetWeights and stockRets.wNominal.
+    // Using validTarget/finalHoldings here made the table label "期末NAV比例" logically wrong.
     var hCopy={};
-    if (naturalResult && naturalResult.finalHoldings) {
-      Object.keys(validTarget).forEach(function(k){
-        if (target[k] > 0 && k !== 'CASH' && k !== 'SGOV') return;
-        hCopy[k] = validTarget[k];
-      });
-      Object.keys(naturalResult.finalHoldings).forEach(function(k){ hCopy[k]=(hCopy[k]||0)+naturalResult.finalHoldings[k]; });
-    } else {
-      Object.keys(validTarget).forEach(function(k){ hCopy[k]=validTarget[k]; });
-    }
+    Object.keys(drifted || {}).forEach(function(k){ hCopy[k]=drifted[k]; });
     var recPeriod = tradePeriod;
     var allScoresCopy = sc2.filter(function(r){return r.score!==null;}).map(function(r){
-      return {c:r.s.c, pool:r.s.pool, score:r.score};
+      return {c:r.s.c, pool:r.s.pool, score:r.score, zm:r.zm, zb:r.zb, zs:r.zs, zv:r.zv, zk:r.zk};
     });
-    records.push({month:sigM,period:recPeriod,nav:nav,bNav:bNav,holdings:hCopy,pRet:netRet,grossRet:grossRet,turnover:turnover,turnoverCost:turnoverCost,impactCost:impactCost,totalCost:totalCost,closureCostDiff:closureCostDiff,closureNavDiff:closureNavDiff,hurdle:hurdle,stockRets:stockRets,scoringM:scoreM,shield:shield,stressLevel:shield.stressLevel||0,allScores:allScoresCopy,naturalEvents:(naturalResult?naturalResult.events:[]),naturalOn:!!naturalResult,tnExecMode:tnExecMode,tradeStart:tradePrevM,tradeEnd:tradeSigM});
+    records.push({month:sigM,period:recPeriod,nav:nav,bNav:bNav,holdings:hCopy,targetWeights:Object.assign({},target),pRet:netRet,grossRet:grossRet,turnover:turnover,turnoverCost:turnoverCost,impactCost:impactCost,totalCost:totalCost,closureCostDiff:closureCostDiff,closureNavDiff:closureNavDiff,hurdle:hurdle,stockRets:stockRets,scoringM:scoreM,regimeOn:regimeOn,regimeBearish:(regimeOn&&isBearishRegime(refDaily,scoreM,regimeLen)),regimeExposure:exposure,regimeLen:regimeLen,shield:shield,stressLevel:shield.stressLevel||0,adaptiveRegime:adaptiveDecision,marketPhaseDecision:marketPhaseDecision,marketPhase:(marketPhaseDecision?marketPhaseDecision.phase:0),marketPhaseTitle:(marketPhaseDecision?marketPhaseDecision.title:'OFF'),marketPhaseState:(marketPhaseDecision?marketPhaseDecision.state:'OFF'),marketPhaseExposure:(marketPhaseDecision?marketPhaseDecision.exposure:1.0),marketPhaseSuggestedExposure:(marketPhaseDecision?marketPhaseDecision.suggestedExposure:1.0),marketPhaseMode:(marketPhaseDecision?marketPhaseDecision.mode:'off'),marketRegimeExposure:marketRegimeExposure,shieldExposure:shieldExposure,adaptiveExposure:adaptiveExposure,finalExposure:exposure,exposureLayers:exposureLayers,allScores:allScoresCopy,naturalEvents:(naturalResult?naturalResult.events:[]),naturalOn:!!naturalResult,tnExecMode:tnExecMode,tradeStart:tradePrevM,tradeEnd:tradeSigM});
+    // Incremental factor health: compute IC for just this new record and append
+    if (typeof calcFactorHealthSingleRow === 'function') {
+      var _fhRow = calcFactorHealthSingleRow(records[records.length - 1]);
+      if (_fhRow) {
+        records[records.length - 1].factorHealthRow = _fhRow;
+        _fhCache.months.push(_fhRow);
+      }
+    }
     holdings=drifted;
   }
   return records.length>=6 ? records : null;
@@ -766,31 +1150,77 @@ function periodsToYears(periodCount) {
   return p > 0 ? periodCount / p : periodCount / 12;
 }
 
+function getRiskFreeAnnualRate() {
+  return 0.015;
+}
+function meanReturn(arr) {
+  if (!arr || !arr.length) return 0;
+  return arr.reduce(function(a,b){ return a + b; }, 0) / arr.length;
+}
+function periodSampleStd(arr) {
+  if (!arr || arr.length < 2) return 0;
+  var avg = meanReturn(arr);
+  var variance = arr.reduce(function(a,b){ return a + Math.pow(b - avg, 2); }, 0) / (arr.length - 1);
+  return Math.sqrt(Math.max(variance, 0));
+}
+function geometricAnnualizedReturnFromReturns(arr, periods) {
+  periods = periods || ((typeof getAnnualPeriods === 'function') ? getAnnualPeriods() : 12);
+  if (!arr || !arr.length) return 0;
+  var nav = arr.reduce(function(acc, r){ return acc * (1 + r); }, 1);
+  if (!isFinite(nav) || nav <= 0) return -1;
+  var yrs = arr.length / periods;
+  return yrs > 0 ? Math.pow(nav, 1 / yrs) - 1 : 0;
+}
+function arithmeticAnnualizedMeanReturnFromReturns(arr, periods) {
+  periods = periods || ((typeof getAnnualPeriods === 'function') ? getAnnualPeriods() : 12);
+  return meanReturn(arr) * periods;
+}
+function annualizedVolFromReturns(arr, periods) {
+  periods = periods || ((typeof getAnnualPeriods === 'function') ? getAnnualPeriods() : 12);
+  return periodSampleStd(arr) * Math.sqrt(periods);
+}
+function calcStandardSharpeFromReturns(arr, periods, rfAnnual) {
+  periods = periods || ((typeof getAnnualPeriods === 'function') ? getAnnualPeriods() : 12);
+  rfAnnual = (rfAnnual === undefined || rfAnnual === null) ? getRiskFreeAnnualRate() : rfAnnual;
+  var vol = annualizedVolFromReturns(arr, periods);
+  if (!vol || !isFinite(vol)) return 0;
+  var annualizedExcessMean = arithmeticAnnualizedMeanReturnFromReturns(arr, periods) - rfAnnual;
+  return annualizedExcessMean / vol;
+}
+
 function kpi(records, init) {
   init = init || (gv('btCap')||100000);
   if (!records||!records.length) return {cagr:0,mdd:0,sharpe:0,nav:init};
   var last=records[records.length-1];
-  var yrs=(new Date(last.month)-new Date(records[0].month))/(365.25*86400000);
+  var yrs=periodsToYears(records.length);
   var tr=last.nav/init-1, cagr=yrs>0?Math.pow(1+Math.max(tr,-0.999),1/yrs)-1:0;
   var pk=init, mdd=0;
-  records.forEach(function(r){ if(r.nav>pk)pk=r.nav; var dd=(r.nav-pk)/pk; if(dd<mdd)mdd=dd; });
+  records.forEach(function(r){ if(r.nav>pk)pk=r.nav;
+    // AUDIT: MDD continuity (only when audit is active to avoid overhead)
+    if (DEBUG_AUDIT) auditMDDContinuity(pk, r.nav, r.month); var dd=(r.nav-pk)/pk; if(dd<mdd)mdd=dd; });
   var rets=records.map(function(r){ return r.pRet; });
-  var avg=rets.reduce(function(a,b){return a+b;},0)/rets.length;
-  var variance=rets.reduce(function(a,b){return a+Math.pow(b-avg,2);},0)/(rets.length>1?rets.length-1:1);
   var periods=getAnnualPeriods();
-  var std=Math.sqrt(variance)*Math.sqrt(periods)||1;
-  return {cagr:cagr,mdd:mdd,sharpe:(cagr-0.015)/std,nav:last.nav};
+  var sharpe=calcStandardSharpeFromReturns(rets, periods);
+  return {cagr:cagr,mdd:mdd,sharpe:sharpe,nav:last.nav};
 }
 
 function spearmanCorr(xs, ys) {
   var n = xs.length;
   if (n < 4) return {ic: null, t: null, p: null};
   function rankArr(arr) {
-    var sorted = arr.slice().sort(function(a,b){return a-b;});
-    return arr.map(function(v) {
-      var lo = sorted.indexOf(v), hi = sorted.lastIndexOf(v);
-      return (lo + hi) / 2 + 1;
-    });
+    var idx = [];
+    for (var i = 0; i < arr.length; i++) idx.push(i);
+    idx.sort(function(a, b) { return arr[a] - arr[b]; });
+    var ranks = new Array(arr.length);
+    var i2 = 0;
+    while (i2 < idx.length) {
+      var j = i2;
+      while (j < idx.length - 1 && arr[idx[j + 1]] === arr[idx[i2]]) j++;
+      var avgRank = (i2 + j) / 2 + 1;
+      for (var k = i2; k <= j; k++) ranks[idx[k]] = avgRank;
+      i2 = j + 1;
+    }
+    return ranks;
   }
   var rx = rankArr(xs), ry = rankArr(ys);
   var mx = rx.reduce(function(a,b){return a+b;},0)/n;
@@ -820,24 +1250,20 @@ function calcIC(records) {
   var tailCfg = getTailConfig();
   var layers = [1,3,5,10];
 
-  for (var i = 0; i < records.length - 1; i++) {
-    var r = records[i], rNext = records[i + 1];
+  for (var i = 0; i < records.length; i++) {
+    var r = records[i];
     if (!r.allScores || r.allScores.length < 10) continue;
-    var sigM = r.month, sigMNext = rNext.month, scoreDate = r.scoringM || sigM;
+    var sigM = r.month, scoreDate = r.scoringM || sigM;
+    var tradeStart = r.tradeStart || (r.period ? String(r.period).split(' ~ ')[0] : null) || sigM;
+    var tradeEnd = r.tradeEnd || (r.period ? String(r.period).split(' ~ ')[1] : null) || sigM;
     var maxGapMs = 14 * 86400000;
     function getCleanReturn(ticker) {
-      var bars = DAILY[ticker];
-      if (!bars || !bars.length) return null;
-      var p0 = null, p0date = null, p1 = null, p1date = null;
-      for (var j = bars.length - 1; j >= 0; j--) {
-        if (!p1 && bars[j].date <= sigMNext) { p1 = bars[j].c; p1date = bars[j].date; }
-        if (!p0 && bars[j].date <= sigM) { p0 = bars[j].c; p0date = bars[j].date; }
-        if (p0 && p1) break;
-      }
-      if (!p0 || !p1 || p0 <= 0) return null;
-      if (Math.abs(new Date(sigMNext) - new Date(p1date)) > maxGapMs) return null;
-      if (Math.abs(new Date(sigM) - new Date(p0date)) > maxGapMs) return null;
-      return p1 / p0 - 1;
+      var p0pt = getMarketMonthEndPoint(ticker, tradeStart);
+      var p1pt = getMarketMonthEndPoint(ticker, tradeEnd);
+      if (!p0pt || !p1pt || !p0pt.price || p0pt.price <= 0) return null;
+      if (Math.abs(new Date(tradeStart) - new Date(p0pt.date)) > maxGapMs) return null;
+      if (Math.abs(new Date(tradeEnd) - new Date(p1pt.date)) > maxGapMs) return null;
+      return p1pt.price / p0pt.price - 1;
     }
     var twScores=[],twRets=[],usScores=[],usRets=[],allScores2=[],allRets2=[];
     r.allScores.forEach(function(sc){
@@ -870,6 +1296,8 @@ function calcIC(records) {
     if(resTW.ic!==null&&resUS.ic!==null){var wTW=twScores.length/(twScores.length+usScores.length);combinedIC=wTW*resTW.ic+(1-wTW)*resUS.ic;}
     else if(resTW.ic!==null)combinedIC=resTW.ic;else if(resUS.ic!==null)combinedIC=resUS.ic;else if(resAll.ic!==null)combinedIC=resAll.ic;
     if(combinedIC===null)continue;
+    // AUDIT: IC alignment and sample size check
+    auditIC('Combined', scoreDate, tradeStart, tradeEnd, combinedIC, allScores2.length, sigM);
     monthlyIC.push({month:sigM,scoreDate:scoreDate,ic:combinedIC,ic_tw:resTW.ic,ic_us:resUS.ic,ic_all:resAll.ic,ic_q:qIC,spread_ret:spreadRet,top_tail_ret:topTailAvg,bot_tail_ret:botTailAvg,top1_ret:layerRet.top1,top3_ret:layerRet.top3,top5_ret:layerRet.top5,top10_ret:layerRet.top10,tail_n:tailN,tail_label:tailCfg.label,t:resAll.t||0,p:resAll.p||1,n:allScores2.length,n_tw:twScores.length,n_us:usScores.length});
   }
   if(!monthlyIC.length)return null;
@@ -896,7 +1324,7 @@ function buildTailPanelHTML(icRes){
   function col(v){return v===null||v===undefined?'var(--mu)':(v>0?'var(--gr)':'var(--re)');}
   var layers=icRes.tail_layers||{};
   var html='<div class="card" style="border-top:3px solid var(--ye);margin-top:8px">';
-  html+='<div class="ct" style="display:flex;justify-content:space-between;align-items:center"><span>尾部 IC 完整面板 <span style="font-size:10px;color:var(--mu);font-weight:400;margin-left:6px">'+(icRes.tail_label||getTailConfig().label)+' | Top1/3/5/10 分層 | Spread 時間序列 | N穩定帶</span></span><button class="bo sm" onclick="runTailNStabilityPanel()">掃描 N=1~15</button></div>';
+  html+='<div class="ct" style="display:flex;justify-content:space-between;align-items:center"><span>尾部 IC 完整面板 <span style="font-size:10px;color:var(--mu);font-weight:400;margin-left:6px">'+(icRes.tail_label||getTailConfig().label)+' | Top1/3/5/10 分層 | Spread 時間序列 | N穩定帶 | p-value為近似值，小樣本n&lt;30僅供參考</span></span><button class="bo sm" onclick="runTailNStabilityPanel()">掃描 N=1~15</button></div>';
   html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px">';
   ['Top1','Top3','Top5','Top10'].forEach(function(k){var v=layers[k]?layers[k].avg:null;html+='<div class="ib2" style="margin-top:0"><div style="font-size:9px;color:var(--mu);text-transform:uppercase">'+k+' 平均下期報酬</div><div style="font-size:20px;font-weight:700;font-family:monospace;color:'+col(v)+'">'+fp(v)+'</div><div style="font-size:9px;color:var(--mu)">'+((layers[k]&&layers[k].months)||0)+' 個月</div></div>';});
   html+='</div>';
@@ -927,66 +1355,278 @@ async function runTailNStabilityPanel(){
 
 
 async function runStressWeightSweepPanel(){
-  var panel = document.getElementById('stressWeightSweepPanel');
-  if (panel) panel.innerHTML = '權重掃描準備中...';
-  if (!(await ensureDataReadyForAnalysis('stress weight sweep'))) return;
+  // Legacy button compatibility: this no longer scans Stress Score weights.
+  // It now redirects to Regime / VWMA exposure sweep.
+  var panel = document.getElementById('stressWeightSweepPanel') || document.getElementById('stressRobustPanel');
+  if (panel) panel.innerHTML = '已停用 Stress Score 權重掃描，改執行 Regime / VWMA 曝光度掃描...';
+  return runStressHeatmapTest();
+}
 
-  var oldOverride = STRESS_WEIGHT_OVERRIDE;
-  var oldGate = document.getElementById('btShieldGate') ? document.getElementById('btShieldGate').value : null;
-  var mh = parseInt(document.getElementById('btH') ? document.getElementById('btH').value : '6') || 6;
-  var mode = getWeightMode();
-  var init = gv('btCap') || 100000;
-  var rows = [];
 
-  if (document.getElementById('btShieldGate')) document.getElementById('btShieldGate').value = 'stress';
-  if (panel) panel.innerHTML = '權重掃描中... 10% 格點，請稍候。';
 
-  await new Promise(function(r){ setTimeout(r, 50); });
+// ==========================================
+// Regime / VWMA Exposure Robustness Suite
+// 目的：檢查「大盤風控觸發後的曝光度」是否穩健。
+// 注意：這裡不再掃描 Stress Score Gate 的權重、分數門檻或曝光 map。
+// 測試時一律強制 btRegime=on，且 btShieldGate=off，避免 Stress Gate 混入。
+// ==========================================
+function stressRobPanel(){ return document.getElementById('stressRobustPanel') || document.getElementById('stressMetrics'); }
+function stressFmtPct(v){ return (v>=0?'+':'')+(v*100).toFixed(2)+'%'; }
+function stressClamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+function regimeReadSweepConfig(){
+  var min = parseFloat(document.getElementById('regimeSweepMin') ? document.getElementById('regimeSweepMin').value : '0');
+  var max = parseFloat(document.getElementById('regimeSweepMax') ? document.getElementById('regimeSweepMax').value : '100');
+  var step = parseFloat(document.getElementById('regimeSweepStep') ? document.getElementById('regimeSweepStep').value : '10');
+  min = stressClamp(isFinite(min)?min:0,0,100);
+  max = stressClamp(isFinite(max)?max:100,0,100);
+  step = stressClamp(isFinite(step)?step:10,5,50);
+  if (min > max) { var t=min; min=max; max=t; }
+  var arr=[];
+  for (var x=min; x<=max+1e-9; x+=step) arr.push(stressClamp(Math.round(x),0,100));
+  if (arr.indexOf(100)===-1 && max===100) arr.push(100);
+  return arr.filter(function(v,i,a){ return a.indexOf(v)===i; });
+}
 
-  try {
-    for (var v=0; v<=100; v+=10) {
-      for (var h=0; h<=100-v; h+=10) {
-        for (var t=0; t<=100-v-h; t+=10) {
-          var b = 100-v-h-t;
-          if (v+h+t+b !== 100) continue;
-          STRESS_WEIGHT_OVERRIDE = {vix:v, hy:h, trend:t, breadth:b};
-          var recs = runBTcore(mh, mode);
-          if (!recs || !recs.length) continue;
-          var kk = kpi(recs, init);
-          rows.push({vix:v,hy:h,trend:t,breadth:b,cagr:kk.cagr,mdd:kk.mdd,sharpe:kk.sharpe,nav:kk.nav});
-        }
+function regimeReadLengthConfig(){
+  var raw = (document.getElementById('regimeTestLens') ? document.getElementById('regimeTestLens').value : '60,120,150,180,200,240,300') || '60,120,150,180,200,240,300';
+  var arr = raw.split(/[,，\s]+/).map(function(x){ return parseInt(x,10); }).filter(function(v){ return isFinite(v) && v>=20 && v<=400; });
+  if (!arr.length) arr = [60,120,150,180,200,240,300];
+  return arr.filter(function(v,i,a){ return a.indexOf(v)===i; });
+}
+function regimeReadMatrixExposures(){
+  var raw = (document.getElementById('regimeMatrixExps') ? document.getElementById('regimeMatrixExps').value : '30,50,70') || '30,50,70';
+  var arr = raw.split(/[,，\s]+/).map(function(x){ return parseInt(x,10); }).filter(function(v){ return isFinite(v) && v>=0 && v<=100; });
+  if (!arr.length) arr = [30,50,70];
+  return arr.filter(function(v,i,a){ return a.indexOf(v)===i; });
+}
+function regimeScoreVsOff(k, offK, sensitivityPenalty){
+  if(!k || !offK) return null;
+  var sharpeGain = k.sharpe - offK.sharpe;
+  var mddGain = k.mdd - offK.mdd; // positive = drawdown improves, because -40% > -50%
+  var cagrDrag = Math.max(0, offK.cagr - k.cagr);
+  var complexityPenalty = 0.06;
+  sensitivityPenalty = sensitivityPenalty || 0;
+  return sharpeGain + Math.max(0,mddGain)*1.5 - cagrDrag*0.35 - complexityPenalty - sensitivityPenalty;
+}
+function regimeSensitivityPenalty(rows){
+  if(!rows || rows.length < 2) return 0.05;
+  var sharpes = rows.map(function(r){return r.k ? r.k.sharpe : null;}).filter(function(v){return v!==null && isFinite(v);});
+  if(sharpes.length < 2) return 0.05;
+  var spread = Math.max.apply(null, sharpes) - Math.min.apply(null, sharpes);
+  return Math.min(0.35, spread * 0.35);
+}
+function regimeGetSnapshot(){
+  var ids=['btRegime','btRegimeExp','btRegimeLen','btShieldGate','regimeTestBaseExp','regimeTestLens'];
+  var o={}; ids.forEach(function(id){ var el=document.getElementById(id); o[id]=el?el.value:null; }); return o;
+}
+function regimeRestoreSnapshot(s){ Object.keys(s||{}).forEach(function(id){ var el=document.getElementById(id); if(el && s[id]!==null) el.value=s[id]; }); }
+function regimeSetExposure(expPct){
+  expPct = stressClamp(Math.round(expPct), 0, 100);
+  if (document.getElementById('btRegime')) document.getElementById('btRegime').value='on';
+  if (document.getElementById('btRegimeExp')) document.getElementById('btRegimeExp').value=expPct;
+  if (document.getElementById('regimeTestBaseExp')) document.getElementById('regimeTestBaseExp').value=expPct;
+  if (document.getElementById('btShieldGate')) document.getElementById('btShieldGate').value='off';
+}
+function regimeRunBacktest(regOn, expPct, len){
+  var snap=regimeGetSnapshot();
+  var regimeLen = parseInt((len !== undefined && len !== null) ? len : (document.getElementById('btRegimeLen') ? document.getElementById('btRegimeLen').value : '60'), 10) || 60;
+  if (document.getElementById('btRegime')) document.getElementById('btRegime').value = regOn ? 'on' : 'off';
+  if (document.getElementById('btRegimeExp')) document.getElementById('btRegimeExp').value = stressClamp(Math.round(expPct),0,100);
+  if (document.getElementById('btRegimeLen')) document.getElementById('btRegimeLen').value = regimeLen;
+  if (document.getElementById('btShieldGate')) document.getElementById('btShieldGate').value='off';
+  var mh=parseInt(document.getElementById('btH')?document.getElementById('btH').value:'6')||6;
+  var mode=(typeof getWeightMode==='function')?getWeightMode():'eq';
+  var init=gv('btCap')||100000;
+  var recs=runBTcore(mh,mode,{regimeRobust:true,regimeLen:regimeLen});
+  var kk=recs&&recs.length?kpi(recs,init):null;
+  regimeRestoreSnapshot(snap);
+  return {records:recs,k:kk,exp:expPct,regOn:regOn,len:regimeLen};
+}
+function regimeActivationStats(records){
+  records=records||[];
+  var n=records.length, active=0, expSum=0, retOn=0, retOff=0, onN=0, offN=0;
+  records.forEach(function(r){
+    var e=(r.regimeExposure!==undefined&&r.regimeExposure!==null)?r.regimeExposure:1;
+    expSum+=e;
+    if(r.regimeBearish){ active++; retOn+=(r.pRet||0); onN++; }
+    else { retOff+=(r.pRet||0); offN++; }
+  });
+  return {n:n,active:active,activePct:n?active/n:0,avgExposure:n?expSum/n:1,bearRet:onN?retOn/onN:null,normalRet:offN?retOff/offN:null};
+}
+function regimePeriodValidationRows(records){
+  if(!records||records.length<24) return [];
+  var periods=(typeof getAnnualPeriods==='function')?getAnnualPeriods():12;
+  var init=gv('btCap')||100000;
+  var rows=[], chunks=[];
+  var third=Math.floor(records.length/3);
+  chunks.push({name:'前段', arr:records.slice(0,third)});
+  chunks.push({name:'中段', arr:records.slice(third,third*2)});
+  chunks.push({name:'後段', arr:records.slice(third*2)});
+  chunks.forEach(function(c){
+    if(!c.arr.length) return;
+    var kk=stressKpiFromReturns(c.arr.map(function(r){return r.pRet||0;}), init, periods);
+    var st=regimeActivationStats(c.arr);
+    if(kk) rows.push({name:c.name,k:kk,stats:st});
+  });
+  return rows;
+}
+function stressKpiFromReturns(rets, init, periods){
+  init=init||100000; periods=periods||12;
+  if(!rets||!rets.length) return null;
+  var nav=init, peak=init, mdd=0;
+  rets.forEach(function(r){ nav*=(1+r); if(nav>peak)peak=nav; var dd=(nav-peak)/peak; if(dd<mdd)mdd=dd; });
+  var yrs=rets.length/periods;
+  var cagr=yrs>0?Math.pow(nav/init,1/yrs)-1:0;
+  var sharpe=calcStandardSharpeFromReturns(rets, periods);
+  return {nav:nav,cagr:cagr,mdd:mdd,sharpe:sharpe};
+}
+function regimeValidationHtml(records){
+  var rows=regimePeriodValidationRows(records);
+  var html='<div class="ib2" style="border:1px solid var(--bd);margin-top:8px"><div style="font-size:10px;color:var(--ac);font-weight:700;margin-bottom:6px">Regime period validation</div>';
+  if(!rows.length) return html+'資料不足，無法切三段驗證。</div>';
+  html+='<table style="width:100%;font-size:11px"><thead><tr><th>Period</th><th>觸發月%</th><th>Avg Exp</th><th>CAGR</th><th>MDD</th><th>Sharpe</th></tr></thead><tbody>';
+  rows.forEach(function(r){ html+='<tr><td>'+r.name+'</td><td class="mono">'+(r.stats.activePct*100).toFixed(1)+'%</td><td class="mono">'+(r.stats.avgExposure*100).toFixed(1)+'%</td><td class="mono">'+stressFmtPct(r.k.cagr)+'</td><td class="mono">'+stressFmtPct(r.k.mdd)+'</td><td class="mono">'+r.k.sharpe.toFixed(2)+'</td></tr>'; });
+  html+='</tbody></table><div style="font-size:10px;color:var(--mu);margin-top:5px">判讀：若只在單一時段改善，代表曝光度可能吃到特定 regime；若三段都降低 MDD 且 Sharpe 不崩，可信度較高。</div></div>';
+  return html;
+}
+function regimeSimplicityPenaltyHtml(currentK, sensitivityPenalty){
+  var exp=gv('btRegimeExp')||50;
+  var len=parseInt(document.getElementById('btRegimeLen') ? document.getElementById('btRegimeLen').value : '60',10)||60;
+  var off=regimeRunBacktest(false,100,len);
+  var html='<div class="ib2" style="border:1px solid var(--ye);margin-top:8px"><div style="font-size:10px;color:var(--ye);font-weight:700;margin-bottom:6px">Regime ON/OFF + Robust score</div>';
+  if(!off.k||!currentK) return html+'資料不足，無法比較 Regime OFF vs ON。</div>';
+  var sharpeGain=currentK.sharpe-off.k.sharpe, cagrGain=currentK.cagr-off.k.cagr, mddGain=currentK.mdd-off.k.mdd;
+  var complexityPenalty=0.06;
+  sensitivityPenalty = sensitivityPenalty || 0;
+  var robustScore=regimeScoreVsOff(currentK, off.k, sensitivityPenalty);
+  html+='<table style="width:100%;font-size:11px"><thead><tr><th>Mode</th><th>VWMA Len</th><th>Bear Exp</th><th>CAGR</th><th>MDD</th><th>Sharpe</th></tr></thead><tbody>';
+  html+='<tr><td>Regime OFF</td><td class="mono">--</td><td class="mono">100%</td><td class="mono">'+stressFmtPct(off.k.cagr)+'</td><td class="mono">'+stressFmtPct(off.k.mdd)+'</td><td class="mono">'+off.k.sharpe.toFixed(2)+'</td></tr>';
+  html+='<tr><td>Regime ON</td><td class="mono">'+len+'</td><td class="mono">'+Math.round(exp)+'%</td><td class="mono">'+stressFmtPct(currentK.cagr)+'</td><td class="mono">'+stressFmtPct(currentK.mdd)+'</td><td class="mono">'+currentK.sharpe.toFixed(2)+'</td></tr>';
+  html+='</tbody></table>';
+  html+='<div style="font-size:10px;color:var(--mu);margin-top:5px">Sharpe改善='+sharpeGain.toFixed(2)+'；CAGR改善='+stressFmtPct(cagrGain)+'；MDD改善='+(mddGain>=0?'+':'')+(mddGain*100).toFixed(2)+'pct；複雜度懲罰 '+complexityPenalty.toFixed(2)+'；敏感度懲罰 '+sensitivityPenalty.toFixed(2)+'。</div>';
+  html+='<div style="font-size:11px;margin-top:4px;color:'+(robustScore>0?'var(--gr)':'var(--re)')+'">Robust score = Sharpe改善 + MDD改善權重 - CAGR拖累 - 懲罰 = '+robustScore.toFixed(2)+' ｜ '+(robustScore>0?'大盤風控曝光度暫可接受':'改善不足，不建議只因回測漂亮就開啟')+'</div></div>';
+  return html;
+}
+async function runStressHeatmapTest(){
+  var panel=stressRobPanel(); if(panel)panel.innerHTML='Regime / VWMA 曝光度掃描中...';
+  if(!(await ensureDataReadyForAnalysis('regime exposure sweep'))) return;
+  var exposures=regimeReadSweepConfig(), rows=[];
+  var len=parseInt(document.getElementById('btRegimeLen') ? document.getElementById('btRegimeLen').value : '60',10)||60;
+  var off=regimeRunBacktest(false,100,len);
+  try{
+    for(var i=0;i<exposures.length;i++){
+      var res=regimeRunBacktest(true, exposures[i], len);
+      if(res.k) rows.push({exp:exposures[i],len:len,k:res.k,stats:regimeActivationStats(res.records),robust:regimeScoreVsOff(res.k, off.k, 0)});
+      if(panel)panel.innerHTML='Regime / VWMA 曝光度掃描 '+(i+1)+'/'+exposures.length+'...';
+      await new Promise(function(r){setTimeout(r,0);});
+    }
+  }catch(e){ if(panel)panel.innerHTML='Regime 曝光度掃描錯誤: '+e.message; return; }
+  if(!panel) return;
+  if(!rows.length){ panel.innerHTML='Regime 曝光度掃描無結果。'; return; }
+  var best=rows.reduce(function(a,b){return b.k.sharpe>a.k.sharpe?b:a;});
+  var html='<div class="ib2" style="border:1px solid var(--tw)"><div style="font-size:10px;color:var(--tw);font-weight:700;margin-bottom:6px">Regime / VWMA Exposure Sweep</div>';
+  html+='<div style="font-size:10px;color:var(--mu);margin-bottom:6px">固定規則：0050/SPY 低於 60VWMA 且 VWMA 下彎時，將動能部位降到指定曝光度；Stress Score Gate 強制關閉。</div>';
+  html+='<table style="width:100%;font-size:11px"><thead><tr><th>Bear Exp</th><th>觸發月%</th><th>Avg Exp</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Robust</th><th>Final NAV</th><th>套用</th></tr></thead><tbody>';
+  rows.forEach(function(r){ var isBest=(r===best); html+='<tr style="outline:'+(isBest?'2px solid var(--gr)':'none')+'"><td class="mono">'+r.exp+'%</td><td class="mono">'+(r.stats.activePct*100).toFixed(1)+'%</td><td class="mono">'+(r.stats.avgExposure*100).toFixed(1)+'%</td><td class="mono" style="color:'+(r.k.cagr>=0?'var(--gr)':'var(--re)')+'">'+stressFmtPct(r.k.cagr)+'</td><td class="mono" style="color:var(--re)">'+stressFmtPct(r.k.mdd)+'</td><td class="mono" style="color:'+(r.k.sharpe>=1?'var(--gr)':r.k.sharpe>=0?'var(--ye)':'var(--re)')+'">'+r.k.sharpe.toFixed(2)+'</td><td class="mono" style="color:'+(r.robust>0?'var(--gr)':'var(--re)')+'">'+(r.robust!==null?r.robust.toFixed(2):'--')+'</td><td class="mono">$'+Math.round(r.k.nav).toLocaleString()+'</td><td><button class="bo sm" onclick="applyRegimeExposure('+r.exp+')">套用</button></td></tr>'; });
+  html+='</tbody></table><div style="font-size:10px;color:var(--mu);margin-top:5px">判讀：不要只選單一最高 Sharpe。若 40~70% 區間都接近，代表曝光度設定比較穩健；若只有一格大幅勝出，反而要保守。</div></div>';
+  panel.innerHTML=html;
+}
+async function runStressPerturbationTest(){
+  var panel=stressRobPanel(); if(panel)panel.innerHTML='Regime / VWMA 曝光 ±10% 擾動測試中...';
+  if(!(await ensureDataReadyForAnalysis('regime exposure perturbation'))) return;
+  var base=gv('btRegimeExp')||parseFloat(document.getElementById('regimeTestBaseExp')?document.getElementById('regimeTestBaseExp').value:'50')||50;
+  var variants=[base-10, base-5, base, base+5, base+10].map(function(v){return stressClamp(Math.round(v),0,100);});
+  variants=variants.filter(function(v,i,a){return a.indexOf(v)===i;});
+  var rows=[];
+  try{ for(var i=0;i<variants.length;i++){ var res=regimeRunBacktest(true,variants[i]); if(res.k) rows.push({exp:variants[i],k:res.k,stats:regimeActivationStats(res.records)}); if(panel)panel.innerHTML='Regime 曝光 ±10% '+(i+1)+'/'+variants.length+'...'; await new Promise(function(r){setTimeout(r,0);}); } }
+  catch(e){ if(panel)panel.innerHTML='Regime 曝光擾動錯誤: '+e.message; return; }
+  if(!panel) return; if(!rows.length){panel.innerHTML='Regime 曝光擾動無結果。';return;}
+  var sharps=rows.map(function(r){return r.k.sharpe;}); var minS=Math.min.apply(null,sharps), maxS=Math.max.apply(null,sharps), avgS=sharps.reduce(function(a,b){return a+b;},0)/sharps.length;
+  var pass=minS>0 && (maxS-minS)<0.35;
+  var html='<div class="ib2" style="border:1px solid var(--ye)"><div style="font-size:10px;color:var(--ye);font-weight:700;margin-bottom:6px">Regime exposure ±10% perturbation</div>';
+  html+='<div style="font-size:11px;color:'+(pass?'var(--gr)':'var(--re)')+';margin-bottom:6px">Avg Sharpe '+avgS.toFixed(2)+' ｜ Min '+minS.toFixed(2)+' ｜ Max '+maxS.toFixed(2)+' ｜ '+(pass?'曝光度附近穩定':'對曝光度太敏感，需降低信任度')+'</div>';
+  html+='<table style="width:100%;font-size:11px"><thead><tr><th>Bear Exp</th><th>觸發月%</th><th>Avg Exp</th><th>CAGR</th><th>MDD</th><th>Sharpe</th></tr></thead><tbody>';
+  rows.forEach(function(r){html+='<tr><td class="mono">'+r.exp+'%</td><td class="mono">'+(r.stats.activePct*100).toFixed(1)+'%</td><td class="mono">'+(r.stats.avgExposure*100).toFixed(1)+'%</td><td class="mono" style="color:'+(r.k.cagr>=0?'var(--gr)':'var(--re)')+'">'+stressFmtPct(r.k.cagr)+'</td><td class="mono" style="color:var(--re)">'+stressFmtPct(r.k.mdd)+'</td><td class="mono" style="color:'+(r.k.sharpe>0?'var(--gr)':'var(--re)')+'">'+r.k.sharpe.toFixed(2)+'</td></tr>';});
+  html+='</tbody></table></div>'; panel.innerHTML=html;
+}
+
+async function runRegimeLengthRobustnessTest(){
+  var panel=stressRobPanel(); if(panel)panel.innerHTML='Regime VWMA 長度穩健性掃描中...';
+  if(!(await ensureDataReadyForAnalysis('regime VWMA length robustness'))) return;
+  var lens=regimeReadLengthConfig();
+  var exp=gv('btRegimeExp')||parseFloat(document.getElementById('regimeTestBaseExp')?document.getElementById('regimeTestBaseExp').value:'50')||50;
+  var rows=[];
+  try{
+    for(var i=0;i<lens.length;i++){
+      var off=regimeRunBacktest(false,100,lens[i]);
+      var res=regimeRunBacktest(true,exp,lens[i]);
+      if(res.k) rows.push({len:lens[i],exp:exp,k:res.k,stats:regimeActivationStats(res.records),robust:regimeScoreVsOff(res.k, off.k, 0)});
+      if(panel) panel.innerHTML='VWMA length '+(i+1)+'/'+lens.length+'...';
+      await new Promise(function(r){setTimeout(r,0);});
+    }
+  }catch(e){ if(panel)panel.innerHTML='VWMA 長度掃描錯誤: '+e.message; return; }
+  if(!panel) return;
+  if(!rows.length){panel.innerHTML='VWMA 長度掃描無結果。';return;}
+  var best=rows.reduce(function(a,b){return b.robust>a.robust?b:a;});
+  var html='<div class="ib2" style="border:1px solid var(--ac)"><div style="font-size:10px;color:var(--ac);font-weight:700;margin-bottom:6px">Regime VWMA length robustness</div>';
+  html+='<div style="font-size:10px;color:var(--mu);margin-bottom:6px">固定 Bear Exp '+Math.round(exp)+'%，掃描 VWMA 長度。若 120/150/180/200/240/300 多數方向一致，可信度高；若只有單一長度有效，偏擬合。</div>';
+  html+='<table style="width:100%;font-size:11px"><thead><tr><th>VWMA Len</th><th>觸發月%</th><th>Avg Exp</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Robust</th></tr></thead><tbody>';
+  rows.forEach(function(r){var isBest=r===best;html+='<tr style="outline:'+(isBest?'2px solid var(--gr)':'none')+'"><td class="mono">'+r.len+'</td><td class="mono">'+(r.stats.activePct*100).toFixed(1)+'%</td><td class="mono">'+(r.stats.avgExposure*100).toFixed(1)+'%</td><td class="mono" style="color:'+(r.k.cagr>=0?'var(--gr)':'var(--re)')+'">'+stressFmtPct(r.k.cagr)+'</td><td class="mono" style="color:var(--re)">'+stressFmtPct(r.k.mdd)+'</td><td class="mono">'+r.k.sharpe.toFixed(2)+'</td><td class="mono" style="color:'+(r.robust>0?'var(--gr)':'var(--re)')+'">'+(r.robust!==null?r.robust.toFixed(2):'--')+'</td></tr>';});
+  html+='</tbody></table><div style="font-size:10px;color:var(--mu);margin-top:5px">判讀：不要選單一最高長度；選相鄰多組都可接受的平台區。</div></div>';
+  panel.innerHTML=html;
+}
+async function runRegimeStabilityMatrix(){
+  var panel=stressRobPanel(); if(panel)panel.innerHTML='Regime Stability Matrix 掃描中...';
+  if(!(await ensureDataReadyForAnalysis('regime stability matrix'))) return;
+  var lens=regimeReadLengthConfig();
+  var exps=regimeReadMatrixExposures();
+  var cells={}, count=0, total=lens.length*exps.length;
+  try{
+    for(var i=0;i<lens.length;i++){
+      var off=regimeRunBacktest(false,100,lens[i]);
+      cells[lens[i]]={};
+      for(var j=0;j<exps.length;j++){
+        var res=regimeRunBacktest(true,exps[j],lens[i]);
+        var sens=0;
+        var score=res.k?regimeScoreVsOff(res.k,off.k,sens):null;
+        cells[lens[i]][exps[j]]={k:res.k,score:score,stats:regimeActivationStats(res.records)};
+        count++; if(panel)panel.innerHTML='Regime Matrix '+count+'/'+total+'...';
+        await new Promise(function(r){setTimeout(r,0);});
       }
     }
-  } catch(e) {
-    if (panel) panel.innerHTML = '權重掃描錯誤: ' + e.message;
-  } finally {
-    STRESS_WEIGHT_OVERRIDE = oldOverride;
-    if (oldGate !== null && document.getElementById('btShieldGate')) document.getElementById('btShieldGate').value = oldGate;
-  }
-
-  rows.sort(function(a,b){
-    if (Math.abs(b.sharpe-a.sharpe)>0.0001) return b.sharpe-a.sharpe;
-    if (Math.abs(b.mdd-a.mdd)>0.0001) return b.mdd-a.mdd;
-    return b.cagr-a.cagr;
-  });
-
-  if (!panel) return;
-  if (!rows.length) { panel.innerHTML = '沒有可用結果。請確認 Stress Gate 資料與回測資料已建立。'; return; }
-
-  function fp(v){ return (v>=0?'+':'')+(v*100).toFixed(2)+'%'; }
-  var top = rows.slice(0,20);
-  var best = top[0];
-  var html = '<div style="margin-bottom:6px;color:var(--mu)">排序：Sharpe 優先，其次 MDD，再看 CAGR。這是粗格點搜尋，重點看前幾組是否形成穩定區，不只看第1名。</div>';
-  html += '<div class="ib2" style="border:1px solid var(--gr);margin-bottom:6px"><b style="color:var(--gr)">目前最佳粗格點</b> ｜ VIX '+best.vix+' / HY '+best.hy+' / Trend '+best.trend+' / Breadth '+best.breadth+' ｜ CAGR '+fp(best.cagr)+' ｜ MDD '+fp(best.mdd)+' ｜ Sharpe '+best.sharpe.toFixed(2)+'</div>';
-  html += '<table style="width:100%;font-size:11px"><thead><tr><th>#</th><th>VIX</th><th>HY</th><th>Trend</th><th>Breadth</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Final NAV</th><th>套用</th></tr></thead><tbody>';
-  top.forEach(function(r,i){
-    html += '<tr><td class="mono">'+(i+1)+'</td><td class="mono">'+r.vix+'</td><td class="mono">'+r.hy+'</td><td class="mono">'+r.trend+'</td><td class="mono">'+r.breadth+'</td><td class="mono" style="color:'+(r.cagr>=0?'var(--gr)':'var(--re)')+'">'+fp(r.cagr)+'</td><td class="mono" style="color:var(--re)">'+fp(r.mdd)+'</td><td class="mono" style="color:'+(r.sharpe>=1?'var(--gr)':r.sharpe>=0?'var(--ye)':'var(--re)')+'">'+r.sharpe.toFixed(2)+'</td><td class="mono">$'+Math.round(r.nav).toLocaleString()+'</td><td><button class="bo sm" onclick="applyStressWeightSet('+r.vix+','+r.hy+','+r.trend+','+r.breadth+')">套用</button></td></tr>';
-  });
-  html += '</tbody></table>';
-  panel.innerHTML = html;
+  }catch(e){ if(panel)panel.innerHTML='Regime Matrix 錯誤: '+e.message; return; }
+  var html='<div class="ib2" style="border:1px solid var(--gr)"><div style="font-size:10px;color:var(--gr);font-weight:700;margin-bottom:6px">Regime Stability Matrix</div>';
+  html+='<div style="font-size:10px;color:var(--mu);margin-bottom:6px">格內數字為 Robust score。綠色連續區塊 = plateau；單一尖峰 = 過擬合風險。</div>';
+  html+='<table style="width:100%;font-size:11px"><thead><tr><th>VWMA Len / Bear Exp</th>';
+  exps.forEach(function(e){html+='<th class="mono">'+e+'%</th>';}); html+='</tr></thead><tbody>';
+  lens.forEach(function(len){html+='<tr><td class="mono" style="font-weight:700">'+len+'</td>'; exps.forEach(function(e){var c=cells[len][e]; var sc=c&&c.score; var col=sc===null?'var(--mu)':(sc>0.15?'var(--gr)':sc>0?'var(--ye)':'var(--re)'); var sub=c&&c.k?('S '+c.k.sharpe.toFixed(2)+' / MDD '+(c.k.mdd*100).toFixed(0)+'%'):'no data'; html+='<td class="mono" style="color:'+col+';font-weight:700">'+(sc!==null?sc.toFixed(2):'--')+'<div style="font-size:9px;color:var(--mu);font-weight:400">'+sub+'</div></td>';}); html+='</tr>';});
+  html+='</tbody></table></div>';
+  panel.innerHTML=html;
+}
+async function runStressRobustnessSuite(){
+  var panel=stressRobPanel(); if(panel)panel.innerHTML='Regime / VWMA exposure robustness 準備中...';
+  if(!(await ensureDataReadyForAnalysis('regime exposure robustness suite'))) return;
+  var baseExp=gv('btRegimeExp')||parseFloat(document.getElementById('regimeTestBaseExp')?document.getElementById('regimeTestBaseExp').value:'50')||50;
+  var len=parseInt(document.getElementById('btRegimeLen') ? document.getElementById('btRegimeLen').value : '60',10)||60;
+  var current=regimeRunBacktest(true, baseExp, len);
+  var html='<div class="ib2" style="border:1px solid var(--ac)"><div style="font-size:10px;color:var(--ac);font-weight:700;margin-bottom:6px">Regime / VWMA Exposure Robustness Suite</div>';
+  if(!current.k){panel.innerHTML='Regime Robustness 無結果。請先確認回測資料。'; return;}
+  var st=regimeActivationStats(current.records);
+  html+='<div style="font-size:11px;color:var(--mu);margin-bottom:6px">Current: Regime ON｜Bearish 時曝光度 '+Math.round(baseExp)+'%｜觸發月 '+(st.activePct*100).toFixed(1)+'%｜平均曝險 '+(st.avgExposure*100).toFixed(1)+'%。Stress Score Gate 測試期間強制 OFF。</div>';
+  html+='<table style="width:100%;font-size:11px"><thead><tr><th>Current</th><th>CAGR</th><th>MDD</th><th>Sharpe</th><th>Final NAV</th></tr></thead><tbody><tr><td>Regime ON</td><td class="mono">'+stressFmtPct(current.k.cagr)+'</td><td class="mono">'+stressFmtPct(current.k.mdd)+'</td><td class="mono">'+current.k.sharpe.toFixed(2)+'</td><td class="mono">$'+Math.round(current.k.nav).toLocaleString()+'</td></tr></tbody></table></div>';
+  html+=regimeValidationHtml(current.records);
+  html+=regimeSimplicityPenaltyHtml(current.k, 0);
+  if(panel) panel.innerHTML=html+'<div style="font-size:10px;color:var(--mu);margin-top:8px">完整判斷請再按「曝光度掃描」與「±10% 曝光擾動」。</div>';
+}
+function applyRegimeExposure(exp){
+  regimeSetExposure(exp);
+  var panel=stressRobPanel();
+  if(panel) panel.innerHTML='<div class="ib2" style="border:1px solid var(--gr);color:var(--gr)">已套用 Regime 曝光度 '+Math.round(exp)+'%。請重新執行回測確認。</div>';
 }
 
 function applyStressWeightSet(v,h,t,b){
+  var panel=stressRobPanel(); if(panel) panel.innerHTML='Stress Score 權重套用已停用；請使用 Regime 曝光度掃描與套用。'; return;
+
   if (document.getElementById('swVix')) document.getElementById('swVix').value = v;
   if (document.getElementById('swHy')) document.getElementById('swHy').value = h;
   if (document.getElementById('swTrend')) document.getElementById('swTrend').value = t;
@@ -998,11 +1638,11 @@ function applyStressWeightSet(v,h,t,b){
 async function runTNBacktest() {
   if(!(await ensureDataReadyForAnalysis('T-N backtest'))) return;
   var tn=Math.max(0,Math.min(22,parseInt($('btSignalTN')?$('btSignalTN').value:'10')||0));
-  var oldSkipChecked = $('btSkipMo') ? $('btSkipMo').checked : false;
-  if ($('btSkipMo')) $('btSkipMo').checked = false;
-  SKIP_MO=false;
+  // T-N controls the signal date inside the selected scoring month.
+  // Skip Month remains an independent user option: checked = use previous rebalance period; unchecked = do not skip.
+  SKIP_MO=!!($('btSkipMo')&&$('btSkipMo').checked);
   CORR_WIN=parseInt($('corrW')?$('corrW').value:'24')||24;
-  sl('btLog','Calculating fair T-'+tn+' backtest...',null); showL('T-'+tn+' Fair Backtesting...');
+  sl('btLog','Calculating T-'+tn+' backtest | Skip Month '+(SKIP_MO?'ON':'OFF')+'...',null); showL('T-'+tn+' Backtesting...');
   setTimeout(async function() {
     try {
       if (CACHE_SKIP_MO!==SKIP_MO) { await buildCache(); }
@@ -1018,8 +1658,7 @@ async function runTNBacktest() {
     } catch(err) {
       sl('btLog','Error: '+err.message,false); console.error(err);
     } finally {
-      if ($('btSkipMo')) $('btSkipMo').checked = oldSkipChecked;
-      SKIP_MO = oldSkipChecked;
+      SKIP_MO=!!($('btSkipMo')&&$('btSkipMo').checked);
       hideL();
     }
   }, 80);
@@ -1057,21 +1696,26 @@ async function runCompare() {
   var origMode=elMode?elMode.value:'large';
   var origH=$('btH')?$('btH').value:'5';
   if (elMode) elMode.value='large';
-  sl('btLog','Comparing N=1 to '+maxN+'...',null); showL('Comparing...');
+  // Read T-N settings so Compare uses same basis as single backtest
+  var tn=parseInt($('btSignalTN')?$('btSignalTN').value:'4',10); if(!isFinite(tn)) tn=4;
+  var tnExec=getTNExecMode();
+  var usesTN = tn > 0;
+  sl('btLog','Comparing N=1 to '+maxN+(usesTN?' (T-'+tn+' '+tnExec+')':' (t-1/t-2)')+'...',null); showL('Comparing...');
   setTimeout(async function() {
     try {
       if (CACHE_SKIP_MO!==SKIP_MO) { await buildCache(); }
       var init=gv('btCap')||100000, results=[];
+      var btOpts = usesTN ? {signalN:tn, tnExecMode:tnExec} : {};
       for (var n=1; n<=maxN; n++) {
         if ($('btH')) $('btH').value=n;
-        var recs=runBTcore(n,mode);
+        var recs=runBTcore(n,mode,btOpts);
         if (recs) results.push({n:n,recs:recs,k:kpi(recs,init)});
       }
       if (!results.length) { alert('No results'); return; }
       renderCompare(results,init,mode);
       var dStart=results[0].recs[0].month;
       var dEnd=results[0].recs[results[0].recs.length-1].month;
-      sl('btLog','\u6bd4\u8f03\u5b8c\u6210 N=1~'+maxN+' | \u671f\u9593: '+dStart+' \u81f3 '+dEnd,true);
+      sl('btLog','\u6bd4\u8f03\u5b8c\u6210 N=1~'+maxN+(usesTN?' | T-'+tn+' '+tnExec:' | t-'+(document.querySelector('input[name="lagMode"]:checked')?document.querySelector('input[name="lagMode"]:checked').value:'1'))+' | \u671f\u9593: '+dStart+' \u81f3 '+dEnd,true);
     } catch(err) { sl('btLog','Error: '+err.message,false); console.error(err); }
     finally {
       if (elMode) elMode.value=origMode;
@@ -1108,17 +1752,16 @@ function renderCompare(results,init,mode) {
 }
 
 function renderBT(records,init,mode) {
-  var recs=records; $('btRes').classList.remove('hidden');
+  var recs=getDisplayBTRecords(records, init); $('btRes').classList.remove('hidden');
   var last=recs[recs.length-1];
-  var yrs=(new Date(last.month)-new Date(recs[0].month))/(365.25*86400000);
-  var tr=last.nav/init-1, cagr=yrs>0?Math.pow(1+Math.max(tr,-0.999),1/yrs)-1:0;
-  var btr=last.bNav/init-1, bcagr=yrs>0?Math.pow(1+Math.max(btr,-0.999),1/yrs)-1:0;
-  var pk=init, mdd=0;
-  recs.forEach(function(r){if(r.nav>pk)pk=r.nav;var dd=(r.nav-pk)/pk;if(dd<mdd)mdd=dd;});
-  var rets=recs.map(function(r){return r.pRet;});
-  var avg=rets.reduce(function(a,b){return a+b;},0)/rets.length;
-  var std=sampleStdAnnualized(rets)||1;
-  var sh=(cagr-0.015)/std;
+  // Metrics (CAGR, MDD, Sharpe) must use raw records so they match kpi() used by
+  // WF, Compare, Monte Carlo, T-N Sweep and all downstream analysis.
+  // Display records (live-adjusted last row) are only for the table, detail rows,
+  // and the Final NAV / Return shown in the card.
+  var rawK=kpi(records, init);
+  var cagr=rawK.cagr, mdd=rawK.mdd, sh=rawK.sharpe;
+  var tr=last.nav/init-1;
+  var btr=last.bNav/init-1, bcagr=periodsToYears(recs.length)>0?Math.pow(1+Math.max(btr,-0.999),1/periodsToYears(recs.length))-1:0;
   var fmt=function(v,p,pl){return (pl&&v>=0?'+':'')+(p?(v*100).toFixed(2)+'%':v.toFixed(2));};
   var modeLabel=mode==='rank'?'Rank-Weighted':'Equal-Weighted';
   $('btMetrics').innerHTML=
@@ -1271,8 +1914,12 @@ function renderBT(records,init,mode) {
     var pb=idx2>0?recs[idx2-1].bNav:init;
     var prevNav=idx2>0?recs[idx2-1].nav:init;
     var bRet=r.bNav/pb-1;
-    var ex=r.pRet-bRet;
-    var rc=r.pRet>=0?'var(--gr)':'var(--re)';
+    var grossDisplay=(r.grossRet!==undefined&&r.grossRet!==null&&isFinite(r.grossRet))?r.grossRet:0;
+    var netDisplay=(r.pRet!==undefined&&r.pRet!==null&&isFinite(r.pRet))?r.pRet:(grossDisplay-((r.totalCost||0)));
+    var costDisplay=(r.totalCost!==undefined&&r.totalCost!==null&&isFinite(r.totalCost))?r.totalCost:Math.max(0,grossDisplay-netDisplay);
+    var ex=netDisplay-bRet;
+    var grossColor=grossDisplay>=0?'var(--gr)':'var(--re)';
+    var rc=netDisplay>=0?'var(--gr)':'var(--re)';
     var ec=ex>=0?'var(--gr)':'var(--re)';
     var holdStr=Object.keys(r.holdings).map(function(k){
       var wt=r.holdings[k];
@@ -1292,6 +1939,20 @@ function renderBT(records,init,mode) {
     var slLabelArr = ['L0','L1','L2','L3','L4'];
     var slColorArr = ['var(--gr)','var(--gr)','var(--ye)','var(--re)','var(--re)'];
     var slBgArr = ['rgba(0,229,160,0.1)','rgba(0,229,160,0.1)','rgba(255,184,48,0.1)','rgba(255,77,109,0.1)','rgba(255,77,109,0.1)'];
+    var phaseDecision = r.marketPhaseDecision || null;
+    var phaseN = phaseDecision ? phaseDecision.phase : (r.marketPhase || 0);
+    var phaseMode = phaseDecision ? phaseDecision.mode : (r.marketPhaseMode || 'off');
+    var phaseCtrl = !!(phaseDecision && phaseDecision.control);
+    var phaseExp = phaseDecision ? (phaseDecision.suggestedExposure || phaseDecision.exposure || 1) : (r.marketPhaseSuggestedExposure || r.marketPhaseExposure || 1);
+    var phaseRisk = phaseDecision ? (phaseDecision.risk || '--') : '--';
+    var phaseColor = phaseN===3 ? 'var(--gr)' : (phaseN===4 || phaseN===2 ? 'var(--ye)' : (phaseN===5 ? 'var(--tw)' : (phaseN===6 ? 'var(--re)' : 'var(--mu)')));
+    var phaseCell = '<td style="vertical-align:top;white-space:nowrap;padding:6px 8px">'
+      + '<span style="border:1px solid '+phaseColor+';color:'+phaseColor+';padding:1px 6px;border-radius:3px;font-size:11px;font-family:monospace;font-weight:700">'
+      + (phaseN ? ('P'+phaseN) : '--') + '</span>'
+      + '<span style="font-size:11px;color:'+phaseColor+';font-weight:700;margin-left:4px">'+(Math.round(phaseExp*100))+'%</span>'
+      + '<div style="font-size:9px;color:var(--mu);margin-top:2px">'+(phaseCtrl?'CONTROL':'DIAG')+'｜'+phaseRisk+'</div>'
+      + '</td>';
+
     var stressCell;
     if (sl2 >= 0 && comp2 >= 0) {
       var sc = comp2 >= 80 ? 'var(--re)' : comp2 >= 60 ? 'var(--ye)' : 'var(--gr)';
@@ -1319,46 +1980,57 @@ function renderBT(records,init,mode) {
       stressCell = '<td style="vertical-align:top;font-size:10px;color:var(--mu);padding:6px 8px">--</td>';
     }
     var summaryRow='<tr style="border-top:2px solid var(--bd);">'
-      +'<td class="mono" style="font-weight:700;vertical-align:top;">'+r.month+(r.scoringM?'<div style="font-size:9px;color:var(--mu)">\u9078\u80a1:'+r.scoringM+'</div>':'')+'</td>'
+      +'<td class="mono" style="font-weight:700;vertical-align:top;">'+r.month+(r.liveAdjusted?'<div style="font-size:9px;color:var(--ac)">LIVE:'+((r.liveAsOf)||'latest')+'</div>':'')+(r.scoringM?'<div style="font-size:9px;color:var(--mu)">\u9078\u80a1:'+r.scoringM+'</div>':'')+'</td>'
       +'<td style="vertical-align:top;"><div style="font-size:9px;color:var(--mu);margin-bottom:2px">期末NAV比例</div>'+holdStr+'</td>'
       +'<td class="mono" style="font-size:10px;color:var(--bl);vertical-align:top;">'+(r.hurdle*100).toFixed(1)+'%</td>'
-      +'<td class="mono" style="color:'+rc+';font-weight:700;vertical-align:top;">'+(r.pRet>=0?'+':'')+(r.pRet*100).toFixed(2)+'%</td>'
-      +'<td class="mono" style="color:var(--tw);font-weight:700;vertical-align:top;">$'+Math.round(r.nav).toLocaleString()+'</td>'
+      +'<td class="mono" title="Gross Return = Σ(個股策略報酬 × 初始權重)，不扣成本" style="color:'+grossColor+';font-weight:700;vertical-align:top;">'+fmtMaybePct(grossDisplay,2)+'</td>'
+      +'<td class="mono" title="Net Return = Gross Return - 成本；NAV只使用此數值鏈接" style="color:'+rc+';font-weight:700;vertical-align:top;">'+fmtMaybePct(netDisplay,2)+'<div style="font-size:9px;color:var(--mu);font-weight:400">Cost '+fmtMaybePct(costDisplay,2)+'</div></td>'
       +'<td class="mono" style="color:var(--mu);vertical-align:top;">$'+Math.round(r.bNav).toLocaleString()+'</td>'
       +'<td class="mono" style="color:'+ec+';font-weight:700;vertical-align:top;">'+(ex>=0?'+':'')+(ex*100).toFixed(2)+'pp</td>'
+      +phaseCell
       +stressCell
       +'</tr>';
     var detailRows='';
     if (r.stockRets) {
       Object.keys(r.stockRets).forEach(function(k){
-        var sr=r.stockRets[k], ret=sr.ret, w=sr.w||0;
-        var contrib=ret*w, pnl=prevNav*contrib;
-        var isShortPos=w<0;
+        var sr=r.stockRets[k] || {};
+        var initW = getInitialWeightForDisplay(sr);
+        var effW = getEffectiveWeightForDisplay(sr);
+        var rawRet = (sr.ret !== undefined && sr.ret !== null && isFinite(sr.ret)) ? sr.ret : null;
+        var positionRet = rawRet === null ? null : (initW < 0 ? -rawRet : rawRet);
+        var contrib = rawRet === null ? 0 : rawRet * initW;
+        var pnl = prevNav * contrib;
+        var isShortPos=initW<0;
         var isUs=!!(document.querySelector('[data-code="'+k+'"][data-tw="0"]'));
         var col=isShortPos?'var(--bl)':(isUs?'var(--us)':'var(--tw)');
         var rc2=contrib>=0?'var(--gr)':'var(--re)';
+        var retColor=(positionRet===null||!isFinite(positionRet))?'var(--mu)':(positionRet>=0?'var(--gr)':'var(--re)');
         var nm=getStockName(k);
         var dirLabel=isShortPos?'[S] ':'';
-        var absPct=Math.abs(w*100).toFixed(0)+'%';
+        var initPct=Math.abs(initW*100).toFixed(2)+'%';
+        var effPct=Math.abs(effW*100).toFixed(2)+'%';
         var finalPct = (sr.finalCapital !== undefined && sr.finalCapital !== null && isFinite(sr.finalCapital)) ? (sr.finalCapital*100).toFixed(2)+'%' : null;
         var chainHtml = fmtNaturalChainHtmlNE(sr);
         detailRows+='<tr style="background:var(--bg);opacity:0.85;">'
           +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);"></td>'
           +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);font-family:monospace;font-size:11px;color:'+col+';">'
           +dirLabel+k+(nm&&nm!==k?' <span style="color:var(--mu);font-size:10px;">'+nm+'</span>':'')
-          +' <span style="color:var(--mu);font-size:10px;">Init '+absPct+(finalPct?'｜期末NAV '+finalPct:'')+'</span>'
-          +(ri===0 && k!== 'CASH' ? (function(){ var lp=getLatestMarketPoint(k)||{}; return '<div style="font-size:9px;color:var(--mu);margin-top:2px;line-height:1.5">買入日 '+(sr.prevDate||'--')+' / 買 '+fmtPx(sr.prevPrice)+' / 最新日 '+(lp.date||'--')+' / 現 '+fmtPx(lp.price)+' / '+fmtRet(calcLivePositionReturn(sr.prevPrice,lp.price,w))+'</div>'; })() : '')
+          +' <span style="color:var(--mu);font-size:10px;">Weight '+initPct+'</span>'
+          +(k!== 'CASH' ? '<div style="font-size:9px;color:var(--mu);margin-top:2px;line-height:1.5">'
+            +(r.liveAdjusted?'最新價格':'回測價格')+'｜期初日 '+(sr.prevDate||r.tradeStart||'--')+' / 期初價 '+fmtPx(sr.prevPrice)
+            +' / '+(r.liveAdjusted?'最新日 ':'期末日 ')+(sr.currDate||r.tradeEnd||'--')+' / '+(r.liveAdjusted?'最新價 ':'期末價 ')+fmtPx(sr.currPrice)
+            +' / 報酬採用同一價格基準，不使用期末NAV比例反推</div>' : '')
           +chainHtml
           +'</td>'
           +'<td style="padding:3px 8px;border-bottom:1px solid var(--bd);"></td>'
-          +'<td class="mono" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:11px;color:var(--mu);">'
-          +(ret>=0?'+':'')+(ret*100).toFixed(2)+'%'
+          +'<td class="mono" title="個股策略報酬；多單=價格報酬，空單=價格報酬反向；自然淘汰=鏈式實際報酬" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:11px;color:'+retColor+';">'
+          +fmtMaybePct(positionRet,2)
           +'</td>'
-          +'<td class="mono" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:11px;color:'+rc2+';">'
+          +'<td class="mono" title="損益金額=上期NAV × Contribution" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:11px;color:'+rc2+';">'
           +(pnl>=0?'+$':'-$')+Math.abs(Math.round(pnl)).toLocaleString()
           +'</td>'
-          +'<td colspan="2" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:10px;color:'+rc2+';">'
-          +'contrib: '+(contrib>=0?'+':'')+(contrib*100).toFixed(2)+'%'
+          +'<td colspan="2" title="Contribution = 個股策略報酬 × 初始權重；全體加總等於 Gross Return" style="padding:3px 8px;border-bottom:1px solid var(--bd);font-size:10px;color:'+rc2+';">'
+          +'contrib: '+fmtMaybePct(contrib,2)
           +(sr.entry?'<span style="font-size:9px;color:var(--mu);margin-left:6px;font-family:monospace">T-9:'+sr.entry+'</span>':'')+'</td></tr>';
       });
     }
@@ -1386,10 +2058,8 @@ function runRolling() {
       var bNavS=i>0?recs[i-1].bNav:init, bNavE=sub[sub.length-1].bNav;
       var bcagr=Math.pow(bNavE/bNavS,1/N)-1;
       var rets=sub.map(function(r){return r.pRet;});
-      var avg=rets.reduce(function(a,b){return a+b;},0)/rets.length;
-      var variance=rets.reduce(function(a,b){return a+(b-avg)*(b-avg);},0)/rets.length;
-      var std=Math.sqrt(variance)*Math.sqrt(freq==="2"?24:12);
-      var sharpe=std>0?(cagr-0.015)/std:0;
+      var std=sampleStdAnnualized(rets);
+      var sharpe=calcStandardSharpeFromReturns(rets, getAnnualPeriods());
       var peak=navS, mdd=0;
       sub.forEach(function(r){if(r.nav>peak)peak=r.nav;var dd=(r.nav-peak)/peak;if(dd<mdd)mdd=dd;});
       wins.push({cagr:cagr,bcagr:bcagr,std:std,sharpe:sharpe,mdd:mdd});
@@ -1449,13 +2119,15 @@ function dlOHLCV() {
 function dlMonthly() { alert('V1.9 uses DAILY data natively. Please use OHLCV export.'); }
 function dlBtCsv() {
   if (!BT_RESULT) { sl('btLog','Run backtest first',false); return; }
-  var recs=BT_RESULT.records, init=BT_RESULT.initial;
-  var rows=['Date,Holdings,Hurdle%,GrossReturn%,Turnover%,TurnoverCost%,ImpactCost%,TotalCost%,Return%,NAV,BenchNav,Alpha%,NaturalEvents,ClosureCostDiff%,ClosureNavDiff%'];
+  var init=BT_RESULT.initial;
+  var recs=getDisplayBTRecords(BT_RESULT.records, init);
+  var rows=['Date,Basis,Holdings,Hurdle%,GrossReturn%,Turnover%,TurnoverCost%,ImpactCost%,TotalCost%,Return%,NAV,BenchNav,Alpha%,MarketPhase,MarketPhaseMode,MarketPhaseExposure%,FinalExposure%,NaturalEvents,ClosureCostDiff%,ClosureNavDiff%'];
   recs.forEach(function(r,i){
     var pb=i>0?recs[i-1].bNav:init; var ex=r.pRet-(r.bNav/pb-1);
-    var hold=Object.keys(r.holdings).map(function(k){ var nm=getStockName(k); return k+(nm&&nm!==k?'('+nm+')':'')+(Math.abs(r.holdings[k])<0.99?' '+(r.holdings[k]*100).toFixed(0)+'%':''); }).join('+');
+    var hold=Object.keys(r.holdings).map(function(k){ var nm=getStockName(k); return k+(nm&&nm!==k?'('+nm+')':'')+' '+(r.holdings[k]*100).toFixed(1)+'%'; }).join('+');
     var ev=(r.naturalEvents||[]).map(function(e){return e.date+':'+e.from+'→'+e.to+' rank='+e.rank+' cap='+(e.inheritedCapital*100).toFixed(2)+'%';}).join(' | ');
-    rows.push([r.month,hold,(r.hurdle*100).toFixed(2),((r.grossRet||0)*100).toFixed(3),((r.turnover||0)*100).toFixed(3),((r.turnoverCost||0)*100).toFixed(3),((r.impactCost||0)*100).toFixed(3),((r.totalCost||0)*100).toFixed(3),(r.pRet*100).toFixed(3),Math.round(r.nav),Math.round(r.bNav),(ex*100).toFixed(3),ev,((r.closureCostDiff||0)*100).toFixed(6),((r.closureNavDiff||0)*100).toFixed(6)].map(csvCell).join(','));
+    var mp = r.marketPhaseDecision || {};
+    rows.push([r.month,(r.liveAdjusted?'LATEST_PRICE':'TRADE_END'),hold,(r.hurdle*100).toFixed(2),((r.grossRet||0)*100).toFixed(3),((r.turnover||0)*100).toFixed(3),((r.turnoverCost||0)*100).toFixed(3),((r.impactCost||0)*100).toFixed(3),((r.totalCost||0)*100).toFixed(3),(r.pRet*100).toFixed(3),Math.round(r.nav),Math.round(r.bNav),(ex*100).toFixed(3),(r.marketPhase||mp.phase||0),(r.marketPhaseMode||mp.mode||'off'),(((r.marketPhaseSuggestedExposure||mp.suggestedExposure||mp.exposure||1)*100).toFixed(1)),(((r.finalExposure||1)*100).toFixed(1)),ev,((r.closureCostDiff||0)*100).toFixed(6),((r.closureNavDiff||0)*100).toFixed(6)].map(csvCell).join(','));
   });
   dlText(rows.join('\n'),'V1.9_Backtest_'+new Date().toISOString().slice(0,10)+'.csv','text/csv;charset=utf-8');
 }
@@ -1527,7 +2199,7 @@ async function calcSignal() {
   if (!sigInfo) { alert('找不到 Signal Month 資料。請輸入 YYYY-MM，或確認資料已載入。'); return; }
   var sigN = sigInfo.N;
   if (!sigInfo.ready) {
-    $('sigContent').innerHTML = '<div class="ib2" style="border-left:3px solid var(--ye);color:var(--ye)">尚未到達 T-'+sigN+' 訊號日<br>月份: <b>'+sigInfo.ym+'</b><br>T（月末）: <b>'+sigInfo.T+'</b> '+(sigInfo.source==='estimated'?'(依週一至週五估算)':'')+'<br>T-'+sigN+': <b>'+sigInfo.tN+'</b><br>最新資料: <b>'+sigInfo.lastDate+'</b></div>';
+    $('sigContent').innerHTML = '<div class="ib2" style="border-left:3px solid var(--ye);color:var(--ye)">尚未到達 T-'+sigN+' 訊號日<br>頻率: <b>'+((sigInfo.freq==='2')?'半月頻':'月頻')+'</b> / 期別: <b>'+(sigInfo.label||'月底')+'</b><br>月份: <b>'+sigInfo.ym+'</b><br>T（本期再平衡日）: <b>'+sigInfo.T+'</b> '+(sigInfo.source==='estimated'?'(依週一至週五估算)':'')+'<br>T-'+sigN+': <b>'+sigInfo.tN+'</b><br>最新資料: <b>'+sigInfo.lastDate+'</b></div>';
     $('stCard').classList.add('hidden');
     return;
   }
@@ -1571,7 +2243,7 @@ async function calcSignal() {
     });
   }
 
-  // 正式空頭名單：依 Short N、低分排序、排除多頭已選、排除 SGOV/CASH/ETF。
+  // 正式空頭名單：依 Short N、低分排序、排除多頭已選、排除 SGOV/ETF。
   var shortN=parseInt($('btSN') ? $('btSN').value : '0') || 0;
   var shortTSF=!!($('btSTSF') && $('btSTSF').checked);
   var selS=[];
@@ -1593,7 +2265,7 @@ async function calcSignal() {
     }
   }
 
-  renderSig(sel,selS,allScores,latestDate,hurdle);
+  renderSig(sel,selS,allScores,latestDate,hurdle,sigInfo);
   renderST(allScores,hurdle,sel.map(function(s){return s.s.c;}),rejectedMap,latestDate);
 }
 
@@ -1602,7 +2274,7 @@ function isTWSignalStock(r) {
   return !!(r && r.s && (r.s.tw === true || r.s.tw === '1' || r.s.region === 'tw' || r.s.pool === 'tw'));
 }
 
-function renderSignalGroup(title, list, type, zf, pf, scoreDate) {
+function renderSignalGroup(title, list, type, zf, pf, scoreDate, sigInfo) {
   var isShort = type === 'short';
   var color = isShort ? 'var(--re)' : 'var(--gr)';
   var border = isShort ? 'var(--re)' : 'var(--gr)';
@@ -1638,20 +2310,23 @@ function renderSignalGroup(title, list, type, zf, pf, scoreDate) {
     html += '<div style="margin-top:5px;font-size:10px;color:var(--mu);font-family:monospace">'
       + 'R240:'+pf(r.r240)+' / Pool:'+(r.s.pool||'-')+' / Region:'+(r.s.region||'-')
       + '</div>'
-      + renderSignalPriceLine(r.s.c, scoreDate, isShort ? -1 : 1, ($('sigTN') ? ($('sigTN').value || 10) : 10))
+      + renderSignalPriceLine(r.s.c, scoreDate, isShort ? -1 : 1, ($('sigTN') ? ($('sigTN').value || 10) : 10), sigInfo ? sigInfo.T : null)
       + '</div>';
   });
   html += '</div>';
   return html;
 }
 
-function renderSig(sel,selS,all,date,hurdle) {
+function renderSig(sel,selS,all,date,hurdle,sigInfo) {
   var zf=function(v){return v!==null?(v>=0?'+':'')+v.toFixed(2):'-';};
   var pf=function(v){return v!==null?(v>=0?'+':'')+(v*100).toFixed(1)+'%':'-';};
   var tnx=getTNXRate(date);
   var sigN = $('sigTN') ? ($('sigTN').value || '10') : '10';
   var execMode = getTNExecMode();
-  var html='<div style="font-size:11px;color:var(--mu);margin-bottom:9px">Signal: <b style="color:var(--tw)">T-'+sigN+'</b> | Score Date: <b style="color:var(--tw)">'+date+'</b> | 成交基準: <b style="color:var(--ac)">'+describeTNExecMode(execMode, parseInt(sigN,10)||0)+'</b> | ^TNX: <b style="color:var(--bl)">'+(tnx*100).toFixed(2)+'%</b> | Hurdle: <b style="color:var(--ye)">'+(hurdle*100).toFixed(2)+'%</b><br><span style="color:var(--mu)">此為信號頁獨立觀察訊號；未指定月份時使用最新資料所在月份。正式T-N回測會套用同一個成交價基準。</span></div>';
+  var freqLabel = (sigInfo && sigInfo.freq === '2') ? '半月頻' : '月頻';
+  var periodLabel = sigInfo && sigInfo.label ? sigInfo.label : '月底';
+  var anchorT = sigInfo && sigInfo.T ? sigInfo.T : date;
+  var html='<div style="font-size:11px;color:var(--mu);margin-bottom:9px">Freq: <b style="color:var(--tw)">'+freqLabel+'</b> | 期別: <b style="color:var(--tw)">'+periodLabel+'</b> | Signal: <b style="color:var(--tw)">T-'+sigN+'</b> | T基準日: <b style="color:var(--tw)">'+anchorT+'</b> | Score Date: <b style="color:var(--tw)">'+date+'</b> | 成交基準: <b style="color:var(--ac)">'+describeTNExecMode(execMode, parseInt(sigN,10)||0)+'</b> | ^TNX: <b style="color:var(--bl)">'+(tnx*100).toFixed(2)+'%</b> | Hurdle: <b style="color:var(--ye)">'+(hurdle*100).toFixed(2)+'%</b><br><span style="color:var(--mu)">此為信號頁獨立觀察訊號；頻率會跟隨回測的月頻/半月頻設定。半月頻時，T 會改為本期半月或月底再平衡日。</span></div>';
 
   sel = sel || [];
   selS = selS || [];
@@ -1660,10 +2335,10 @@ function renderSig(sel,selS,all,date,hurdle) {
   var shortTW = selS.filter(isTWSignalStock);
   var shortUS = selS.filter(function(r){ return !isTWSignalStock(r); });
 
-  html += renderSignalGroup('LONG 多頭名單｜台股', longTW, 'long', zf, pf, date);
-  html += renderSignalGroup('LONG 多頭名單｜美股 / 國際', longUS, 'long', zf, pf, date);
-  html += renderSignalGroup('SHORT 空頭名單｜台股', shortTW, 'short', zf, pf, date);
-  html += renderSignalGroup('SHORT 空頭名單｜美股 / 國際', shortUS, 'short', zf, pf, date);
+  html += renderSignalGroup('LONG 多頭名單｜台股', longTW, 'long', zf, pf, date, sigInfo);
+  html += renderSignalGroup('LONG 多頭名單｜美股 / 國際', longUS, 'long', zf, pf, date, sigInfo);
+  html += renderSignalGroup('SHORT 空頭名單｜台股', shortTW, 'short', zf, pf, date, sigInfo);
+  html += renderSignalGroup('SHORT 空頭名單｜美股 / 國際', shortUS, 'short', zf, pf, date, sigInfo);
 
   if(!sel.length) html+='<div style="color:var(--ye);font-size:12px;margin-bottom:9px">無多頭標的通過 TS 與篩選條件；若有設定 Short N，仍可查看空頭名單。</div>';
   if(!selS.length && (parseInt($('btSN') ? $('btSN').value : '0') || 0) > 0) html+='<div style="color:var(--ye);font-size:12px;margin-bottom:9px">Short N 已開啟，但本月無空頭入選。</div>';
@@ -1703,9 +2378,8 @@ function runMonteCarlo() {
         var nav=init,peak=init,mdd=0;
         sim.forEach(function(r){ nav*=(1+r); if(nav>peak)peak=nav; var dd=(nav-peak)/peak; if(dd<mdd)mdd=dd; });
         var yrs=periodsToYears(n), cagr=Math.pow(nav/init,1/yrs)-1;
-        var avg=sim.reduce(function(a,b){return a+b;},0)/sim.length;
         var std=sampleStdAnnualized(sim);
-        var sharpe=std>0?(cagr-0.015)/std:0;
+        var sharpe=calcStandardSharpeFromReturns(sim, getAnnualPeriods());
         cagrs.push(cagr); mdds.push(mdd); sharpes.push(sharpe);
       }
       renderStress(cagrs,mdds,sharpes,'Monte Carlo',simN);
@@ -1734,9 +2408,8 @@ function runBlockBootstrap() {
         var nav=init,peak=init,mdd=0;
         sim.forEach(function(r){ nav*=(1+r); if(nav>peak)peak=nav; var dd=(nav-peak)/peak; if(dd<mdd)mdd=dd; });
         var yrs=periodsToYears(n), cagr=Math.pow(nav/init,1/yrs)-1;
-        var avg=sim.reduce(function(a,b){return a+b;},0)/sim.length;
         var std=sampleStdAnnualized(sim);
-        var sharpe=std>0?(cagr-0.015)/std:0;
+        var sharpe=calcStandardSharpeFromReturns(sim, getAnnualPeriods());
         cagrs.push(cagr); mdds.push(mdd); sharpes.push(sharpe);
       }
       renderStress(cagrs,mdds,sharpes,'Block Bootstrap (blk='+blk+')',simN);
@@ -1754,7 +2427,7 @@ function renderStress(cagrs,mdds,sharpes,label,simN) {
   function gc(v){return v>=0?'var(--gr)':'var(--re)';}
   var winRate=cagrs.filter(function(v){return v>0;}).length/simN;
   var orig=BT_RESULT.records, origInit=BT_RESULT.initial, origLast=orig[orig.length-1];
-  var origYrs=(new Date(origLast.month)-new Date(orig[0].month))/(365.25*86400000);
+  var origYrs=periodsToYears(orig.length);
   var origCagr=Math.pow(origLast.nav/origInit,1/origYrs)-1;
   var origRets=orig.map(function(r){return r.pRet;});
   var origAvg=avgArr(origRets);
@@ -1955,6 +2628,9 @@ async function runWalkForward() {
         if(!isK || !oosK) continue;
         var ratio=wfSafeRatio(oosK.cagr,isK.cagr);
         wfPushWindowReturns(combinedOOS,oosRecs,tStart,tEnd);
+        // AUDIT: WF window overlap and size
+        auditWFWindow('ANCHORED', isStart+'~'+isEnd, tStart+'~'+tEnd,
+          isK.cagr, oosK.cagr, ratio, oosRecs.length);
         results.push({isPeriod:isStart+'~'+isEnd, period:tStart+'~'+tEnd, months:oosRecs.length, isCagr:isK.cagr, isSharpe:isK.sharpe, cagr:oosK.cagr, mdd:oosK.mdd, sharpe:oosK.sharpe, ratio:ratio});
       }
       wfRestoreDates(origS,origE);
@@ -2056,6 +2732,9 @@ async function runRollingWalkForward() {
         if(!tk || !ok) continue;
         var ratio=wfSafeRatio(ok.cagr,tk.cagr);
         wfPushWindowReturns(combinedOOS,oosRecs,teStart,teEnd);
+        // AUDIT: Rolling WF window
+        auditWFWindow('ROLLING', trStart+'~'+trEnd, teStart+'~'+teEnd,
+          tk.cagr, ok.cagr, ratio, oosRecs.length);
         results.push({train:trStart+'~'+trEnd, test:teStart+'~'+teEnd, months:oosRecs.length, trainCagr:tk.cagr, trainSharpe:tk.sharpe, cagr:ok.cagr, mdd:ok.mdd, sharpe:ok.sharpe, ratio:ratio});
       }
       wfRestoreDates(origS,origE);
@@ -2121,12 +2800,10 @@ async function runTNSweep() {
   showL('T-N Sweep N=1~22...');
 
   setTimeout(async function(){
-    var oldSkipChecked = $('btSkipMo') ? $('btSkipMo').checked : false;
     try {
-      // T-N Sweep 是獨立公平回測：N 只決定名單；交易一律 T 月底收盤買、T+1 月底收盤賣。
-      // 因此強制不套用 Skip Month，避免混入另一套訊號延遲定義。
-      if ($('btSkipMo')) $('btSkipMo').checked = false;
-      SKIP_MO = false;
+      // T-N Sweep: N 只決定同一個 scoring month 內的訊號日。
+      // Skip Month 不應被強制關閉；完全跟隨使用者勾選狀態。
+      SKIP_MO=!!($('btSkipMo')&&$('btSkipMo').checked);
       if (CACHE_SKIP_MO !== SKIP_MO) await buildCache();
 
       var mh = parseInt($('btH') ? $('btH').value : '6') || 6;
@@ -2152,14 +2829,14 @@ async function runTNSweep() {
 
       var canvasId = 'tnSweepChart_' + Date.now();
       var html = '<div class="card">'
-        + '<div class="ct">T-N Sweep 回測表 <span style="color:var(--mu);font-size:10px">N只決定名單；買賣價格固定為 T 月底 → T+1 月底</span></div>'
+        + '<div class="ct">T-N Sweep 回測表 <span style="color:var(--mu);font-size:10px">N只決定訊號日；Skip Month依目前勾選狀態；成交日依目前T-N成交基準</span></div>'
         + '<div class="ib2" style="margin-bottom:8px">最佳 Sharpe: <b>T-' + (bestSharpe ? bestSharpe.n : '-') + '</b>'
         + (bestSharpe ? ' / ' + bestSharpe.sharpe.toFixed(2) : '')
         + '　|　最佳 CAGR: <b>T-' + (bestCAGR ? bestCAGR.n : '-') + '</b>'
         + (bestCAGR ? ' / ' + (bestCAGR.cagr*100).toFixed(2) + '%' : '')
         + '　|　最低 MDD: <b>T-' + (bestMDD ? bestMDD.n : '-') + '</b>'
         + (bestMDD ? ' / ' + (bestMDD.mdd*100).toFixed(2) + '%' : '')
-        + '<br>注意：T 為每個歷史月份的固定月末交易日；不是資料最新更新日。</div>'
+        + '<br>注意：T 為每個歷史月份的固定月末交易日；Skip Month 勾選才會使用前一個 rebalance period 訊號。</div>'
         + '<div class="cw"><div class="ct2">T-N Sweep Chart</div><div style="position:relative;height:220px"><canvas id="'+canvasId+'"></canvas></div></div>'
         + '<div class="tw-wrap"><table><thead><tr>'
         + '<th>N</th><th>Periods</th><th>CAGR</th><th>Sharpe</th><th>MDD</th><th>Final NAV</th><th>標記</th>'
@@ -2223,8 +2900,7 @@ async function runTNSweep() {
       console.error(e);
       if (log) sl('stressLog','T-N Sweep Error: '+e.message,false);
     } finally {
-      if ($('btSkipMo')) $('btSkipMo').checked = oldSkipChecked;
-      SKIP_MO = oldSkipChecked;
+      SKIP_MO=!!($('btSkipMo')&&$('btSkipMo').checked);
       hideL();
     }
   }, 80);
@@ -2424,7 +3100,7 @@ async function runPoolCompare() {
       if(!oosMonths.length)return null;
       var sNav=init,sPeak=init,sMdd=0;
       oosMonths.forEach(function(r){ sNav*=(1+r); if(sNav>sPeak)sPeak=sNav; var dd=(sNav-sPeak)/sPeak; if(dd<sMdd)sMdd=dd; });
-      var sYrs=oosMonths.length/12, sCagr=sYrs>0?Math.pow(sNav/init,1/sYrs)-1:0;
+      var annualPeriods=(typeof getAnnualPeriods==='function')?getAnnualPeriods():12; var sYrs=oosMonths.length/annualPeriods, sCagr=sYrs>0?Math.pow(sNav/init,1/sYrs)-1:0;
       var sAvg=oosMonths.reduce(function(a,b){return a+b;},0)/oosMonths.length;
       var sStd=sampleStdAnnualized(oosMonths);
       var sSharpe=sStd>0?(sCagr-0.015)/sStd:0;
@@ -2567,6 +3243,8 @@ function runRandomBaseline() {
   var stocks = getEnabledStocks().filter(function(s) { return DAILY[s.c] && DAILY[s.c].length > 0; });
   if (stocks.length < N) { alert('股池中的有效標的數量不足！'); return; }
   
+  // AUDIT: random baseline cost asymmetry
+  auditRandomBaseline(gv('btC') || 0.3, 0);
   sl('stressLog', 'Running Random Baseline x' + simN + '...', null); 
   showL('Random Baseline (預先計算中)...');
   
@@ -2628,9 +3306,8 @@ function runRandomBaseline() {
           
           var yrs = periodsToYears(numMonths);
           var cagr = yrs > 0 ? Math.pow(nav / init, 1 / yrs) - 1 : 0;
-          var avg = simRets.reduce(function(a, b) { return a + b; }, 0) / simRets.length;
           var std = sampleStdAnnualized(simRets);
-          var sharpe = std > 0 ? (cagr - 0.015) / std : 0;
+          var sharpe = calcStandardSharpeFromReturns(simRets, getAnnualPeriods());
           
           cagrs.push(cagr); mdds.push(mdd); sharpes.push(sharpe);
         }
@@ -2668,7 +3345,7 @@ function renderRandomBaseline(cagrs, mdds, sharpes, simN, N) {
   
   var orig = BT_RESULT;
   var origLast = orig.records[orig.records.length - 1];
-  var origYrs = (new Date(origLast.month) - new Date(orig.records[0].month)) / (365.25 * 86400000);
+  var origYrs = periodsToYears(orig.records.length);
   var origCagr = Math.pow(origLast.nav / orig.initial, 1 / origYrs) - 1;
   var origRets = orig.records.map(function(r) { return r.pRet; });
   var origAvg = origRets.reduce(function(a, b) { return a + b; }, 0) / origRets.length;
@@ -2814,6 +3491,500 @@ function renderCostSensitivity(results, N) {
   var el = document.getElementById('stressMetrics');
   if (el) el.innerHTML = el.innerHTML + html;
 }
+
+// ==========================================
+// Factor Monotonicity Check
+// ==========================================
+async function runFactorMonotonicity() {
+  if (!(await ensureDataReadyForAnalysis('factor monotonicity'))) return;
+  showL('Factor Monotonicity...');
+  sl('stressLog', 'Running factor monotonicity check...', null);
+  setTimeout(function() {
+    try {
+      var stocks = getEnabledStocks().filter(function(s) {
+        return DAILY[s.c] && DAILY[s.c].length > 240;
+      });
+      var masterTicker = DAILY['^TWII'] ? '^TWII' :
+        (DAILY['0050'] ? '0050' : (DAILY['SPY'] ? 'SPY' : stocks[0].c));
+      var refDaily = DAILY[masterTicker];
+      var freq = getFreq();
+      var allM = getPreciseRebalanceDates(refDaily, freq);
+      var factors = ['rm', 'rb', 'rs', 'rv', 'rk'];
+      var factorNames = ['Momentum', 'Bias', 'Slope', 'Vol', 'Kbar'];
+      var results = {};
+      factors.forEach(function(f) { results[f] = { spreads: [], hits: 0, total: 0 }; });
+      var monoSignalN = Math.max(0, Math.min(22, parseInt(document.getElementById('btSignalTN') ? document.getElementById('btSignalTN').value : '4', 10) || 4));
+      var monoExecMode = getTNExecMode();
+      for (var idx = 2; idx < allM.length - 1; idx++) {
+        var scoreDate = getFixedTNDate(refDaily, allM[idx - 1], monoSignalN);
+        var holdStart = getTNExecutionDate(refDaily, allM[idx - 1], monoSignalN, monoExecMode);
+        var holdEnd = getTNExecutionDate(refDaily, allM[idx], monoSignalN, monoExecMode);
+        var scored = [];
+        stocks.forEach(function(s) {
+          if (!RAW_SCORES[s.c] || !RAW_SCORES[s.c][scoreDate]) return;
+          var raw = RAW_SCORES[s.c][scoreDate];
+          var p0 = getMarketMonthEndPrice(s.c, holdStart);
+          var p1 = getMarketMonthEndPrice(s.c, holdEnd);
+          if (!p0 || !p1 || p0 <= 0) return;
+          scored.push({ c: s.c, raw: raw, fwdRet: p1 / p0 - 1 });
+        });
+        if (scored.length < 10) continue;
+        var Q = Math.max(2, Math.floor(scored.length / 5));
+        factors.forEach(function(f) {
+          var valid = scored.filter(function(s) {
+            return s.raw[f] !== null && s.raw[f] !== undefined && isFinite(s.raw[f]);
+          });
+          if (valid.length < 10) return;
+          valid.sort(function(a, b) { return b.raw[f] - a.raw[f]; });
+          var topAvg = valid.slice(0, Q).reduce(function(s, x) { return s + x.fwdRet; }, 0) / Q;
+          var botAvg = valid.slice(-Q).reduce(function(s, x) { return s + x.fwdRet; }, 0) / Q;
+          var spread = topAvg - botAvg;
+          results[f].spreads.push(spread);
+          results[f].total++;
+          if (spread > 0) results[f].hits++;
+        });
+      }
+      var fpc = function(v) { return (v >= 0 ? '+' : '') + (v * 100).toFixed(2) + '%'; };
+      var gc2 = function(v) { return v >= 0 ? 'var(--gr)' : 'var(--re)'; };
+      var html = '<div class="card" style="border-top:3px solid var(--bl);margin-bottom:10px">';
+      html += '<div class="ct">FACTOR MONOTONICITY CHECK</div>';
+      html += '<div style="font-size:11px;color:var(--mu);margin-bottom:8px">';
+      html += 'Top quintile minus bottom quintile forward return per factor per period. ';
+      html += 'Hit Rate = % of periods where top > bottom. Avg Spread = mean L/S return.</div>';
+      html += '<div class="tw-wrap"><table><thead><tr>';
+      html += '<th>Factor</th><th>Periods</th><th>Hit Rate</th><th>Avg Spread</th>';
+      html += '<th>P25</th><th>P50</th><th>P75</th><th>Verdict</th>';
+      html += '</tr></thead><tbody>';
+      factors.forEach(function(f, fi) {
+        var r = results[f];
+        if (!r.total) {
+          html += '<tr><td>' + factorNames[fi] + '</td><td colspan="7" style="color:var(--mu)">no data</td></tr>';
+          return;
+        }
+        var hitRate = r.hits / r.total;
+        var sorted = r.spreads.slice().sort(function(a, b) { return a - b; });
+        function ptileFM(p) {
+          var i2 = (p / 100) * (sorted.length - 1);
+          var lo2 = Math.floor(i2), hi2 = Math.ceil(i2);
+          return sorted[lo2] + (sorted[hi2] - sorted[lo2]) * (i2 - lo2);
+        }
+        var avg = r.spreads.reduce(function(a, b) { return a + b; }, 0) / r.spreads.length;
+        var hitColor = hitRate >= 0.55 ? 'var(--gr)' : hitRate >= 0.45 ? 'var(--ye)' : 'var(--re)';
+        var avgColor = avg > 0.005 ? 'var(--gr)' : avg > -0.005 ? 'var(--ye)' : 'var(--re)';
+        var verdict = (hitRate >= 0.55 && avg > 0.003) ? 'VALID' :
+                      (hitRate >= 0.45) ? 'WEAK' : 'BROKEN';
+        var verdictColor = verdict === 'VALID' ? 'var(--gr)' :
+                           verdict === 'WEAK' ? 'var(--ye)' : 'var(--re)';
+        html += '<tr><td style="font-weight:700">' + factorNames[fi] + '</td>';
+        html += '<td class="mono">' + r.total + '</td>';
+        html += '<td class="mono" style="color:' + hitColor + '">' + (hitRate * 100).toFixed(1) + '%</td>';
+        html += '<td class="mono" style="color:' + avgColor + '">' + fpc(avg) + '</td>';
+        html += '<td class="mono" style="color:' + gc2(ptileFM(25)) + '">' + fpc(ptileFM(25)) + '</td>';
+        html += '<td class="mono" style="color:' + gc2(ptileFM(50)) + '">' + fpc(ptileFM(50)) + '</td>';
+        html += '<td class="mono" style="color:' + gc2(ptileFM(75)) + '">' + fpc(ptileFM(75)) + '</td>';
+        html += '<td style="color:' + verdictColor + ';font-weight:700">' + verdict + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      html += '<div style="font-size:10px;color:var(--mu);margin-top:6px">';
+      html += 'VALID: hit>55% & avg>0.3% | WEAK: hit 45-55% | BROKEN: hit<45% or avg<-0.5%. ';
+      html += 'WEAK factors may still serve as tiebreakers at low weight (5-10%).</div></div>';
+      var targetRes = document.getElementById('stressRes');
+      if (targetRes) targetRes.classList.remove('hidden');
+      var el = document.getElementById('stressMetrics');
+      if (el) el.innerHTML = html + el.innerHTML;
+      sl('stressLog', 'Factor monotonicity check done', true);
+    } catch (e) {
+      sl('stressLog', 'Factor mono error: ' + e.message, false);
+      console.error(e);
+    }
+    hideL();
+  }, 80);
+}
+
+// ==========================================
+// WF Factor Weight Optimizer
+// Grid search over weight combos in IS windows,
+// score by top-N avg forward return, validate in OOS.
+// Reports best IS, best OOS, and robust (median OOS) weight sets.
+// ==========================================
+async function runFactorWeightOptimizer() {
+  if (!(await ensureDataReadyForAnalysis('factor weight optimizer'))) return;
+  showL('Factor Weight Optimizer...');
+  sl('stressLog', 'Running WF Factor Weight Optimizer...', null);
+
+  await new Promise(function(r){ setTimeout(r, 50); });
+
+  try {
+    var stocks = getEnabledStocks().filter(function(s) {
+      return DAILY[s.c] && DAILY[s.c].length > 240;
+    });
+    var masterTicker = DAILY['^TWII'] ? '^TWII' :
+      (DAILY['0050'] ? '0050' : (DAILY['SPY'] ? 'SPY' : stocks[0].c));
+    var refDaily = DAILY[masterTicker];
+    var freq = getFreq();
+    var allM = getPreciseRebalanceDates(refDaily, freq);
+    if (allM.length < 60) { sl('stressLog', 'Not enough periods (<60)', false); hideL(); return; }
+
+    var annualPeriods = getAnnualPeriods();
+    var trainPeriods = annualPeriods * 3;
+    var testPeriods = annualPeriods * 1;
+    var holdN = parseInt($('btH') ? $('btH').value : '5') || 5;
+
+    // Generate weight grid: steps of 10%, sum=100%, each factor 0-80%
+    var grid = [];
+    var step = 10;
+    for (var wm = 0; wm <= 80; wm += step) {
+      for (var wb = 0; wb <= 80; wb += step) {
+        if (wm + wb > 100) break;
+        for (var ws = 0; ws <= 80; ws += step) {
+          if (wm + wb + ws > 100) break;
+          for (var wv = 0; wv <= 80; wv += step) {
+            if (wm + wb + ws + wv > 100) break;
+            var wk = 100 - wm - wb - ws - wv;
+            if (wk < 0 || wk > 80) continue;
+            grid.push([wm, wb, ws, wv, wk]);
+          }
+        }
+      }
+    }
+    if (!grid.length) { sl('stressLog', 'Grid generation failed', false); hideL(); return; }
+    console.log('[WF-OPT] Grid size: ' + grid.length + ' combos');
+
+    // For each period, pre-compute per-stock raw factor values and forward returns
+    // Use signalN from UI so optimizer trains on same timing as the live strategy.
+    var wfOptSignalEl = document.getElementById('btSignalTN');
+    var wfOptSignalN = Math.max(0, Math.min(22, parseInt(wfOptSignalEl ? wfOptSignalEl.value : '4', 10) || 4));
+    var wfOptExecMode = getTNExecMode();
+    var periodData = [];
+    for (var idx = 2; idx < allM.length - 1; idx++) {
+      var scoreDate = getFixedTNDate(refDaily, allM[idx - 1], wfOptSignalN);
+      var holdStart = wfOptSignalN > 0
+        ? getTNExecutionDate(refDaily, allM[idx - 1], wfOptSignalN, wfOptExecMode)
+        : allM[idx - 1];
+      var holdEnd = wfOptSignalN > 0
+        ? getTNExecutionDate(refDaily, allM[idx], wfOptSignalN, wfOptExecMode)
+        : allM[idx];
+      var pStocks = [];
+      stocks.forEach(function(s) {
+        if (!RAW_SCORES[s.c] || !RAW_SCORES[s.c][scoreDate]) return;
+        var raw = RAW_SCORES[s.c][scoreDate];
+        if (raw.rm === null || raw.r240 === null) return;
+        var p0 = getMarketMonthEndPrice(s.c, holdStart);
+        var p1 = getMarketMonthEndPrice(s.c, holdEnd);
+        if (!p0 || !p1 || p0 <= 0) return;
+        pStocks.push({
+          c: s.c,
+          rm: raw.rm, rb: raw.rb, rs: raw.rs, rv: raw.rv, rk: raw.rk,
+          r240: raw.r240, fwdRet: p1 / p0 - 1
+        });
+      });
+      periodData.push({ idx: idx, scoreDate: scoreDate, stocks: pStocks });
+    }
+
+    // Score function: given weights and period data, return avg return of top-N
+    function scoreWeights(w, periods, topN) {
+      if (!w || !periods || !periods.length) return -999;
+      var totalRet = 0, cnt = 0;
+      for (var pi = 0; pi < periods.length; pi++) {
+        var pd = periods[pi];
+        if (!pd || !pd.stocks || pd.stocks.length < topN * 2) continue;
+
+        // Cross-sectional z-score for this period
+        var rms = [], rbs = [], rss = [], rvs = [], rks = [];
+        var validStocks = [];
+        for (var si2 = 0; si2 < pd.stocks.length; si2++) {
+          var st = pd.stocks[si2];
+          if (st.rm === null || st.rb === null || st.rs === null || st.rv === null || st.rk === null) continue;
+          if (!isFinite(st.rm) || !isFinite(st.rb) || !isFinite(st.rs) || !isFinite(st.rv) || !isFinite(st.rk)) continue;
+          rms.push(st.rm); rbs.push(st.rb); rss.push(st.rs); rvs.push(st.rv); rks.push(st.rk);
+          validStocks.push(st);
+        }
+        if (validStocks.length < topN * 2) continue;
+
+        var zCap = 3;
+        var zms = crossZ(rms, zCap), zbs = crossZ(rbs, zCap), zss = crossZ(rss, zCap);
+        var zvs = crossZ(rvs, zCap), zks = crossZ(rks, zCap);
+        if (!zms || !zbs || !zss || !zvs || !zks) continue;
+        if (zms.length !== validStocks.length) continue;
+
+        var scored = [];
+        for (var si3 = 0; si3 < validStocks.length; si3++) {
+          var zm = zms[si3], zb = zbs[si3], zs2 = zss[si3], zv = zvs[si3], zk = zks[si3];
+          if (zm === null || zb === null || zs2 === null || zv === null || zk === null) continue;
+          scored.push({
+            composite: w[0] * zm + w[1] * zb + w[2] * zs2 + w[3] * zv + w[4] * zk,
+            fwdRet: validStocks[si3].fwdRet
+          });
+        }
+        if (scored.length < topN) continue;
+        scored.sort(function(a, b) { return b.composite - a.composite; });
+        var topSlice = scored.slice(0, topN);
+        var avgRet = topSlice.reduce(function(s, x) { return s + x.fwdRet; }, 0) / topSlice.length;
+        totalRet += avgRet;
+        cnt++;
+      }
+      return cnt > 0 ? totalRet / cnt : -999;
+    }
+
+    // Walk-Forward folds
+    var folds = [];
+    var startIdx = 0;
+    while (startIdx + trainPeriods + testPeriods <= periodData.length) {
+      var trainSlice = periodData.slice(startIdx, startIdx + trainPeriods);
+      var testSlice = periodData.slice(startIdx + trainPeriods, startIdx + trainPeriods + testPeriods);
+      folds.push({ train: trainSlice, test: testSlice, startIdx: startIdx });
+      startIdx += testPeriods;
+    }
+
+    if (folds.length < 2) {
+      sl('stressLog', 'Not enough data for WF folds (need 3Y train + 1Y test x2)', false);
+      hideL(); return;
+    }
+
+    // Run grid search per fold
+    var foldResults = [];
+    var wLabels = ['Mom', 'Bias', 'Slope', 'Vol', 'Kbar'];
+
+    for (var fi = 0; fi < folds.length; fi++) {
+      $('loadTxt').textContent = 'WF Fold ' + (fi + 1) + '/' + folds.length + ' (' + grid.length + ' combos)...';
+      await new Promise(function(r){ setTimeout(r, 0); });
+
+      var fold = folds[fi];
+      var bestISScore = -999, bestISWeights = null;
+
+      // Normalize weights to fractions for scoring
+      for (var gi = 0; gi < grid.length; gi++) {
+        var gw = grid[gi].map(function(v) { return v / 100; });
+        var isScore = scoreWeights(gw, fold.train, holdN);
+        if (isScore > bestISScore) {
+          bestISScore = isScore;
+          bestISWeights = gw;
+        }
+      }
+
+      var oosScore = scoreWeights(bestISWeights, fold.test, holdN);
+      if (!bestISWeights) {
+        bestISWeights = [0.2, 0.2, 0.2, 0.2, 0.2];
+        bestISScore = -999;
+        oosScore = -999;
+      }
+
+      // Also score the current UI weights for comparison
+      var curW = [gv('wMom')/100, gv('wBias')/100, gv('wSlope')/100, gv('wVol')/100, gv('wKbar')/100];
+      var curWSum = curW.reduce(function(a,b){return a+b;},0) || 1;
+      curW = curW.map(function(v){return v/curWSum;});
+      var curIS = scoreWeights(curW, fold.train, holdN);
+      var curOOS = scoreWeights(curW, fold.test, holdN);
+
+      foldResults.push({
+        fold: fi + 1,
+        bestW: bestISWeights,
+        isScore: bestISScore,
+        oosScore: oosScore,
+        curW: curW,
+        curIS: curIS,
+        curOOS: curOOS,
+        trainRange: fold.train[0].scoreDate + ' ~ ' + fold.train[fold.train.length-1].scoreDate,
+        testRange: fold.test[0].scoreDate + ' ~ ' + fold.test[fold.test.length-1].scoreDate
+      });
+    }
+
+    // Aggregate: find weight set with best median OOS across folds
+    // Also tally frequency of each weight appearing as best
+    var weightFreq = {};
+    foldResults.forEach(function(fr) {
+      var key = fr.bestW.map(function(v){ return Math.round(v*100); }).join('/');
+      weightFreq[key] = (weightFreq[key] || 0) + 1;
+    });
+    var sortedFreq = Object.keys(weightFreq).sort(function(a,b){ return weightFreq[b]-weightFreq[a]; });
+
+    // Average of best OOS weights (robust estimate)
+    var avgW = [0,0,0,0,0];
+    foldResults.forEach(function(fr) {
+      for (var j=0; j<5; j++) avgW[j] += fr.bestW[j];
+    });
+    avgW = avgW.map(function(v){ return v / foldResults.length; });
+    // Normalize
+    var avgSum = avgW.reduce(function(a,b){return a+b;},0) || 1;
+    avgW = avgW.map(function(v){ return v / avgSum; });
+
+    // Score avgW on all folds OOS
+    var avgOOSScores = foldResults.map(function(fr) {
+      return scoreWeights(avgW, fr.test, holdN);
+    });
+    var avgOOSMedian = avgOOSScores.slice().sort(function(a,b){return a-b;})[Math.floor(avgOOSScores.length/2)];
+
+    // Render results
+    var fp3 = function(v) { return (v >= 0 ? '+' : '') + (v * 100).toFixed(3) + '%'; };
+    var gc3 = function(v) { return v >= 0 ? 'var(--gr)' : 'var(--re)'; };
+    var wStr = function(w) {
+      return w.map(function(v,i){ return wLabels[i] + '=' + Math.round(v*100); }).join(' / ');
+    };
+
+    var html = '<div class="card" style="border-top:3px solid var(--tw);margin-bottom:10px">';
+    html += '<div class="ct">WF FACTOR WEIGHT OPTIMIZER (N=' + holdN + ', ' + folds.length + ' folds, ' + grid.length + ' combos)</div>';
+
+    // Summary box
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">';
+    // Robust recommendation
+    html += '<div class="card" style="border-top:2px solid var(--tw);padding:9px">';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px">ROBUST WEIGHTS (avg of IS-best)</div>';
+    html += '<div class="mono" style="font-size:13px;color:var(--tw);margin-bottom:4px">' + wStr(avgW) + '</div>';
+    html += '<div style="font-size:10px;color:var(--mu)">Median OOS: <span class="mono" style="color:' + gc3(avgOOSMedian) + '">' + fp3(avgOOSMedian) + '</span> /period</div>';
+    html += '</div>';
+    // Current weights
+    var curOOSAll = foldResults.map(function(fr){ return fr.curOOS; });
+    var curOOSMed = curOOSAll.slice().sort(function(a,b){return a-b;})[Math.floor(curOOSAll.length/2)];
+    html += '<div class="card" style="border-top:2px solid var(--ye);padding:9px">';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--mu);margin-bottom:4px">CURRENT WEIGHTS (from UI)</div>';
+    html += '<div class="mono" style="font-size:13px;color:var(--ye);margin-bottom:4px">' + wStr(foldResults[0].curW) + '</div>';
+    html += '<div style="font-size:10px;color:var(--mu)">Median OOS: <span class="mono" style="color:' + gc3(curOOSMed) + '">' + fp3(curOOSMed) + '</span> /period</div>';
+    html += '</div></div>';
+
+    // Improvement indicator
+    var improvement = avgOOSMedian - curOOSMed;
+    var impColor = improvement > 0.001 ? 'var(--gr)' : improvement > -0.001 ? 'var(--ye)' : 'var(--re)';
+    html += '<div style="background:var(--sf2);border:1px solid var(--bd);padding:8px;font-size:12px;margin-bottom:10px">';
+    html += 'OOS Improvement: <b class="mono" style="color:' + impColor + '">' + fp3(improvement) + '</b> /period | ';
+    if (improvement > 0.001) {
+      html += '<span style="color:var(--gr)">Robust weights outperform current in OOS. Consider adopting.</span>';
+    } else if (improvement > -0.001) {
+      html += '<span style="color:var(--ye)">Difference is negligible. Current weights are adequate.</span>';
+    } else {
+      html += '<span style="color:var(--re)">Current weights actually perform better OOS. Grid optimum is likely overfitting IS.</span>';
+    }
+    html += '</div>';
+
+    // Most frequent IS-best weight sets
+    html += '<div style="font-size:11px;color:var(--mu);margin-bottom:6px">Most frequent IS-best weight sets across folds:</div>';
+    html += '<div class="tw-wrap" style="margin-bottom:10px"><table><thead><tr>';
+    html += '<th>Weights (M/B/S/V/K)</th><th>Frequency</th><th>% of folds</th></tr></thead><tbody>';
+    sortedFreq.slice(0, 8).forEach(function(key) {
+      var pct = (weightFreq[key] / foldResults.length * 100).toFixed(0);
+      html += '<tr><td class="mono" style="color:var(--tw)">' + key + '</td>';
+      html += '<td class="mono">' + weightFreq[key] + '/' + foldResults.length + '</td>';
+      html += '<td class="mono">' + pct + '%</td></tr>';
+    });
+    html += '</tbody></table></div>';
+
+    // Per-fold detail
+    html += '<div class="tw-wrap"><table><thead><tr>';
+    html += '<th>Fold</th><th>Train</th><th>Test</th>';
+    html += '<th>IS-Best Weights</th><th>IS Avg Ret</th><th>OOS Avg Ret</th>';
+    html += '<th>OOS/IS</th><th>Cur OOS</th></tr></thead><tbody>';
+    foldResults.forEach(function(fr) {
+      var ratio = fr.isScore > 0 ? fr.oosScore / fr.isScore : null;
+      var ratioColor = ratio === null ? 'var(--mu)' : (ratio >= 0.6 ? 'var(--gr)' : ratio >= 0.3 ? 'var(--ye)' : 'var(--re)');
+      var ratioText = ratio === null ? '--' : (ratio * 100).toFixed(0) + '%';
+      html += '<tr>';
+      html += '<td class="mono">#' + fr.fold + '</td>';
+      html += '<td style="font-size:10px">' + fr.trainRange + '</td>';
+      html += '<td style="font-size:10px">' + fr.testRange + '</td>';
+      html += '<td class="mono" style="font-size:10px;color:var(--tw)">' + fr.bestW.map(function(v){return Math.round(v*100);}).join('/') + '</td>';
+      html += '<td class="mono" style="color:' + gc3(fr.isScore) + '">' + fp3(fr.isScore) + '</td>';
+      html += '<td class="mono" style="color:' + gc3(fr.oosScore) + '">' + fp3(fr.oosScore) + '</td>';
+      html += '<td class="mono" style="color:' + ratioColor + '">' + ratioText + '</td>';
+      html += '<td class="mono" style="color:' + gc3(fr.curOOS) + '">' + fp3(fr.curOOS) + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    html += '<div style="font-size:10px;color:var(--mu);margin-top:8px">';
+    html += 'Method: 3Y rolling IS / 1Y OOS. Grid = 5-factor weights in 10% steps (0-60% each, sum=100%). ';
+    html += 'Scoring = avg forward return of top-' + holdN + ' stocks per period. ';
+    html += 'Robust = average of per-fold IS-best weights. ';
+    html += 'If OOS/IS < 30% consistently, the factor model may be unstable.</div>';
+
+    // Apply button
+    html += '<div style="margin-top:10px"><button class="bo" style="color:var(--tw);border-color:var(--tw)" ';
+    html += 'onclick="applyRobustWeights([' + avgW.map(function(v){return Math.round(v*100);}).join(',') + '])">';
+    html += 'Apply Robust Weights: ' + avgW.map(function(v,i){return wLabels[i]+'='+Math.round(v*100);}).join(' / ');
+    html += '</button></div>';
+
+    html += '</div>';
+
+    var targetRes = document.getElementById('stressRes');
+    if (targetRes) targetRes.classList.remove('hidden');
+    var el2 = document.getElementById('stressMetrics');
+    if (el2) el2.innerHTML = html + el2.innerHTML;
+
+    sl('stressLog', 'WF Factor Weight Optimizer done (' + folds.length + ' folds, ' + grid.length + ' combos)', true);
+  } catch (e) {
+    sl('stressLog', 'WF Weight Optimizer error: ' + e.message, false);
+    console.error(e);
+  }
+  hideL();
+}
+
+function applyRobustWeights(arr) {
+  if (!arr || arr.length !== 5) return;
+  var ids = ['wMom', 'wBias', 'wSlope', 'wVol', 'wKbar'];
+  for (var i = 0; i < 5; i++) {
+    var el = document.getElementById(ids[i]);
+    if (el) el.value = arr[i];
+  }
+  invalidateScoreCache();
+  alert('Weights applied: ' + ids.map(function(id,i){return id+'='+arr[i];}).join(', ') + '. Cache invalidated - rebuild on next run.');
+}
+
+
+async function runMomentumPlateauScan(){
+  var panel=$('momPlateauPanel');
+  if(panel) panel.innerHTML='Momentum Plateau 掃描中...';
+  if(!(await ensureDataReadyForAnalysis('backtest'))) return;
+  var oldMode=getMomentumFreqMode();
+  var oldBase=getMomentumBaseWindow();
+  var mode=getMomentumFreqMode();
+  var start=parseInt($('momScanStart')?$('momScanStart').value:'',10)||((mode==='W')?4:20);
+  var end=parseInt($('momScanEnd')?$('momScanEnd').value:'',10)||((mode==='W')?52:120);
+  var step=parseInt($('momScanStep')?$('momScanStep').value:'',10)||((mode==='W')?4:10);
+  if(end<start){ var t=start; start=end; end=t; }
+  var rows=[];
+  try{
+    for(var n=start; n<=end; n+=step){
+      setMomentumConfig(mode,n,true);
+      await buildCache(true);
+      var res=runBTcore(parseInt($('btH')?$('btH').value:'5')||5, 'plateau', {momentumScan:true});
+      if(!res || !res.records || !res.records.length){ rows.push({n:n, fail:true}); continue; }
+      var kp=kpi(res.records, gv('btCap')||100000);
+      var avgTurn=res.records.reduce(function(a,r){return a+(r.turnover||0);},0)/res.records.length;
+      rows.push({n:n, cagr:kp.cagr, sharpe:kp.sharpe, mdd:kp.mdd, mar:(kp.mdd?kp.cagr/Math.abs(kp.mdd):0), turnover:avgTurn, nav:kp.nav, months:res.records.length});
+      if(panel) panel.innerHTML='Momentum Plateau 掃描中... N='+n;
+      await new Promise(function(r){setTimeout(r,0);});
+    }
+  } finally {
+    setMomentumConfig(oldMode,oldBase,true);
+    await buildCache(true);
+  }
+  var valid=rows.filter(function(r){return !r.fail;});
+  var bestSharpe=valid.reduce(function(m,r){return Math.max(m,r.sharpe);},-999);
+  valid.forEach(function(r,i){
+    var neigh=valid.filter(function(x){return Math.abs(x.n-r.n)<=step;});
+    var avg=neigh.reduce(function(a,x){return a+x.sharpe;},0)/(neigh.length||1);
+    var penalty=Math.abs(r.sharpe-avg)/(Math.abs(bestSharpe)||1);
+    r.plateau=Math.max(0,100*(1-penalty));
+  });
+  var unit=(mode==='W')?'週':'日';
+  var html='<div style="margin-bottom:8px">模式：<b style="color:var(--tw)">'+(mode==='W'?'週頻':'日頻')+'</b>；動能公式固定：<b style="color:var(--ac)">0.5*z12 + 0.3*z6 + 0.2*z3</b>；z12/z6/z3 = <b>4N/2N/N '+unit+'</b></div>';
+  html+='<div class="tw-wrap" style="max-height:520px;margin-bottom:0"><table><thead><tr><th>N(z3)</th><th>z12/z6/z3</th><th>CAGR</th><th>Sharpe</th><th>MDD</th><th>MAR</th><th>Avg Turnover</th><th>Plateau</th><th>Periods</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    if(r.fail){ html+='<tr><td class="mono">'+r.n+'</td><td colspan="8" style="color:var(--re)">無足夠資料或回測失敗</td></tr>'; return; }
+    html+='<tr>'
+      +'<td class="mono" style="color:var(--wh);font-weight:700">'+r.n+'</td>'
+      +'<td class="mono">'+(4*r.n)+'/'+(2*r.n)+'/'+r.n+' '+unit+'</td>'
+      +'<td class="mono" style="color:'+(r.cagr>=0?'var(--gr)':'var(--re)')+'">'+(r.cagr*100).toFixed(2)+'%</td>'
+      +'<td class="mono">'+r.sharpe.toFixed(2)+'</td>'
+      +'<td class="mono" style="color:var(--re)">'+(r.mdd*100).toFixed(2)+'%</td>'
+      +'<td class="mono">'+r.mar.toFixed(2)+'</td>'
+      +'<td class="mono">'+(r.turnover*100).toFixed(1)+'%</td>'
+      +'<td class="mono" style="color:'+(r.plateau>=85?'var(--gr)':r.plateau>=70?'var(--ye)':'var(--mu)')+'">'+r.plateau.toFixed(0)+'</td>'
+      +'<td class="mono">'+r.months+'</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table></div>';
+  if(panel) panel.innerHTML=html;
+}
+
 window.onload = async function() {
   renderPool();
   initGroupToggles();
@@ -2851,3 +4022,658 @@ window.onload = async function() {
   console.log('[INIT] data layer ready: DB loaded if persistToggle enabled; cache builds on demand.');
 };
 
+
+
+// ==========================================
+// Factor Contribution Health Monitor v1
+// - uses the same runBTcore tradeStart/tradeEnd as the live strategy
+// - supports T-N signal and T / T-(N-1) execution mode
+// ==========================================
+function fhFmtPct(v){ return (v===null||v===undefined||!isFinite(v))?'--':((v>=0?'+':'')+(v*100).toFixed(2)+'%'); }
+function fhFmtNum(v,d){ return (v===null||v===undefined||!isFinite(v))?'--':Number(v).toFixed(d==null?3:d); }
+function fhAvg(arr){ arr=(arr||[]).filter(function(x){return x!==null&&x!==undefined&&isFinite(x);}); return arr.length?arr.reduce(function(a,b){return a+b;},0)/arr.length:null; }
+function fhStd(arr){ arr=(arr||[]).filter(function(x){return x!==null&&x!==undefined&&isFinite(x);}); if(arr.length<2)return null; var m=fhAvg(arr); return Math.sqrt(arr.reduce(function(a,b){return a+(b-m)*(b-m);},0)/(arr.length-1)); }
+function fhColor(v){ return (v===null||v===undefined||!isFinite(v))?'var(--mu)':(v>=0?'var(--gr)':'var(--re)'); }
+function factorContributionValue(sc, key){
+  var weights = {mom:gv('wMom')/100, bias:gv('wBias')/100, slope:gv('wSlope')/100, vol:gv('wVol')/100, kbar:gv('wKbar')/100};
+  if(key==='mom') return (sc.zm||0)*weights.mom;
+  if(key==='bias') return (sc.zb||0)*weights.bias;
+  if(key==='slope') return (sc.zs||0)*weights.slope;
+  if(key==='vol') return (sc.zv||0)*weights.vol;
+  if(key==='kbar') return (sc.zk||0)*weights.kbar;
+  return sc.score||0;
+}
+function calcFactorHealthFromRecords(records){
+  var factors=[['mom','Momentum'],['bias','Bias'],['slope','Slope'],['vol','Volatility'],['kbar','K-Bar'],['score','Total Score']];
+  var months=[];
+  (records||[]).forEach(function(r){
+    if(!r.allScores || r.allScores.length<10) return;
+    var tradeStart=r.tradeStart || (r.period?String(r.period).split(' ~ ')[0]:null) || r.month;
+    var tradeEnd=r.tradeEnd || (r.period?String(r.period).split(' ~ ')[1]:null) || r.month;
+    var pairs=[];
+    r.allScores.forEach(function(sc){
+      var p0=getMarketMonthEndPoint(sc.c,tradeStart), p1=getMarketMonthEndPoint(sc.c,tradeEnd);
+      if(!p0||!p1||!p0.price||p0.price<=0) return;
+      var ret=p1.price/p0.price-1;
+      if(!isFinite(ret)||Math.abs(ret)>2) return;
+      pairs.push({sc:sc,ret:ret});
+    });
+    if(pairs.length<10) return;
+    var row={month:r.month,scoreDate:r.scoringM||r.month,tradeStart:tradeStart,tradeEnd:tradeEnd,n:pairs.length,factors:{}};
+    factors.forEach(function(f){
+      var key=f[0];
+      var xs=pairs.map(function(p){return key==='score'?(p.sc.score||0):factorContributionValue(p.sc,key);});
+      var ys=pairs.map(function(p){return p.ret;});
+      var icRes=xs.length>=10?spearmanCorr(xs,ys):{ic:null,t:null,p:null};
+      var paired=xs.map(function(x,i){return{x:x,ret:ys[i]};}).sort(function(a,b){return b.x-a.x;});
+      var n=Math.max(1,Math.floor(paired.length*0.2));
+      var top=paired.slice(0,n), bot=paired.slice(paired.length-n);
+      row.factors[key]={ic:icRes.ic,t:icRes.t,p:icRes.p,n:paired.length,avgContrib:fhAvg(xs),topRet:fhAvg(top.map(function(x){return x.ret;})),botRet:fhAvg(bot.map(function(x){return x.ret;})),spread:(fhAvg(top.map(function(x){return x.ret;}))-fhAvg(bot.map(function(x){return x.ret;})))};
+    });
+    months.push(row);
+  });
+  return {months:months,factors:factors};
+}
+
+// === INCREMENTAL Factor Health for backtest performance ===
+// Instead of recalculating all records every period, compute IC for one new record
+// and append to existing fh.months. O(stocks*factors) per period instead of O(periods*stocks*factors).
+function calcFactorHealthSingleRow(record) {
+  var factors = [['mom','Momentum'],['bias','Bias'],['slope','Slope'],['vol','Volatility'],['kbar','K-Bar'],['score','Total Score']];
+  var r = record;
+  if (!r || !r.allScores || r.allScores.length < 10) return null;
+  var tradeStart = r.tradeStart || (r.period ? String(r.period).split(' ~ ')[0] : null) || r.month;
+  var tradeEnd = r.tradeEnd || (r.period ? String(r.period).split(' ~ ')[1] : null) || r.month;
+  var pairs = [];
+  r.allScores.forEach(function(sc) {
+    var p0 = getMarketMonthEndPoint(sc.c, tradeStart), p1 = getMarketMonthEndPoint(sc.c, tradeEnd);
+    if (!p0 || !p1 || !p0.price || p0.price <= 0) return;
+    var ret = p1.price / p0.price - 1;
+    if (!isFinite(ret) || Math.abs(ret) > 2) return;
+    pairs.push({sc: sc, ret: ret});
+  });
+  if (pairs.length < 10) return null;
+  var row = {month: r.month, scoreDate: r.scoringM || r.month, tradeStart: tradeStart, tradeEnd: tradeEnd, n: pairs.length, factors: {}};
+  factors.forEach(function(f) {
+    var key = f[0];
+    var xs = pairs.map(function(p) { return key === 'score' ? (p.sc.score || 0) : factorContributionValue(p.sc, key); });
+    var ys = pairs.map(function(p) { return p.ret; });
+    var icRes = xs.length >= 10 ? spearmanCorr(xs, ys) : {ic: null, t: null, p: null};
+    var paired = xs.map(function(x, i) { return {x: x, ret: ys[i]}; }).sort(function(a, b) { return b.x - a.x; });
+    var nn = Math.max(1, Math.floor(paired.length * 0.2));
+    var top = paired.slice(0, nn), bot = paired.slice(paired.length - nn);
+    row.factors[key] = {ic: icRes.ic, t: icRes.t, p: icRes.p, n: paired.length, avgContrib: fhAvg(xs), topRet: fhAvg(top.map(function(x) { return x.ret; })), botRet: fhAvg(bot.map(function(x) { return x.ret; })), spread: (fhAvg(top.map(function(x) { return x.ret; })) - fhAvg(bot.map(function(x) { return x.ret; })))};
+  });
+  return row;
+}
+
+// === 3D Signal Light System ===
+// Dimensions: Level (IC value) + Slope (direction) + Streak (persistence)
+// Returns: { level, slope, streak, regime, label, color, exposure, reasons, details }
+function calc3DSignalLight(fhMonths, shortN, longN) {
+  shortN = shortN || 6;
+  longN = longN || 36;
+  var minPeriods = Math.max(8, shortN + 2);
+  if (!fhMonths || fhMonths.length < minPeriods) {
+    return {regime: 'GREEN', label: 'DATA_INSUFFICIENT', color: 'var(--gr)',
+      exposure: 1.0, score: 0, reasons: ['歷史樣本不足，暫用綠燈100%曝險'],
+      details: {momIC: null, volIC: null, totalIC: null, momSlope: null, volSlope: null, momStreak: {count:0,dir:0}, volStreak: {count:0,dir:0}, matrixCell:'DATA'}};
+  }
+
+  function getICSeries(key, n) {
+    var rows = fhMonths.filter(function(m) { return m.factors && m.factors[key] && m.factors[key].ic !== null && isFinite(m.factors[key].ic); });
+    return rows.slice(-n).map(function(m) { return m.factors[key].ic; });
+  }
+  function getSpreadSeries(key, n) {
+    var rows = fhMonths.filter(function(m) { return m.factors && m.factors[key] && m.factors[key].spread !== null && isFinite(m.factors[key].spread); });
+    return rows.slice(-n).map(function(m) { return m.factors[key].spread; });
+  }
+  function calcSlope(arr) {
+    if (!arr || arr.length < 3) return 0;
+    var recent = arr.slice(-3);
+    return (recent[recent.length - 1] - recent[0]) / (recent.length - 1);
+  }
+  function calcStreak(arr) {
+    if (!arr || arr.length < 2) return {count: 0, dir: 0};
+    var streak = 0, dir = 0;
+    for (var i = arr.length - 1; i >= 1; i--) {
+      var delta = arr[i] - arr[i - 1];
+      var curDir = delta > 0.005 ? 1 : (delta < -0.005 ? -1 : 0);
+      if (curDir === 0) break;
+      if (dir === 0) { dir = curDir; streak = 1; }
+      else if (curDir === dir) { streak++; }
+      else break;
+    }
+    return {count: streak, dir: dir};
+  }
+  function dirLabel(slope, streak, strongBias) {
+    var th = strongBias ? 0.015 : 0.01;
+    if (slope > th || (streak && streak.dir > 0 && streak.count >= 2)) return 'UP';
+    if (slope < -th || (streak && streak.dir < 0 && streak.count >= 2)) return 'DOWN';
+    return 'FLAT';
+  }
+
+  var momSeries = getICSeries('mom', Math.min(longN, 36));
+  var volSeries = getICSeries('vol', Math.min(longN, 36));
+  var totalSeries = getICSeries('score', Math.min(longN, 36));
+  var kbarSeries = getICSeries('kbar', Math.min(longN, 36));
+  var spreadSeries = getSpreadSeries('score', Math.min(longN, 36));
+
+  var momShort = getICSeries('mom', shortN), momLong = getICSeries('mom', longN);
+  var volShort = getICSeries('vol', shortN), volLong = getICSeries('vol', longN);
+  var totalShort = getICSeries('score', shortN), totalLong = getICSeries('score', longN);
+  var kbarShort = getICSeries('kbar', shortN), kbarLong = getICSeries('kbar', longN);
+  var spreadShort = getSpreadSeries('score', shortN), spreadLongArr = getSpreadSeries('score', longN);
+
+  var momICavg = fhAvg(momShort), momIClong = fhAvg(momLong);
+  var volICavg = fhAvg(volShort), volIClong = fhAvg(volLong);
+  var totalICavg = fhAvg(totalShort), totalIClong = fhAvg(totalLong);
+  var kbarICavg = fhAvg(kbarShort), kbarIClong = fhAvg(kbarLong);
+  var spreadAvg = fhAvg(spreadShort), spreadLong = fhAvg(spreadLongArr);
+
+  var momSlope = calcSlope(momSeries.slice(-6));
+  var volSlope = calcSlope(volSeries.slice(-6));
+  var totalSlope = calcSlope(totalSeries.slice(-6));
+  var spreadSlope = calcSlope(spreadSeries.slice(-6));
+  var kbarSlope = calcSlope(kbarSeries.slice(-6));
+
+  var momStreak = calcStreak(momSeries.slice(-8));
+  var volStreak = calcStreak(volSeries.slice(-8));
+  var totalStreak = calcStreak(totalSeries.slice(-8));
+  var spreadStreak = calcStreak(spreadSeries.slice(-8));
+  var kbarStreak = calcStreak(kbarSeries.slice(-8));
+
+  var momDir = dirLabel(momSlope, momStreak, true);
+  var volDir = dirLabel(volSlope, volStreak, false);
+  var matrixCell = momDir + '_' + volDir;
+
+  var score = 0, reasons = [];
+  var regime = 'YELLOW', label = 'NEUTRAL', color = 'var(--ye)';
+
+  // Base matrix: Momentum direction x Volatility direction
+  if (momDir === 'UP' && volDir === 'DOWN') {
+    regime = 'GREEN'; label = 'STRONG_TREND'; score += 5;
+    reasons.push('Mom↑ + Vol↓：強勢趨勢，追漲有效且市場穩定');
+  } else if (momDir === 'UP' && volDir === 'FLAT') {
+    regime = 'GREEN'; label = 'TREND_START'; score += 4;
+    reasons.push('Mom↑ + Vol→：趨勢啟動或延續，排名可信');
+  } else if (momDir === 'UP' && volDir === 'UP') {
+    regime = 'YELLOW'; label = 'MIXED_TREND'; score += 1;
+    reasons.push('Mom↑ + Vol↑：混合狀態，趨勢仍在但防禦需求升高');
+  } else if (momDir === 'FLAT' && volDir === 'DOWN') {
+    regime = 'GREEN'; label = 'RECOVERY'; score += 3;
+    reasons.push('Mom→ + Vol↓：環境改善，風險偏好回升');
+  } else if (momDir === 'FLAT' && volDir === 'FLAT') {
+    regime = 'YELLOW'; label = 'NEUTRAL'; score += 0;
+    reasons.push('Mom→ + Vol→：中性，需看 Total IC 水位');
+  } else if (momDir === 'FLAT' && volDir === 'UP') {
+    regime = 'YELLOW'; label = 'EARLY_WARNING'; score -= 2;
+    reasons.push('Mom→ + Vol↑：早期預警，資金偏向防禦');
+  } else if (momDir === 'DOWN' && volDir === 'DOWN') {
+    regime = 'YELLOW'; label = 'CHOPPY'; score -= 1;
+    reasons.push('Mom↓ + Vol↓：混沌，兩者同降，因子方向不明');
+  } else if (momDir === 'DOWN' && volDir === 'FLAT') {
+    regime = 'ORANGE'; label = 'MOM_DECAY'; score -= 3;
+    reasons.push('Mom↓ + Vol→：動能衰退，排名信賴度下降');
+  } else if (momDir === 'DOWN' && volDir === 'UP') {
+    regime = 'RED'; label = 'REVERSAL_RISK'; score -= 6;
+    reasons.push('Mom↓ + Vol↑：背離反轉，動能衰退且防禦偏好上升');
+  }
+
+  // Level confirmation
+  if (totalICavg !== null) {
+    if (totalICavg > 0.08) { score += 2; reasons.push('Total IC 水位強'); }
+    else if (totalICavg > 0.04) { score += 1; reasons.push('Total IC 水位正常'); }
+    else if (totalICavg < 0.02) { score -= 3; reasons.push('Total IC 偏低'); }
+  }
+  if (spreadAvg !== null) {
+    if (spreadAvg > 0.04) { score += 2; reasons.push('Spread 極強'); }
+    else if (spreadAvg > 0.02) { score += 1; reasons.push('Spread 健康'); }
+    else if (spreadAvg < 0.01) { score -= 3; reasons.push('Spread 接近失效'); }
+  }
+
+  // Persistence confirmation
+  if (momStreak.dir < 0 && momStreak.count >= 2) { score -= momStreak.count; reasons.push('Momentum 連續衰退 ' + momStreak.count + ' 期'); }
+  if (momStreak.dir > 0 && momStreak.count >= 2) { score += Math.min(momStreak.count, 3); reasons.push('Momentum 連續轉強 ' + momStreak.count + ' 期'); }
+  if (volStreak.dir > 0 && volStreak.count >= 2) { score -= Math.min(volStreak.count, 3); reasons.push('Volatility 連續抬頭 ' + volStreak.count + ' 期'); }
+  if (spreadStreak.dir < 0 && spreadStreak.count >= 2) { score -= Math.min(spreadStreak.count, 3); reasons.push('Spread 連續收斂 ' + spreadStreak.count + ' 期'); }
+  if (totalStreak.dir < 0 && totalStreak.count >= 3) { score -= 2; reasons.push('Total IC 連續下降 ' + totalStreak.count + ' 期'); }
+
+  // K-Bar tiebreaker
+  if (kbarICavg !== null && kbarIClong !== null) {
+    if (kbarICavg > kbarIClong && kbarSlope >= -0.01) { score += 1; reasons.push('K-Bar 結構偏強'); }
+    else if (kbarICavg < kbarIClong && kbarSlope < 0) { score -= 1; reasons.push('K-Bar 結構轉弱'); }
+  }
+
+  // Hard stops / overrides
+  if ((totalICavg !== null && totalICavg < 0) || (totalStreak.dir < 0 && totalStreak.count >= 4)) {
+    regime = 'RED'; label = 'STOP'; score = Math.min(score, -6);
+    reasons.push('Total IC 失效或連續惡化，停止動量操作');
+  } else if (score >= 5) {
+    regime = 'GREEN'; label = (label === 'RECOVERY') ? 'RECOVERY' : 'TREND';
+  } else if (score >= 1) {
+    regime = 'YELLOW'; label = 'NORMAL';
+  } else if (score >= -4) {
+    regime = 'ORANGE'; label = 'CAUTION';
+  } else {
+    regime = 'RED'; label = 'STOP';
+  }
+
+  color = regime === 'GREEN' ? 'var(--gr)' : (regime === 'YELLOW' ? 'var(--ye)' : (regime === 'ORANGE' ? '#ff9f1c' : 'var(--re)'));
+
+  return {
+    regime: regime, label: label, color: color,
+    score: score,
+    exposure: getRiskRegimeExposureByLevel(regime),
+    reasons: reasons,
+    details: {
+      matrixCell: matrixCell,
+      momDir: momDir, volDir: volDir,
+      momIC: momICavg, momIClong: momIClong,
+      volIC: volICavg, volIClong: volIClong,
+      totalIC: totalICavg, totalIClong: totalIClong,
+      kbarIC: kbarICavg, kbarIClong: kbarIClong,
+      momSlope: momSlope, volSlope: volSlope, totalSlope: totalSlope, spreadSlope: spreadSlope, kbarSlope: kbarSlope,
+      momStreak: momStreak, volStreak: volStreak, totalStreak: totalStreak, spreadStreak: spreadStreak, kbarStreak: kbarStreak,
+      spreadShort: spreadAvg, spreadLong: spreadLong
+    }
+  };
+}
+
+function fhSummarizeFactor(fh,key,shortN,longN){
+  var rows=(fh.months||[]).filter(function(m){return m.factors && m.factors[key] && m.factors[key].ic!==null;});
+  var longRows=rows.slice(-longN), shortRows=rows.slice(-shortN);
+  function pack(rs){
+    var ics=rs.map(function(r){return r.factors[key].ic;});
+    var spreads=rs.map(function(r){return r.factors[key].spread;});
+    var contribs=rs.map(function(r){return r.factors[key].avgContrib;});
+    var icm=fhAvg(ics), sd=fhStd(ics);
+    return {n:rs.length,ic:icm,icir:(sd&&sd>0&&icm!==null)?icm/sd:null,spread:fhAvg(spreads),contrib:fhAvg(contribs),pos:ics.length?ics.filter(function(x){return x>0;}).length/ics.length:null};
+  }
+  return {short:pack(shortRows),long:pack(longRows)};
+}
+function fhVerdict(summary){
+  if(!summary || !summary.short || !summary.long || summary.short.ic===null || summary.long.ic===null) return '資料不足';
+  if(summary.long.ic>0 && summary.short.ic < summary.long.ic*0.4) return '衰退警戒';
+  if(summary.long.ic>0 && summary.short.ic > summary.long.ic*1.3) return '短期增強';
+  if(summary.short.ic>0 && summary.long.ic>0) return '穩定有效';
+  if(summary.short.ic<0 && summary.long.ic<0) return '反向/失效';
+  return '混合';
+}
+
+
+// === Factor N-t Trend Curve ===
+// Shows how each factor behaves across multiple recent windows instead of only Short-vs-Long.
+function fhGetTrendWindows(){ return [3,6,9,12,18,24,36]; }
+function fhTrendArrow(v){
+  if(v===null||v===undefined||!isFinite(v)) return '→';
+  if(v>0.015) return '↗';
+  if(v<-0.015) return '↘';
+  return '→';
+}
+function fhCalcTrendSlope(points){
+  var xs=[], ys=[];
+  (points||[]).forEach(function(p){ if(p && p.ic!==null && p.ic!==undefined && isFinite(p.ic)){ xs.push(p.win); ys.push(p.ic); } });
+  if(xs.length<3) return null;
+  var mx=fhAvg(xs), my=fhAvg(ys), num=0, den=0;
+  for(var i=0;i<xs.length;i++){ num+=(xs[i]-mx)*(ys[i]-my); den+=(xs[i]-mx)*(xs[i]-mx); }
+  return den?num/den:null;
+}
+function fhCalcHalfLife(points){
+  points=(points||[]).filter(function(p){return p && p.ic!==null && p.ic!==undefined && isFinite(p.ic);});
+  if(points.length<2) return null;
+  var base=points[0].ic;
+  if(!isFinite(base) || base<=0) return null;
+  var threshold=base*0.5;
+  for(var i=1;i<points.length;i++){
+    if(points[i].ic<=threshold) return points[i].win;
+  }
+  return null;
+}
+function fhClassifyTrend(points){
+  points=(points||[]).filter(function(p){return p && p.ic!==null && p.ic!==undefined && isFinite(p.ic);});
+  if(points.length<3) return {label:'資料不足',color:'var(--mu)',slope:null,halfLife:null};
+  var first=points[0].ic, last=points[points.length-1].ic;
+  var slope=fhCalcTrendSlope(points);
+  var half=fhCalcHalfLife(points);
+  var peak=-999, peakIdx=-1;
+  points.forEach(function(p,i){ if(p.ic>peak){peak=p.ic;peakIdx=i;} });
+  var recent=points.slice(0,3).map(function(p){return p.ic;});
+  var recentAvg=fhAvg(recent);
+  var longAvg=fhAvg(points.slice(-3).map(function(p){return p.ic;}));
+  var label='穩定', color='var(--ye)';
+  if(recentAvg!==null && longAvg!==null && recentAvg>longAvg+0.05 && first>0){ label='短期加速'; color='var(--gr)'; }
+  if(recentAvg!==null && longAvg!==null && recentAvg<longAvg-0.03){ label='短期轉弱'; color='var(--re)'; }
+  if(peakIdx===0 && first>0 && last<first*0.5){ label='尖峰衰退'; color='var(--re)'; }
+  if(first<0 && last>0){ label='近期翻正'; color='var(--gr)'; }
+  if(first<0 && last<0){ label='反向失效'; color='var(--re)'; }
+  return {label:label,color:color,slope:slope,halfLife:half};
+}
+function renderFactorTrendCurve(fh, windows){
+  if(!fh || !fh.months || !fh.months.length || !fh.factors) return '';
+  windows=windows||fhGetTrendWindows();
+  var html='<div class="card" style="border-top:3px solid var(--ac);margin-top:10px">';
+  html+='<div class="ct">Factor N-t Trend Curve <span style="font-size:9px;color:var(--mu);font-weight:400">Short windows: '+windows.join('/')+'；用來判斷加速、尖峰、衰退與反轉</span></div>';
+  html+='<div class="ib2" style="margin-bottom:8px">解讀：左側短窗越強，代表近期因子有效性越集中；若 3/6 很強但 18/24/36 快速衰退，代表可能是短期尖峰，不等於長期穩定。</div>';
+  html+='<div class="tw-wrap" style="max-height:none"><table><thead><tr><th>Factor</th>';
+  windows.forEach(function(w){ html+='<th>W'+w+' IC / ICIR</th>'; });
+  html+='<th>Trend</th><th>Slope</th><th>Half-life</th></tr></thead><tbody>';
+  fh.factors.forEach(function(f){
+    var key=f[0], name=f[1], pts=[];
+    windows.forEach(function(w){ var sm=fhSummarizeFactor(fh,key,w,w); pts.push({win:w,ic:sm.short.ic,icir:sm.short.icir,spread:sm.short.spread}); });
+    var tr=fhClassifyTrend(pts);
+    html+='<tr><td style="font-weight:700;color:var(--wh)">'+name+'</td>';
+    pts.forEach(function(p){
+      html+='<td class="mono" style="color:'+fhColor(p.ic)+'">'+fhTrendArrow(p.ic)+' '+fhFmtNum(p.ic,3)+' / '+fhFmtNum(p.icir,2)+'</td>';
+    });
+    html+='<td style="font-weight:700;color:'+tr.color+'">'+tr.label+'</td>';
+    html+='<td class="mono" style="color:'+fhColor(tr.slope)+'">'+fhFmtNum(tr.slope,4)+'</td>';
+    html+='<td class="mono" style="color:var(--mu)">'+(tr.halfLife?('W'+tr.halfLife):'--')+'</td></tr>';
+  });
+  html+='</tbody></table></div></div>';
+  return html;
+}
+
+function renderRiskRegimeBannerFromFH(fh, shortN, longN){
+  if (!fh || !fh.months || !fh.months.length || typeof riskRegimeLevelFromHealthSummary !== 'function') return '';
+  var r = riskRegimeLevelFromHealthSummary(fh, shortN || 6, longN || 36);
+  var color = r.level === 'GREEN' ? 'var(--gr)' : (r.level === 'YELLOW' ? 'var(--ye)' : (r.level === 'ORANGE' ? '#ff9f1c' : 'var(--re)'));
+  var labelMap = {GREEN:'TREND',YELLOW:'NORMAL',ORANGE:'CAUTION',RED:'STOP'};
+  var emojiMap = {GREEN:'🟢',YELLOW:'🟡',ORANGE:'🟠',RED:'🔴'};
+  var adviceMap = {
+    GREEN:'信任排名；可依原策略操作。',
+    YELLOW:'可操作但不宜加碼；觀察 Mom/Vol/Spread。',
+    ORANGE:'降低動能依賴；提高 N、降低集中度、增加 SGOV。',
+    RED:'動能排名失效風險高；顯著降低曝險或暫停動量操作。'
+  };
+  var d = r.details || {};
+  function fmtIC(v){ return (v===null||v===undefined||!isFinite(v))?'--':v.toFixed(3); }
+  function fmtPct(v){ return (v===null||v===undefined||!isFinite(v))?'--':((v>=0?'+':'')+(v*100).toFixed(2)+'%'); }
+  function fmtSlope(v){ if(v===null||v===undefined||!isFinite(v)) return '--'; return (v>0.01?'↗':(v<-0.01?'↘':'→'))+' '+(v>=0?'+':'')+v.toFixed(3); }
+  function fmtStreak(s){ if(!s||!s.count) return '--'; return (s.dir>0?'↑':'↓')+s.count+'期'; }
+  var matrixMap = {
+    UP_UP:'Mom↑ + Vol↑：混合；趨勢與防禦同時升高',
+    UP_FLAT:'Mom↑ + Vol→：趨勢啟動 / 排名可信',
+    UP_DOWN:'Mom↑ + Vol↓：強勢趨勢 / 全力跟單',
+    FLAT_UP:'Mom→ + Vol↑：早期預警 / 縮小部位',
+    FLAT_FLAT:'Mom→ + Vol→：中性 / 看 Total IC 水位',
+    FLAT_DOWN:'Mom→ + Vol↓：環境改善 / 偏多操作',
+    DOWN_UP:'Mom↓ + Vol↑：背離反轉 / 停止換股',
+    DOWN_FLAT:'Mom↓ + Vol→：動能衰退 / 暫停操作',
+    DOWN_DOWN:'Mom↓ + Vol↓：混沌 / 降低操作頻率'
+  };
+  var matrixText = matrixMap[d.matrixCell] || (d.matrixCell || '--');
+  var html = '<div class="card" style="border-top:3px solid '+color+';margin-bottom:10px">';
+  html += '<div class="ct">3D Regime Decision Matrix <span style="color:'+color+';font-size:12px">'+(emojiMap[r.level]||'')+' '+(labelMap[r.level]||r.label)+'</span></div>';
+  html += '<div style="font-size:12px;color:var(--tx);line-height:1.9">';
+  html += '<b>曝險率：</b><span class="mono" style="color:'+color+';font-weight:700">'+Math.round((r.exposure||1)*100)+'%</span>　';
+  html += '<b>N：</b><span class="mono" style="color:'+color+';font-weight:700">'+(r.adaptiveN||'--')+'</span>' + ((r.baseN&&r.nMult)?'<span class="mono" style="color:var(--mu);font-size:10px">（base '+r.baseN+' × '+r.nMult.toFixed(2)+'）</span>':'') + '　';
+  html += '<b>Freeze：</b><span class="mono" style="color:'+color+';font-weight:700">'+(r.freeze?'ON':'OFF')+'</span>　';
+  html += '<b>Score：</b><span class="mono" style="color:'+color+';font-weight:700">'+r.score+'</span>　';
+  html += '<b>矩陣：</b><span style="color:'+color+';font-weight:700">'+matrixText+'</span><br>';
+  html += '<b>水位：</b>Mom '+fmtIC(d.momIC)+' / Vol '+fmtIC(d.volIC)+' / Total '+fmtIC(d.totalIC)+' / Spread '+fmtPct(d.spreadShort)+'<br>';
+  html += '<b>斜率：</b>Mom '+fmtSlope(d.momSlope)+' / Vol '+fmtSlope(d.volSlope)+' / Total '+fmtSlope(d.totalSlope)+' / Spread '+fmtSlope(d.spreadSlope)+'<br>';
+  html += '<b>持續性：</b>Mom '+fmtStreak(d.momStreak)+' / Vol '+fmtStreak(d.volStreak)+' / Total '+fmtStreak(d.totalStreak)+' / Spread '+fmtStreak(d.spreadStreak)+'<br>';
+  html += '<b>原因：</b>'+(r.reasons&&r.reasons.length?r.reasons.join('、'):'資料不足')+'<br>';
+  html += '<b>建議：</b>'+(adviceMap[r.level]||'觀察');
+  html += '</div></div>';
+  return html;
+}
+
+
+
+// === MARKET PHASE DASHBOARD ===
+// Combines 3D Regime, Factor N-Trend Curve and IC Heatmap into one market-position verdict.
+function calcHeatmapStructureStatsMP(fh, lookback){
+  lookback = lookback || 6;
+  var rows = (fh && fh.months) ? fh.months : [];
+  var tail = rows.slice(-lookback);
+  var out = {
+    n: tail.length,
+    trendCount: 0,
+    divergeCount: 0,
+    decayCount: 0,
+    mixedCount: 0,
+    flatCount: 0,
+    negTotalCount: 0,
+    latestTotalIC: null,
+    latestMonth: tail.length ? tail[tail.length-1].month : null,
+    avgAbsDispersion: null,
+    avgPositiveRatio: null,
+    lastTrendLabel: '--'
+  };
+  var dispersions = [], posRatios = [];
+  function val(m,key){ return m && m.factors && m.factors[key] && m.factors[key].ic!==null && isFinite(m.factors[key].ic) ? m.factors[key].ic : null; }
+  for(var i=0;i<tail.length;i++){
+    var m = tail[i];
+    var total = val(m,'score');
+    if(total!==null && total < 0) out.negTotalCount++;
+    if(total!==null) out.latestTotalIC = total;
+    var vals=[];
+    ['mom','bias','slope','vol','kbar','score'].forEach(function(k){ var v=val(m,k); if(v!==null) vals.push(v); });
+    if(vals.length>=3){
+      var avg = fhAvg(vals);
+      dispersions.push(fhAvg(vals.map(function(x){return Math.abs(x-avg);}))); 
+      posRatios.push(vals.filter(function(x){return x>0;}).length / vals.length);
+    }
+    if(rows.length >= 3){
+      var rowIdx = rows.indexOf(m);
+      if(rowIdx >= 2){
+        var m0 = val(rows[rowIdx-2],'mom'), m1 = val(rows[rowIdx],'mom');
+        var v0 = val(rows[rowIdx-2],'vol'), v1 = val(rows[rowIdx],'vol');
+        if(m0!==null && m1!==null && v0!==null && v1!==null){
+          var ms = (m1-m0)/2, vs = (v1-v0)/2;
+          var lbl;
+          if(ms > 0.01 && vs < -0.01) { lbl='TREND'; out.trendCount++; }
+          else if(ms < -0.01 && vs > 0.01) { lbl='DIVERGE'; out.divergeCount++; }
+          else if(ms < -0.01 && vs < -0.01) { lbl='DECAY'; out.decayCount++; }
+          else if(ms > 0.01 && vs > 0.01) { lbl='MIXED'; out.mixedCount++; }
+          else { lbl='FLAT'; out.flatCount++; }
+          out.lastTrendLabel = lbl;
+        }
+      }
+    }
+  }
+  out.avgAbsDispersion = dispersions.length ? fhAvg(dispersions) : null;
+  out.avgPositiveRatio = posRatios.length ? fhAvg(posRatios) : null;
+  return out;
+}
+
+function calcFactorCurveStateMP(fh, shortN, longN){
+  var windows = fhGetTrendWindows();
+  var state = {healthy:0, accel:0, weak:0, broken:0, mixed:0, labels:{}, score:0, kbarWeak:false, momHealthy:false, totalHealthy:false};
+  if(!fh || !fh.factors) return state;
+  fh.factors.forEach(function(f){
+    var key=f[0], pts=[];
+    windows.forEach(function(w){ var sm=fhSummarizeFactor(fh,key,w,w); pts.push({win:w,ic:sm.short.ic,icir:sm.short.icir,spread:sm.short.spread}); });
+    var tr=fhClassifyTrend(pts);
+    var sm=fhSummarizeFactor(fh,key,shortN||6,longN||36);
+    var verdict=fhVerdict(sm);
+    state.labels[key]=tr.label + ' / ' + verdict;
+    if(verdict==='穩定有效' || verdict==='短期增強'){ state.healthy++; state.score += 1; }
+    if(verdict==='短期增強' || tr.label==='短期加速' || tr.label==='近期翻正'){ state.accel++; state.score += 1; }
+    if(verdict==='衰退警戒' || tr.label==='尖峰衰退' || tr.label==='短期轉弱'){ state.weak++; state.score -= 1; }
+    if(verdict==='反向/失效' || tr.label==='反向失效'){ state.broken++; state.score -= 2; }
+    if(verdict==='混合') { state.mixed++; }
+    if(key==='kbar' && (verdict==='衰退警戒' || verdict==='反向/失效' || tr.label==='尖峰衰退' || tr.label==='短期轉弱')) state.kbarWeak=true;
+    if(key==='mom' && (verdict==='穩定有效' || verdict==='短期增強') && sm.short.ic!==null && sm.short.ic>0.05) state.momHealthy=true;
+    if(key==='score' && (verdict==='穩定有效' || verdict==='短期增強') && sm.short.ic!==null && sm.short.ic>0.04) state.totalHealthy=true;
+  });
+  return state;
+}
+
+function calcMarketPhaseFromFH(fh, shortN, longN){
+  shortN = shortN || 6; longN = longN || 36;
+  if(!fh || !fh.months || fh.months.length < Math.max(8, shortN+2)){
+    return {phase:0, title:'資料不足', state:'Insufficient Data', color:'var(--mu)', exposureBand:'--', risk:'--', confidence:0, bullets:['樣本不足，先執行回測/因子健康度。'], metrics:{}};
+  }
+  var rr = (typeof riskRegimeLevelFromHealthSummary === 'function') ? riskRegimeLevelFromHealthSummary(fh, shortN, longN) : calc3DSignalLight(fh.months, shortN, longN);
+  var level = rr.level || rr.regime || 'YELLOW';
+  var d = rr.details || {};
+  var curve = calcFactorCurveStateMP(fh, shortN, longN);
+  var heat = calcHeatmapStructureStatsMP(fh, 6);
+  var totalIC = d.totalIC;
+  if(totalIC===null || totalIC===undefined || !isFinite(totalIC)) totalIC = heat.latestTotalIC;
+  var spread = d.spreadShort;
+  var momDir = d.momDir || '';
+  var volDir = d.volDir || '';
+  var divRatio = heat.n ? heat.divergeCount / heat.n : 0;
+  var negRatio = heat.n ? heat.negTotalCount / heat.n : 0;
+  var breadth = heat.avgPositiveRatio;
+  var phase=2, title='Phase 2 初升/修復段', state='Recovery / Early Uptrend', color='var(--ye)', exposureBand='50–75%', risk='中', bullets=[];
+
+  var isRiskOff = (level==='RED') || (level==='ORANGE' && negRatio>=0.5) || (totalIC!==null && totalIC<0 && negRatio>=0.5 && heat.divergeCount>=2);
+  var isFragmented = (heat.divergeCount>=2 || divRatio>=0.34 || curve.kbarWeak || (breadth!==null && breadth<0.55)) && (level==='GREEN' || level==='YELLOW' || totalIC>0);
+  var isStrongTrend = (level==='GREEN' && curve.momHealthy && curve.totalHealthy && heat.divergeCount<=1 && negRatio<=0.25 && totalIC!==null && totalIC>0.04);
+  var isOverExtended = (level==='GREEN' && totalIC!==null && totalIC>0.10 && spread!==null && spread>0.04 && (volDir==='UP' || curve.weak>=2 || heat.mixedCount>=2));
+  var isBottomChaos = (level==='ORANGE' || level==='RED') && totalIC!==null && totalIC<=0.02 && heat.trendCount===0 && heat.divergeCount<=1 && (breadth===null || breadth<0.5);
+
+  if(isRiskOff){ phase=6; title='Phase 6 崩跌/去槓桿段'; state='Deleveraging / Risk-Off'; color='var(--re)'; exposureBand='0–33%'; risk='高'; }
+  else if(isFragmented){ phase=5; title='Phase 5 結構分裂段'; state='Fragmented Bull / Late Cycle'; color='var(--tw)'; exposureBand='50–85%'; risk='偏高'; }
+  else if(isOverExtended){ phase=4; title='Phase 4 過熱延伸段'; state='Over-extended Trend'; color='var(--ye)'; exposureBand='66–90%'; risk='中高'; }
+  else if(isStrongTrend){ phase=3; title='Phase 3 主升段'; state='Broad Trend Expansion'; color='var(--gr)'; exposureBand='90–100%'; risk='中低'; }
+  else if(isBottomChaos){ phase=1; title='Phase 1 底部混亂期'; state='Bottoming / Noisy Repair'; color='var(--mu)'; exposureBand='25–50%'; risk='中高'; }
+
+  if(level==='GREEN') bullets.push('3D Matrix 仍為 GREEN：趨勢尚未破壞。');
+  if(level==='YELLOW') bullets.push('3D Matrix 為 YELLOW：可操作但不宜加碼。');
+  if(level==='ORANGE' || level==='RED') bullets.push('3D Matrix 進入警戒：排名有效性下降。');
+  if(curve.momHealthy) bullets.push('Momentum N-Trend 仍健康，核心動能因子尚未失效。');
+  if(curve.totalHealthy) bullets.push('Total Score 仍有正向 IC，主策略還有 alpha。');
+  if(curve.kbarWeak) bullets.push('K-Bar 衰退，短線型態 alpha 正在轉弱。');
+  if(heat.divergeCount>=2) bullets.push('近6期 Heatmap 出現 '+heat.divergeCount+' 次 DIVERGE，因子同步性下降。');
+  if(heat.negTotalCount>=2) bullets.push('近6期 Total Score IC 有 '+heat.negTotalCount+' 次為負，短期失真升高。');
+  if(breadth!==null && breadth<0.55) bullets.push('IC 正值廣度偏窄，市場主線集中或分裂。');
+  if(!bullets.length) bullets.push('目前沒有明顯極端訊號，依既有曝險規則操作。');
+
+  var confidence = 50;
+  confidence += Math.min(20, Math.max(0, fh.months.length-12));
+  if(heat.n>=6) confidence += 10;
+  if(level==='GREEN' || level==='RED') confidence += 5;
+  if(isFragmented || isStrongTrend || isRiskOff) confidence += 10;
+  confidence = Math.max(0, Math.min(95, confidence));
+
+  return {phase:phase,title:title,state:state,color:color,exposureBand:exposureBand,risk:risk,confidence:confidence,bullets:bullets,regime:rr,curve:curve,heat:heat,metrics:{level:level,totalIC:totalIC,spread:spread,divRatio:divRatio,negRatio:negRatio,breadth:breadth,momDir:momDir,volDir:volDir}};
+}
+
+function renderMarketPhaseDashboardFromFH(fh, shortN, longN){
+  var mp = calcMarketPhaseFromFH(fh, shortN, longN);
+  function fmtNum(v,d){ return (v===null||v===undefined||!isFinite(v))?'--':v.toFixed(d===undefined?3:d); }
+  function fmtPct(v){ return (v===null||v===undefined||!isFinite(v))?'--':((v*100).toFixed(0)+'%'); }
+  var html='<div class="card" style="border-top:3px solid '+mp.color+';margin-bottom:10px">';
+  html+='<div class="ct">Market Phase Dashboard <span style="color:'+mp.color+';font-size:12px">'+mp.title+'</span></div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:8px">';
+  html+='<div class="ib2"><b>市場位階</b><br><span style="font-size:18px;color:'+mp.color+';font-weight:700">Phase '+(mp.phase||'--')+'</span><br><span style="color:var(--mu)">'+mp.state+'</span></div>';
+  html+='<div class="ib2"><b>建議曝險帶</b><br><span class="mono" style="font-size:18px;color:'+mp.color+';font-weight:700">'+mp.exposureBand+'</span><br><span style="color:var(--mu)">非強制下單，只是位階建議</span></div>';
+  html+='<div class="ib2"><b>風險等級</b><br><span style="font-size:18px;color:'+mp.color+';font-weight:700">'+mp.risk+'</span><br><span style="color:var(--mu)">Confidence '+mp.confidence+'%</span></div>';
+  html+='<div class="ib2"><b>結構狀態</b><br><span class="mono" style="font-size:13px;color:'+mp.color+';font-weight:700">'+(mp.heat.lastTrendLabel||'--')+'</span><br><span style="color:var(--mu)">Diverge '+mp.heat.divergeCount+'/'+mp.heat.n+'｜NegTotal '+mp.heat.negTotalCount+'/'+mp.heat.n+'</span></div>';
+  html+='</div>';
+  html+='<div class="tw-wrap" style="max-height:none;margin-bottom:8px"><table><thead><tr><th>Layer</th><th>判斷</th><th>數據</th></tr></thead><tbody>';
+  html+='<tr><td>3D Matrix</td><td style="color:'+mp.color+';font-weight:700">'+(mp.metrics.level||'--')+' / '+(mp.metrics.momDir||'--')+' + Vol '+(mp.metrics.volDir||'--')+'</td><td class="mono">TotalIC '+fmtNum(mp.metrics.totalIC,3)+'｜Spread '+fmtPct(mp.metrics.spread)+'</td></tr>';
+  html+='<tr><td>N-Trend Curve</td><td>Healthy '+mp.curve.healthy+'｜Weak '+mp.curve.weak+'｜Broken '+mp.curve.broken+'</td><td class="mono">Mom '+(mp.curve.labels.mom||'--')+'｜K-Bar '+(mp.curve.labels.kbar||'--')+'</td></tr>';
+  html+='<tr><td>IC Heatmap</td><td>Diverge '+mp.heat.divergeCount+'｜Trend '+mp.heat.trendCount+'｜Decay '+mp.heat.decayCount+'</td><td class="mono">PositiveBreadth '+fmtPct(mp.metrics.breadth)+'｜Dispersion '+fmtNum(mp.heat.avgAbsDispersion,3)+'</td></tr>';
+  html+='</tbody></table></div>';
+  html+='<div class="ib2"><b>判斷理由：</b><br>'+mp.bullets.map(function(x){return '・'+x;}).join('<br>')+'</div>';
+  html+='</div>';
+  return html;
+}
+
+function renderFactorHealthResult(fh,shortN,longN){
+  // AUDIT: factor health status using fhSummarizeFactor
+  if (DEBUG_AUDIT && fh && fh.months && fh.factors) {
+    fh.factors.forEach(function(f) {
+      var key = f[0], name = f[1];
+      var summ = fhSummarizeFactor(fh, key, shortN || 6, longN || 36);
+      if (summ && summ.short && summ.long) {
+        auditFactorHealth(name, summ.long.ic, summ.short.ic);
+      }
+    });
+  }
+  if(!fh || !fh.months || !fh.months.length) return '<div class="ib2">資料不足：請先抓取資料並建立回測快取。</div>';
+  var html=renderRiskRegimeBannerFromFH(fh,shortN,longN);
+  html+=renderMarketPhaseDashboardFromFH(fh,shortN,longN);
+  html+='<div class="ib2" style="margin-bottom:8px;border-color:var(--ac)">基準：本頁使用與實際策略相同的 <b>scoreDate / tradeStart / tradeEnd</b>。若設定 T-4 與 T-(N-1) 成交，IC 也會用同一段持有區間。p-value 為近似值，小樣本 n&lt;30 僅供參考。</div>';
+  html+='<div class="tw-wrap" style="max-height:none"><table><thead><tr><th>Factor</th><th>Short '+shortN+'</th><th>Long '+longN+'</th><th>IC Δ</th><th>Short Spread</th><th>Long Spread</th><th>Contribution Δ</th><th>Status</th></tr></thead><tbody>';
+  fh.factors.forEach(function(f){
+    var key=f[0], name=f[1], sm=fhSummarizeFactor(fh,key,shortN,longN), d=(sm.short.ic!==null&&sm.long.ic!==null)?sm.short.ic-sm.long.ic:null;
+    var vd=fhVerdict(sm); var vc=vd==='衰退警戒'?'var(--re)':(vd==='短期增強'||vd==='穩定有效'?'var(--gr)':'var(--ye)');
+    html+='<tr><td style="font-weight:700;color:var(--wh)">'+name+'</td><td class="mono" style="color:'+fhColor(sm.short.ic)+'">'+fhFmtNum(sm.short.ic,3)+' / ICIR '+fhFmtNum(sm.short.icir,2)+'</td><td class="mono" style="color:'+fhColor(sm.long.ic)+'">'+fhFmtNum(sm.long.ic,3)+' / ICIR '+fhFmtNum(sm.long.icir,2)+'</td><td class="mono" style="color:'+fhColor(d)+'">'+fhFmtNum(d,3)+'</td><td class="mono" style="color:'+fhColor(sm.short.spread)+'">'+fhFmtPct(sm.short.spread)+'</td><td class="mono" style="color:'+fhColor(sm.long.spread)+'">'+fhFmtPct(sm.long.spread)+'</td><td class="mono" style="color:'+fhColor((sm.short.contrib||0)-(sm.long.contrib||0))+'">'+fhFmtNum((sm.short.contrib||0)-(sm.long.contrib||0),3)+'</td><td style="font-weight:700;color:'+vc+'">'+vd+'</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  html+=renderFactorTrendCurve(fh, fhGetTrendWindows());
+
+  // Enhanced heatmap with IC Trend indicators
+  html+='<div class="card" style="border-top:3px solid var(--tw);margin-top:10px"><div class="ct">IC Heatmap + Trend <span style="font-size:9px;color:var(--mu);font-weight:400">3p slope | streak persistence</span></div>';
+  html+='<div class="tw-wrap" style="max-height:none"><table><thead><tr><th>Month</th>';
+  html+=fh.factors.map(function(f){return '<th>'+f[1]+'</th>';}).join('');
+  html+='<th style="color:var(--ye)">IC Trend</th></tr></thead><tbody>';
+
+  var heatRows = fh.months.slice(-12);
+  var allRows = fh.months;
+  heatRows.slice().reverse().forEach(function(m, ri){
+    var rowIdx = allRows.length - 1 - ri; // index in allRows
+    html+='<tr><td class="mono">'+m.month+'</td>';
+    html+=fh.factors.map(function(f){
+      var v=m.factors[f[0]]?m.factors[f[0]].ic:null;
+      return '<td class="mono" style="color:'+fhColor(v)+';font-weight:700">'+fhFmtNum(v,3)+'</td>';
+    }).join('');
+
+    // Compute rolling Mom/Vol trend at this row's point in time
+    var trendLabel = '--', trendColor = 'var(--mu)';
+    if (rowIdx >= 2) {
+      var momICs = [];
+      var volICs = [];
+      for (var ti = Math.max(0, rowIdx - 2); ti <= rowIdx; ti++) {
+        var mr = allRows[ti];
+        if (mr.factors && mr.factors.mom && mr.factors.mom.ic !== null) momICs.push(mr.factors.mom.ic);
+        if (mr.factors && mr.factors.vol && mr.factors.vol.ic !== null) volICs.push(mr.factors.vol.ic);
+      }
+      if (momICs.length >= 2 && volICs.length >= 2) {
+        var mSlope = (momICs[momICs.length-1] - momICs[0]) / (momICs.length - 1);
+        var vSlope = (volICs[volICs.length-1] - volICs[0]) / (volICs.length - 1);
+        if (mSlope > 0.01 && vSlope < -0.01) {
+          trendLabel = '\u2197 TREND'; trendColor = 'var(--gr)';
+        } else if (mSlope < -0.01 && vSlope > 0.01) {
+          trendLabel = '\u26a0 DIVERGE'; trendColor = 'var(--re)';
+        } else if (mSlope < -0.01 && vSlope < -0.01) {
+          trendLabel = '\u2198 DECAY'; trendColor = 'var(--ye)';
+        } else if (mSlope > 0.01 && vSlope > 0.01) {
+          trendLabel = '\u2194 MIXED'; trendColor = 'var(--mu)';
+        } else {
+          trendLabel = '\u2192 FLAT'; trendColor = 'var(--mu)';
+        }
+      }
+    }
+    html+='<td style="font-size:11px;font-weight:700;color:'+trendColor+'">'+trendLabel+'</td></tr>';
+  });
+
+  html+='</tbody></table></div></div>';
+  return html;
+}
+function calcFactorHealthFromCachedRecords(records){
+  var factors=[['mom','Momentum'],['bias','Bias'],['slope','Slope'],['vol','Volatility'],['kbar','K-Bar'],['score','Total Score']];
+  var months=[];
+  (records||[]).forEach(function(r){
+    if (r && r.factorHealthRow) months.push(r.factorHealthRow);
+  });
+  if (months.length) return {months:months, factors:factors};
+  return calcFactorHealthFromRecords(records||[]);
+}
+
+async function runFactorHealth(){
+  if(!(await ensureDataReadyForAnalysis('factor health'))) return;
+  var panel=document.getElementById('factorHealthRes'); if(panel) panel.innerHTML='<div class="ib2">計算中...</div>';
+  showL('Factor Health...');
+  setTimeout(function(){
+    try{
+      var mh=parseInt(document.getElementById('btH')?document.getElementById('btH').value:'6')||6;
+      var mode=(typeof getWeightMode==='function')?getWeightMode():'eq';
+      var tn=parseInt(document.getElementById('btSignalTN')?document.getElementById('btSignalTN').value:'4',10); if(!isFinite(tn)) tn=4;
+      var records=runBTcore(mh,mode,{signalN:tn,tnExecMode:getTNExecMode()});
+      var shortN=parseInt(document.getElementById('fhShortWin')?document.getElementById('fhShortWin').value:'6',10)||6;
+      var longN=parseInt(document.getElementById('fhLongWin')?document.getElementById('fhLongWin').value:'36',10)||36;
+      var fh=calcFactorHealthFromCachedRecords(records||[]);
+      if(panel) panel.innerHTML=renderFactorHealthResult(fh,shortN,longN);
+      hideL();
+    }catch(e){ hideL(); if(panel)panel.innerHTML='<div class="ib2" style="color:var(--re)">Factor Health error: '+e.message+'</div>'; console.error(e); }
+  },80);
+}
